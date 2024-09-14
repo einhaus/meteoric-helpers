@@ -1,0 +1,61 @@
+{
+    "compilerOptions": {
+        "lib": [
+            "es2022",
+            "dom"
+        ],
+        "types": [
+            "node"
+        ],
+        "baseUrl": ".",
+        "resolveJsonModule": true,
+        "rootDir": "./src",
+        "outDir": "./dist",
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        //"verbatimModuleSyntax": false,
+        "declaration": true,
+        "sourceMap": true,
+        "suppressImplicitAnyIndexErrors": false,
+        "module": "Node16",
+        "target": "es2022",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "moduleResolution": "node16",
+        "allowUnusedLabels": false,
+        "allowUnreachableCode": false,
+        "exactOptionalPropertyTypes": true,
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitOverride": true,
+        "noImplicitReturns": true,
+        "noImplicitAny": true,
+        "noPropertyAccessFromIndexSignature": false,
+        "noUncheckedIndexedAccess": true,
+        "noUnusedLocals": false,
+        "noUnusedParameters": true,
+        "checkJs": false,
+        "strictNullChecks": true,
+        "alwaysStrict": true,
+        "noImplicitThis": true
+    },
+    "exclude": [
+        "./node_modules/**/*",
+        "node_modules",
+        "dist"
+    ],
+    "include": [
+        "./src/**/*"
+    ],
+    "ts-node": {
+        "files": true,
+        "esm": true,
+        "moduleTypes": {
+            "node": "es2022"
+        },
+        "require": [
+            "tsconfig-paths/register"
+        ]
+    }
+}
