@@ -8,7 +8,7 @@
   "description": "",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -v && node -v && tsx -r tsconfig-paths/register './utilities/buildBarrelFile.ts' && tsc -p .",
     "test": "vitest --dir ./test"
   },
   "devDependencies": {
@@ -18,11 +18,12 @@
     "@types/eslint__eslintrc": "^2.1.2",
     "@types/eslint__js": "^8.42.3",
     "@types/express": ">=4.17.21",
-    "@types/node": ">=22.5.4",
+    "@types/node": ">=22.5.5",
     "@types/nodemailer": "^6.4.15",
     "@types/npm": "^7.19.3",
     "@typescript-eslint/eslint-plugin": "^8.5.0",
     "@typescript-eslint/parser": "^8.5.0",
+    "barrelsby": "^2.8.1",
     "class-transformer": "^0.5.1",
     "eslint": "^9.10.0",
     "eslint-config-prettier": ">=9.1.0",
@@ -33,7 +34,7 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.6.2",
     "typescript-eslint": "^8.5.0",
-    "vitest": "^2.0.5"
+    "vitest": "^2.1.1"
   },
   "publishConfig": {
     "access": "restricted"
