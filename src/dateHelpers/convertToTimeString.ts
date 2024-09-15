@@ -1,4 +1,3 @@
-
 export const convertToTimeString = (time: number): string => {
     // Extract hours and minutes from the time parameter
     const hours = Math.floor(time / 100);
