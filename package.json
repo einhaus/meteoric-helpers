@@ -39,5 +39,8 @@
   "publishConfig": {
     "access": "restricted"
   },
-  "private": true
+  "private": true,
+  "dependencies": {
+    "dayjs": "^1.11.13"
+  }
 }

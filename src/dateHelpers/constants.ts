@@ -1,0 +1,11 @@
+export const ymd = 'YYYY-MM-DD';
+export const ymdhms = 'YYYY-MM-DD HH:mm:ss';
+export const ymdhm = 'YYYY-MM-DD HH:mm';
+export const ymdhmss = 'YYYY-MM-DD HH:mm:ss.SSS';
+export const marketCloseDay = 5;
+export const marketOpenHour = 9;
+export const marketOpenMinute = 30;
+export const marketCloseHour = 16;
+export const marketCloseMinute = 0;
+export type YYYYMMDD = `${number}${number}${number}${number}-${number}${number}-${number}${number}`;
+export type DateInterval = 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year';
