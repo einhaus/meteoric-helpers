@@ -46,7 +46,6 @@ export default [
                 projectFolderIgnoreList: ['**/node_modules/**', '**/dist/**', '**/test/**']
             }
         },
-
         rules: {
             'prefer-arrow-callback': 'error',
             'sonarjs/no-collapsible-if': 'error',
