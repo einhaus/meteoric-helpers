@@ -1,8 +1,17 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import { SendEmailCommand, SESClient, type SendEmailCommandInput, type SendEmailCommandOutput } from '@aws-sdk/client-ses';
 
-export const sendEmail = async (config: { toEmail: string; fromEmail: string; awsRegion: string; subject: string; body?: string }) => {
-    const { toEmail, subject, fromEmail, awsRegion, body = '' } = config;
+export const sendEmail = async (config: {
+    toEmail: string;
+    fromEmail: string;
+    awsRegion: string;
+    subject: string;
+    body?: string;
+    replyTo?: string;
+}) => {
+    const { toEmail, subject, fromEmail, awsRegion, replyTo, body = '' } = config;
+
+    const replyToAddresses = replyTo ? [replyTo] : [];
 
     const params = {
         Destination: {
@@ -26,7 +35,7 @@ export const sendEmail = async (config: { toEmail: string; fromEmail: string; aw
             }
         },
         Source: fromEmail,
-        ReplyToAddresses: []
+        ReplyToAddresses: replyToAddresses
     };
 
     const sendEmailCommand = new SendEmailCommand(params);
