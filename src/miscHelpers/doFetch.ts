@@ -61,25 +61,27 @@ export const doFetch = async <T>(requestUrl: string, config?: RequestConfig): Pr
 
             if (!shouldRetryFailure) {
                 const message = await extractErrorMessage(response);
-                return returnError(message, urlString, response, response.status);
+                return returnError({ message, url: urlString, logDirectory });
             }
         } catch (error: unknown) {
-            if (attempts >= timesToAttempt - 1)
-                return returnError((error as Error).message, urlWithParams.toString(), new Response(), attempts);
+            if (attempts >= timesToAttempt - 1) return returnError({ message: (error as Error).message, url: urlWithParams.toString() });
             await sleep(FETCH_DEFAULT_RETRY_MS);
         }
     }
 
-    return returnError('Request failed after loop', urlWithParams.toString(), new Response());
+    return returnError({ message: 'Request failed after loop', url: urlWithParams.toString(), response: new Response() });
 };
 
-const returnError = (message: string, url: string, response: Response, statusCode?: number): ErrorResponse => {
-    appendToFile(
-        `${logDirectory}doFetchErrors.log`,
-        `${getDate({ format: 'ymdhms' })} ${url} ${JSON.stringify(response)} ${message} ${statusCode}`
-    );
+const returnError = (config: { message: string; url: string; response?: Response; logDirectory?: string }): ErrorResponse => {
+    const { message, url, response, logDirectory } = config;
 
-    return statusCode ? { isError: true, message, statusCode } : { isError: true, message };
+    if (logDirectory)
+        appendToFile(
+            `${logDirectory}doFetchErrors.log`,
+            `${getDate({ format: 'ymdhms' })} ${url} ${JSON.stringify(response)} ${message} ${response?.status}`
+        );
+
+    return response?.status ? { isError: true, message, statusCode: response.status } : { isError: true, message };
 };
 
 // eslint-disable-next-line complexity
@@ -122,7 +124,8 @@ const configureFetchRequest = (requestUrl: string, config?: RequestConfig) => {
 
         return { fetchConfig, urlWithParams };
     } catch (error: unknown) {
-        appendToFile(`${logDirectory}doFetchErrors.log`, `doFetch: ${error?.toString()} ${JSON.stringify(requestUrl)}`);
+        if (config?.logDirectory)
+            appendToFile(`${logDirectory}doFetchErrors.log`, `doFetch: ${error?.toString()} ${JSON.stringify(requestUrl)}`);
 
         return { fetchConfig, urlWithParams: new URL(requestUrl) };
     }
@@ -165,15 +168,17 @@ const parseResponse = async <T>(response: Response): Promise<T | ErrorResponse> 
         try {
             return (await response.json()) as T;
         } catch {
-            return returnError('JSON parsing error', response.url, response, response.status);
+            return returnError({ message: 'JSON parsing error', url: response.url, response });
         }
     }
 
+    // Fallback to text, but still try to parse it as JSON just in case
+    const text = await response.text();
+
     try {
-        const text = await response.text();
         return JSON.parse(text) as T;
     } catch {
-        return returnError('Text parsing error', response.url, response, response.status);
+        return text as T;
     }
 };
 
@@ -198,7 +203,7 @@ const handleRetry = async (details: {
     timeToSleep = !retryAfter && config?.retryDelayMilliseconds ? config.retryDelayMilliseconds : timeToSleep;
 
     const SLEEP_TIME_LOGGING_THRESHOLD = 100000;
-    if (timeToSleep > SLEEP_TIME_LOGGING_THRESHOLD)
+    if (timeToSleep > SLEEP_TIME_LOGGING_THRESHOLD && config?.logDirectory)
         appendToFile(`${logDirectory}doFetchErrors.log`, `doFetch: ${urlString} ${JSON.stringify(response)} timeToSleep: ${timeToSleep}`);
 
     await sleep(timeToSleep);

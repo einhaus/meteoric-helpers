@@ -1,14 +1,19 @@
-import { createWriteStream } from 'fs';
-import { type IncomingMessage, get } from 'http';
+import { type IncomingMessage, get as httpGet } from 'http';
+import { get as httpsGet } from 'https';
+import { URL } from 'url';
 import { sleep } from '../miscHelpers/sleep.js';
+import { createWriteStream } from 'fs';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 10000;
 
 export const downloadFile = async (url: string, localFilePath: string, retryCount = 1): Promise<string | void> => {
     try {
+        const parsedUrl = new URL(url);
+        const getFunction = parsedUrl.protocol === 'https:' ? httpsGet : httpGet;
+
         const res = await new Promise<IncomingMessage>((resolve, reject) => {
-            get(url, (response) => {
+            getFunction(url, (response) => {
                 if (response.statusCode === 200) {
                     resolve(response);
                 } else {

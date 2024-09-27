@@ -1,4 +1,5 @@
 export * from './arrayHelpers/checkIndexExists.js';
+export * from './arrayHelpers/findFirstGreaterKeyIndex.js';
 export * from './arrayHelpers/findIndexFromMapValue.js';
 export * from './arrayHelpers/first.js';
 export * from './arrayHelpers/getKeyByValue.js';
@@ -49,6 +50,7 @@ export * from './mathHelpers/averageNumberArrayFast.js';
 export * from './mathHelpers/calculatePercentageChangeFast.js';
 export * from './mathHelpers/calculatePercentileRank.js';
 export * from './mathHelpers/calculateSharpeRatio.js';
+export * from './mathHelpers/cartesianProduct.js';
 export * from './mathHelpers/erf.js';
 export * from './mathHelpers/findClosestValueInArray.js';
 export * from './mathHelpers/generateRangeArray.js';
