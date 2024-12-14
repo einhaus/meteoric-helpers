@@ -3,6 +3,7 @@ import { get as httpsGet } from 'https';
 import { URL } from 'url';
 import { sleep } from '../miscHelpers/sleep.js';
 import { createWriteStream } from 'fs';
+import { inspect } from 'util';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 10000;
@@ -34,7 +35,7 @@ export const downloadFile = async (url: string, localFilePath: string, retryCoun
             await sleep(RETRY_DELAY_MS * retryCount);
             return downloadFile(url, localFilePath, retryCount + 1);
         } else {
-            console.error(`${url} downloadFile failed with error: ${JSON.stringify(error)}`);
+            console.error(`${url} downloadFile failed with error:`, inspect(error, { depth: null }));
         }
     }
 };

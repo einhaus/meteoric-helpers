@@ -1,3 +1,4 @@
+// to make sure option sell quantity is divisible by 100
 export const getOptionSellQuantity = (targetSharesToSell: number, shares: number): number => {
     const closestDivisibleBy100Up = Math.ceil(targetSharesToSell / 100) * 100;
     const closestDivisibleBy100Down = Math.floor(targetSharesToSell / 100) * 100;

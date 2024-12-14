@@ -1,8 +1,9 @@
 import dayjs from 'dayjs';
 
 export const getDatePieces = (inputDateTime: string | number | Date = '') => {
-    let dateObject = inputDateTime && typeof inputDateTime !== 'number' ? dayjs(inputDateTime) : dayjs();
+    let dateObject = inputDateTime && typeof inputDateTime !== 'number' ? dayjs(inputDateTime) : null;
     dateObject = typeof inputDateTime === 'number' ? dayjs.unix(inputDateTime) : dateObject;
+    if (!dateObject) dateObject = dayjs();
     const minute = dateObject.minute();
     const weekday = dateObject.day();
     const date = dateObject.date();

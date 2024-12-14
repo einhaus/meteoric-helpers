@@ -6,7 +6,7 @@ dayjs.extend(utc);
 export const getDateFromUtc = (
     dateTime: string | Date | number,
     returnFormat: 'ymd' | 'ymdhms' | 'unix' | 'ymdhm' | 'readable1' = 'ymd',
-    timezone?: 'Etc/UTC' | 'America/New_York' | 'America/Chicago'
+    timezone?: 'Etc/UTC' | 'America/New_York' | 'America/Chicago' | 'America/Denver' | 'America/Los_Angeles'
 ): string | number => {
     let dateObject = dayjs.utc(dateTime);
     if (timezone) dateObject = dateObject.tz(timezone);

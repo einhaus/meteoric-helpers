@@ -1,8 +1,7 @@
-// binary search to find the first key greater than a target value
 export const findFirstGreaterKeyIndex = (keys: number[], target: number): number => {
     let low = 0;
     let high = keys.length - 1;
-    let result = keys.length; // Default to length if target is larger than all keys
+    let result = -1; // Default to -1 if target is larger than all keys
 
     while (low <= high) {
         const mid = Math.floor((low + high) / 2);

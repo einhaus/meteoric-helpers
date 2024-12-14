@@ -47,7 +47,6 @@ export const doFetch = async <T>(requestUrl: string, config?: RequestConfig): Pr
         try {
             const response = await fetchWithTimeout(urlWithParams, fetchConfig);
             if (response.ok) return await parseResponse<T>(response);
-
             const urlString = urlWithParams.toString();
 
             const shouldRetryFailure = await handleRetry({
@@ -199,7 +198,9 @@ const handleRetry = async (details: {
         response.headers.get('X-Retry-After') ??
         response.headers.get('retry-after');
 
-    let timeToSleep = retryAfter && parseInt(retryAfter) < 500 ? parseInt(retryAfter) * 1000 : FETCH_DEFAULT_RETRY_MS;
+    let timeToSleep =
+        retryAfter && parseInt(retryAfter) > 0 && parseInt(retryAfter) < 500 ? parseInt(retryAfter) * 1000 : FETCH_DEFAULT_RETRY_MS;
+
     timeToSleep = !retryAfter && config?.retryDelayMilliseconds ? config.retryDelayMilliseconds : timeToSleep;
 
     const SLEEP_TIME_LOGGING_THRESHOLD = 100000;
@@ -212,7 +213,7 @@ const handleRetry = async (details: {
 
 const extractErrorMessage = async (response: Response): Promise<string> => {
     const text = typeof response.text === 'function' ? await response.text() : '';
-    const message = text || response.statusText;
+    const message = text?.trim().length ? text : response.statusText;
 
     try {
         const json = JSON.parse(text) as Record<string, string>;
