@@ -3,5 +3,10 @@
         "src"
     ],
     "ext": "ts",
-    "exec": "npm run build"
+    "exec": "tsx -r tsconfig-paths/register './utilities/buildBarrelFile.ts'",
+    "ignore": [
+        "dist",
+        "dist-*",
+        "src/index.ts"
+    ]
 }

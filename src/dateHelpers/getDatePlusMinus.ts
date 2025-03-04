@@ -15,8 +15,10 @@ export const getDatePlusMinus = (
     dateObject = operator === '+' ? dateObject.add(interval, intervalType) : dateObject.subtract(interval, intervalType);
     dateObject = startOrEndOfDay === 'start' ? dateObject.startOf('day') : dateObject;
     dateObject = startOrEndOfDay === 'end' ? dateObject.endOf('day') : dateObject;
+
     let dateFormatted: string | number = returnFormat === 'ymd' ? dateObject.format(ymd) : '';
     dateFormatted = returnFormat === 'ymdhms' ? dateObject.format(ymdhms) : dateFormatted;
     dateFormatted = returnFormat === 'ymdhms' ? dateObject.format(ymdhms) : dateFormatted;
+
     return dateFormatted;
 };

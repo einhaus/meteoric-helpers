@@ -1,6 +1,6 @@
 {
   "name": "@einhaus/meteoric-helpers",
-  "version": "1.0.17",
+  "version": "1.0.34",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "author": "Meteoric, LLC",
@@ -11,30 +11,30 @@
     "clean": "rm -rf ./dist",
     "build": "npm run clean && tsc -v && node -v && tsx -r tsconfig-paths/register './utilities/buildBarrelFile.ts' && tsc -p .",
     "test": "vitest --dir ./test",
-    "watch": "nodemon"
+    "build:barrel": "tsx -r tsconfig-paths/register './utilities/buildBarrelFile.ts'",
+    "watch": "npm run clean && npm run build:barrel && tsc -p . && concurrently \"tsc -p . --watch --preserveWatchOutput\" \"nodemon\""
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/einhaus/meteoric-helpers.git"
   },
   "devDependencies": {
-    "@eslint/js": "^9.13.0",
-    "@types/eslint__eslintrc": "^2.1.2",
-    "@types/eslint__js": "^8.42.3",
+    "@eslint/js": "^9.21.0",
     "@types/mime-types": "^2.1.4",
-    "@types/node": ">=22.8.4",
-    "@typescript-eslint/eslint-plugin": "^8.12.2",
-    "@typescript-eslint/parser": "^8.12.2",
-    "eslint": "^9.13.0",
-    "eslint-config-prettier": ">=9.1.0",
-    "eslint-plugin-prettier": ">=5.2.1",
-    "eslint-plugin-sonarjs": "^2.0.4",
-    "prettier": "3.3.3",
-    "tsc-alias": "^1.8.10",
+    "@types/node": ">=22.13.9",
+    "@typescript-eslint/eslint-plugin": "^8.26.0",
+    "@typescript-eslint/parser": "^8.26.0",
+    "concurrently": "^9.1.2",
+    "eslint": "^9.21.0",
+    "eslint-config-prettier": ">=10.0.2",
+    "eslint-plugin-prettier": ">=5.2.3",
+    "eslint-plugin-sonarjs": "^3.0.2",
+    "prettier": "3.5.3",
+    "tsc-alias": "^1.8.11",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.6.3",
-    "typescript-eslint": "^8.12.2",
-    "vitest": "^2.1.4"
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.0",
+    "vitest": "^3.0.7"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/",
@@ -42,8 +42,8 @@
   },
   "private": false,
   "dependencies": {
-    "@aws-sdk/client-ses": "^3.682.0",
-    "@eslint/eslintrc": "^3.1.0",
+    "@aws-sdk/client-ses": "^3.758.0",
+    "@eslint/eslintrc": "^3.3.0",
     "dayjs": "^1.11.13",
     "mime-types": "^2.1.35"
   }

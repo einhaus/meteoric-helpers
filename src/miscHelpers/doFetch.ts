@@ -30,10 +30,10 @@ export const FETCH_DEFAULT_RETRY_MS = 10000;
 export const FETCH_DEFAULT_TIMEOUT_MS = 10000;
 export const FETCH_RETRY_STATUS_CODES = [429, 500, 502, 503, 504];
 
-let logDirectory = '';
+let doFetchErrorsLogDirectory = '';
 
 export const doFetch = async <T>(requestUrl: string, config?: RequestConfig): Promise<T | ErrorResponse> => {
-    if (config?.logDirectory) ({ logDirectory } = config);
+    if (config?.logDirectory) ({ logDirectory: doFetchErrorsLogDirectory } = config);
     const { fetchConfig, urlWithParams } = configureFetchRequest(requestUrl, config);
     const timesToAttempt = (config?.timesToRetry ?? 2) + 1;
     const statusCodesToRetry = config?.statusCodesToRetry ?? FETCH_RETRY_STATUS_CODES;
@@ -41,12 +41,16 @@ export const doFetch = async <T>(requestUrl: string, config?: RequestConfig): Pr
     const ATTEMPTS_LOGGING_THRESHOLD = 10;
 
     for (let attempts = 0; attempts < timesToAttempt; attempts++) {
-        if ((attempts > ATTEMPTS_LOGGING_THRESHOLD || timesToAttempt > ATTEMPTS_LOGGING_THRESHOLD) && logDirectory)
-            appendToFile(`${logDirectory}doFetchErrors.log`, `doFetch: ${attempts} ${timesToAttempt}`);
+        if ((attempts > ATTEMPTS_LOGGING_THRESHOLD || timesToAttempt > ATTEMPTS_LOGGING_THRESHOLD) && doFetchErrorsLogDirectory)
+            appendToFile(`${doFetchErrorsLogDirectory}doFetchErrors.log`, `doFetch: ${attempts} ${timesToAttempt}`);
 
         try {
+            const requestStartTime = performance.now();
             const response = await fetchWithTimeout(urlWithParams, fetchConfig);
             if (response.ok) return await parseResponse<T>(response);
+            const responseEndTime = performance.now();
+            const responseTimeMs = responseEndTime - requestStartTime;
+
             const urlString = urlWithParams.toString();
 
             const shouldRetryFailure = await handleRetry({
@@ -55,12 +59,13 @@ export const doFetch = async <T>(requestUrl: string, config?: RequestConfig): Pr
                 attempts,
                 timesToAttempt,
                 config,
-                urlString
+                urlString,
+                responseTimeMs
             });
 
             if (!shouldRetryFailure) {
                 const message = await extractErrorMessage(response);
-                return returnError({ message, url: urlString, logDirectory });
+                return returnError({ message, url: urlString, logDirectory: doFetchErrorsLogDirectory });
             }
         } catch (error: unknown) {
             if (attempts >= timesToAttempt - 1) return returnError({ message: (error as Error).message, url: urlWithParams.toString() });
@@ -77,7 +82,8 @@ const returnError = (config: { message: string; url: string; response?: Response
     if (logDirectory)
         appendToFile(
             `${logDirectory}doFetchErrors.log`,
-            `${getDate({ format: 'ymdhms' })} ${url} ${JSON.stringify(response)} ${message} ${response?.status}`
+            // eslint-disable-next-line max-len
+            `${getDate({ format: 'ymdhms' })} ${url} ${response?.status} ${JSON.stringify(response?.headers)} ${message} ${response?.status}`
         );
 
     return response?.status ? { isError: true, message, statusCode: response.status } : { isError: true, message };
@@ -107,6 +113,13 @@ const configureFetchRequest = (requestUrl: string, config?: RequestConfig) => {
         fetchConfig.headers = { 'Content-Type': 'application/json' };
     } else if (fetchConfig.method === 'DELETE') {
         fetchConfig.headers = { 'Content-Type': 'application/json' };
+    } else if ((fetchConfig.method === 'PUT' || fetchConfig.method === 'PATCH') && config?.params) {
+        if (config.paramsFieldName === 'body') {
+            fetchConfig = { ...fetchConfig, body: JSON.stringify(config.params) };
+            fetchConfig.headers = { ...fetchConfig.headers, 'Content-Type': 'application/json' };
+        } else {
+            fetchConfig.headers = { 'Content-Type': 'application/json' };
+        }
     }
 
     try {
@@ -123,8 +136,8 @@ const configureFetchRequest = (requestUrl: string, config?: RequestConfig) => {
 
         return { fetchConfig, urlWithParams };
     } catch (error: unknown) {
-        if (config?.logDirectory)
-            appendToFile(`${logDirectory}doFetchErrors.log`, `doFetch: ${error?.toString()} ${JSON.stringify(requestUrl)}`);
+        if (doFetchErrorsLogDirectory)
+            appendToFile(`${doFetchErrorsLogDirectory}doFetchErrors.log`, `doFetch: ${error?.toString()} ${JSON.stringify(requestUrl)}`);
 
         return { fetchConfig, urlWithParams: new URL(requestUrl) };
     }
@@ -145,7 +158,7 @@ const fetchWithTimeout = async (requestUrl: string | URL, options: RequestInitWi
 
         const errorLog = {
             status: 408,
-            statusText: `Request timed out - fetchWithTimeout timeout: ${timeout} MS`,
+            statusText: `Request timed out - fetchWithTimeout timeout: ${timeout} MS - ${error2.message}`,
             requestDetails: {
                 url: requestUrl.toString(),
                 method: options.method ?? 'GET',
@@ -156,6 +169,14 @@ const fetchWithTimeout = async (requestUrl: string | URL, options: RequestInitWi
             errorStack: error2.stack ?? ''
         };
 
+        if (doFetchErrorsLogDirectory)
+            appendToFile(
+                `${doFetchErrorsLogDirectory}doFetchErrors.log`,
+                `Do fetch timed out ${getDate({ format: 'ymdhms' })}
+                 ${JSON.stringify(requestUrl)} 
+                 ${JSON.stringify(options)}
+                 ${JSON.stringify(errorLog)}\n\n`
+            );
         return new Response('', { status: 408, statusText: JSON.stringify(errorLog) });
     }
 };
@@ -186,10 +207,11 @@ const handleRetry = async (details: {
     statusCodesToRetry: number[];
     attempts: number;
     timesToAttempt: number;
+    responseTimeMs: number;
     config: RequestConfig | undefined;
     urlString: string;
 }): Promise<boolean> => {
-    const { response, statusCodesToRetry, attempts, timesToAttempt, config, urlString } = details;
+    const { response, statusCodesToRetry, attempts, timesToAttempt, config, urlString, responseTimeMs } = details;
     if (!statusCodesToRetry.includes(response.status) || attempts >= timesToAttempt - 1) return false;
 
     const retryAfter =
@@ -203,9 +225,20 @@ const handleRetry = async (details: {
 
     timeToSleep = !retryAfter && config?.retryDelayMilliseconds ? config.retryDelayMilliseconds : timeToSleep;
 
+    if (doFetchErrorsLogDirectory)
+        appendToFile(
+            `${doFetchErrorsLogDirectory}doFetchErrors.log`,
+            `doFetch Retrying ${getDate({ format: 'ymdhms' })}
+             ${urlString} ${response?.status} ${JSON.stringify(response?.headers)} 
+             Elasped Time: ${responseTimeMs} timeToSleep: ${timeToSleep} ${JSON.stringify(config)}\n\n`
+        );
+
     const SLEEP_TIME_LOGGING_THRESHOLD = 100000;
-    if (timeToSleep > SLEEP_TIME_LOGGING_THRESHOLD && config?.logDirectory)
-        appendToFile(`${logDirectory}doFetchErrors.log`, `doFetch: ${urlString} ${JSON.stringify(response)} timeToSleep: ${timeToSleep}`);
+    if (timeToSleep > SLEEP_TIME_LOGGING_THRESHOLD && doFetchErrorsLogDirectory)
+        appendToFile(
+            `${doFetchErrorsLogDirectory}doFetchErrors.log`,
+            `doFetch: ${urlString}  ${response?.status} ${JSON.stringify(response?.headers)} timeToSleep: ${timeToSleep}\n`
+        );
 
     await sleep(timeToSleep);
     return true;

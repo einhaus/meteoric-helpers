@@ -23,10 +23,10 @@ export const downloadFile = async (url: string, localFilePath: string, retryCoun
             }).on('error', reject);
         });
 
-        await new Promise((resolve, reject) => {
+        await new Promise<void>((resolve, reject) => {
             const stream = res.pipe(createWriteStream(localFilePath));
             stream.on('error', reject);
-            stream.on('close', resolve);
+            stream.on('close', () => resolve());
         });
 
         return localFilePath;
