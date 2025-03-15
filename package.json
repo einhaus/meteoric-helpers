@@ -1,7 +1,24 @@
 {
   "name": "@einhaus/meteoric-helpers",
-  "version": "1.0.39",
-  "main": "dist/index.js",
+  "version": "1.0.40",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./node": {
+      "import": "./dist/node.js",
+      "require": "./dist/node.cjs"
+    },
+    "./dist/node.js": {
+      "import": "./dist/node.js"
+    },
+    "./dist/*": {
+      "import": "./dist/*"
+    }
+  },
+  "browser": "./dist/index.js",
+  "main": "./dist/index.js",
   "types": "dist/index.d.ts",
   "author": "Meteoric, LLC",
   "license": "MIT",

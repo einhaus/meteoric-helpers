@@ -23,8 +23,8 @@ import {
 } from '@aws-sdk/client-s3';
 import child_process from 'child_process';
 import fs from 'fs';
-import { msg } from '../miscHelpers/msg.js';
 import { pipeline } from 'node:stream/promises';
+import { msg } from '../nodeHelpers/msg.js';
 import path from 'path';
 import { Readable } from 'stream';
 import util from 'util';
