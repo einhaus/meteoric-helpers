@@ -47,6 +47,7 @@ export * from './dateHelpers/isDateWithinTradingHours.js';
 export * from './dateHelpers/roundTimestampToNearestMinute.js';
 export * from './dateHelpers/roundUnixTimestampToNearestMinute.js';
 export * from './dateHelpers/setTimestampSecondsToZero.js';
+export * from './fileHelpers/S3Helper.js';
 export * from './fileHelpers/appendToFile.js';
 export * from './fileHelpers/appendToFileAsync.js';
 export * from './fileHelpers/downloadFile.js';
