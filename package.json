@@ -1,6 +1,6 @@
 {
   "name": "@einhaus/meteoric-helpers",
-  "version": "1.0.40",
+  "version": "1.0.41",
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -59,6 +59,7 @@
   },
   "private": false,
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.758.0",
     "@aws-sdk/client-ses": "^3.758.0",
     "@eslint/eslintrc": "^3.3.0",
     "dayjs": "^1.11.13",
