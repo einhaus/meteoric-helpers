@@ -8,6 +8,7 @@ export * from './fileHelpers/appendToFileAsync.js';
 export * from './fileHelpers/downloadFile.js';
 export * from './fileHelpers/gunzipFile.js';
 export * from './miscHelpers/doFetch.js';
+export * from './miscHelpers/sendEmailFromTemplate.js';
 export * from './miscHelpers/sendEmailWithAttachment.js';
 export * from './nodeHelpers/msg.js';
 export * from './pathHelpers/getDirectoryFromUrl.js';

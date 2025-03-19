@@ -194,7 +194,7 @@ export default [
                 }
             ],
 
-            'no-duplicate-imports': 'error',
+            'no-duplicate-imports': 'warn',
             'no-useless-computed-key': 'error',
             'no-useless-rename': 'error',
             'no-var': 'error',
