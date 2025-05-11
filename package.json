@@ -1,20 +1,41 @@
 {
   "name": "@einhaus/meteoric-helpers",
-  "version": "1.0.42",
+  "version": "1.0.48",
   "exports": {
     ".": {
       "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    },
+    "./dbHelpers/mysql": {
+      "import": "./dist/dbHelpers/mysql.js",
+      "require": "./dist/dbHelpers/mysql.cjs",
+      "types": "./dist/dbHelpers/mysql.d.ts"
+    },
+    "./dist/dbHelpers/mysql": {
+      "import": "./dist/dbHelpers/mysql.js",
+      "require": "./dist/dbHelpers/mysql.cjs",
+      "types": "./dist/dbHelpers/mysql.d.ts"
+    },
+    "./dbHelpers/postgres": {
+      "import": "./dist/dbHelpers/postgres.js",
+      "require": "./dist/dbHelpers/postgres.cjs",
+      "types": "./dist/dbHelpers/postgres.d.ts"
     },
     "./node": {
       "import": "./dist/node.js",
-      "require": "./dist/node.cjs"
+      "require": "./dist/node.cjs",
+      "types": "./dist/node.d.ts"
     },
-    "./dist/node.js": {
-      "import": "./dist/node.js"
+    "./node.js": {
+      "import": "./dist/node.js",
+      "require": "./dist/node.cjs",
+      "types": "./dist/node.d.ts"
     },
-    "./dist/*": {
-      "import": "./dist/*"
+    "./*": {
+      "import": "./dist/*.js",
+      "require": "./dist/*.cjs",
+      "types": "./dist/*.d.ts"
     }
   },
   "browser": "./dist/index.js",
@@ -36,22 +57,23 @@
     "url": "git+https://github.com/einhaus/meteoric-helpers.git"
   },
   "devDependencies": {
-    "@eslint/js": "^9.23.0",
+    "@eslint/js": "^9.26.0",
     "@types/mime-types": "^2.1.4",
-    "@types/node": ">=22.13.14",
-    "@typescript-eslint/eslint-plugin": "^8.28.0",
-    "@typescript-eslint/parser": "^8.28.0",
+    "@types/node": ">=22.15.17",
+    "@types/pg": "^8.15.1",
+    "@typescript-eslint/eslint-plugin": "^8.32.0",
+    "@typescript-eslint/parser": "^8.32.0",
     "concurrently": "^9.1.2",
-    "eslint": "^9.23.0",
-    "eslint-config-prettier": ">=10.1.1",
-    "eslint-plugin-prettier": ">=5.2.5",
+    "eslint": "^9.26.0",
+    "eslint-config-prettier": ">=10.1.5",
+    "eslint-plugin-prettier": ">=5.4.0",
     "eslint-plugin-sonarjs": "^3.0.2",
     "prettier": "3.5.3",
-    "tsc-alias": "^1.8.13",
+    "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.8.2",
-    "typescript-eslint": "^8.28.0",
-    "vitest": "^3.0.9"
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.32.0",
+    "vitest": "^3.1.3"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/",
@@ -59,11 +81,13 @@
   },
   "private": false,
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.777.0",
-    "@aws-sdk/client-ses": "^3.777.0",
+    "@aws-sdk/client-s3": "^3.806.0",
+    "@aws-sdk/client-ses": "^3.806.0",
     "@eslint/eslintrc": "^3.3.1",
     "dayjs": "^1.11.13",
     "mime-types": "^3.0.1",
+    "mysql2": "^3.14.1",
+    "pg": "^8.15.6",
     "typedi": "^0.10.0"
   }
 }

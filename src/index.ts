@@ -47,6 +47,7 @@ export * from './dateHelpers/isDateWithinTradingHours.js';
 export * from './dateHelpers/roundTimestampToNearestMinute.js';
 export * from './dateHelpers/roundUnixTimestampToNearestMinute.js';
 export * from './dateHelpers/setTimestampSecondsToZero.js';
+export * from './dbHelpers/dbUtilityTypes.js';
 export * from './mathHelpers/averageNumberArrayFast.js';
 export * from './mathHelpers/calculatePercentageChangeFast.js';
 export * from './mathHelpers/calculatePercentileRank.js';

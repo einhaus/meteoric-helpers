@@ -2,6 +2,8 @@
 export * from './index.js';
 
 // Node.js specific exports
+export * from './dbHelpers/mysql.js';
+export * from './dbHelpers/postgres.js';
 export * from './fileHelpers/S3Helper.js';
 export * from './fileHelpers/appendToFile.js';
 export * from './fileHelpers/appendToFileAsync.js';
