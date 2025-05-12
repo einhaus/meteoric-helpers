@@ -12,7 +12,7 @@ export type WithoutNullableKeys<Type> = {
 };
 
 export type Insertable<T> = {
-    [K in keyof T]-?: undefined extends T[K]
+    [K in keyof T]: undefined extends T[K]
         ? T[K] | null | undefined // Allow nulls only for originally nullable fields
         : T[K]; // Require exact type for non-nullable fields
 };

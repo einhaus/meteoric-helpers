@@ -2,7 +2,8 @@
 export * from './index.js';
 
 // Node.js specific exports
-export * from './dbHelpers/generateTypes.js';
+export * from './dbHelpers/generateTypesMysql.js';
+export * from './dbHelpers/generateTypesPg.js';
 export * from './dbHelpers/mysql.js';
 export * from './dbHelpers/postgres.js';
 export * from './fileHelpers/S3Helper.js';

@@ -447,7 +447,7 @@ export class DBMysql {
         try {
             return await this.doInsert({ queryString, parameters: values, retryAttempts: 0, verbose, connection });
         } catch (e: unknown) {
-            console.error('Insert failed:', e);
+            console.log('Insert failed:', e);
         }
     }
 
@@ -487,7 +487,7 @@ export class DBMysql {
         try {
             return await this.doInsert({ queryString, parameters: values, retryAttempts: 0, verbose, connection });
         } catch (e: unknown) {
-            console.error('Insert multiple failed:', e);
+            console.log('Insert multiple failed:', e);
         }
     }
 
