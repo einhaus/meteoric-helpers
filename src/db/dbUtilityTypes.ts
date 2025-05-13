@@ -69,7 +69,7 @@ export type WhereCondition<T> = ScalarWhereCondition<T> | ArrayWhereCondition<T>
 // -----------------------------------------------------------------------------
 
 export type OrderBy<T> = { column: keyof T; direction?: 'ASC' | 'DESC' } | { column: keyof T; direction?: 'ASC' | 'DESC' }[];
-interface BaseSelectConfig<T extends object> {
+export interface BaseSelectConfig<T extends object> {
     table: string;
     where?: WhereCondition<T>[] | WhereCondition<T>;
     whereOperator?: 'AND' | 'OR';
@@ -117,6 +117,23 @@ export interface SelectConfigPg<T extends object = object, C extends (keyof T)[]
 
 export interface SelectConfigMysql<T extends object = object, C extends (keyof T)[] | undefined = undefined> extends SelectConfig<T, C> {
     connection?: PoolConnection;
+}
+
+/**
+ * ClickHouse-specific wrapper functions
+ */
+export type ClickHouseWrapper = 'DISTINCT' | 'SUM' | 'COUNT' | 'AVG' | 'MAX' | 'MIN' | 'toInt32';
+
+/**
+ * SelectConfigClickhouse extends the base SelectConfig for ClickHouse-specific functionality
+ */
+export interface SelectConfigClickhouse<T extends object = object, C extends (keyof T)[] | undefined = undefined>
+    extends Omit<SelectConfig<T, C>, 'computedColumns'> {
+    computedColumns?: {
+        column: keyof T;
+        wrapper: ClickHouseWrapper;
+        alias?: string;
+    }[];
 }
 
 /**

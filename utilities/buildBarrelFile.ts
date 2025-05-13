@@ -46,7 +46,8 @@ const nodeModules = [
     'node:querystring',
     'process',
     'node:process',
-    'node-cache'
+    'node-cache',
+    '@redis/client'
 ];
 
 // Files that should always be in Node entry point regardless of imports

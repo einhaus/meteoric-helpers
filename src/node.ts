@@ -2,7 +2,9 @@
 export * from './index.js';
 
 // Node.js specific exports
+export * from './cache/CacheService.js';
 export * from './cache/LocalCacheService.js';
+export * from './db/clickhouse.js';
 export * from './db/generateTypesMysql.js';
 export * from './db/generateTypesPg.js';
 export * from './db/mysql.js';
