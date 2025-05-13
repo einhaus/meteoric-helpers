@@ -6,8 +6,8 @@ import type { PoolConnection } from 'mysql2/promise.js';
 import mysql, { type Pool, type ResultSetHeader } from 'mysql2/promise.js';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import path from 'path';
-import { sleep } from '../miscHelpers/sleep.js';
-import { getDate } from '../dateHelpers/getDate.js';
+import { sleep } from '../misc/sleep.js';
+import { getDate } from '../date/getDate.js';
 // Default values that will be used if not specified in the config
 const DEFAULT_MAX_RETRIES = 4;
 const DEFAULT_RETRY_DELAY_MS = 10000;

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import { getDate } from '../dateHelpers/getDate.js';
-import { appendToFile } from '../fileHelpers/appendToFile.js';
+import { getDate } from '../date/getDate.js';
+import { appendToFile } from '../file/appendToFile.js';
 import { sleep } from './sleep.js';
 import url from 'url';
 

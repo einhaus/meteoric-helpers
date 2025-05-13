@@ -5,8 +5,8 @@ import { Pool } from 'pg';
 import type { DBConfig, DbParameters, Insertable, SelectConfig, SelectConfigPg, SelectReturn, WhereCondition } from './dbUtilityTypes.js';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import path from 'path';
-import { sleep } from '../miscHelpers/sleep.js';
-import { getDate } from '../dateHelpers/getDate.js';
+import { sleep } from '../misc/sleep.js';
+import { getDate } from '../date/getDate.js';
 
 // Default values that will be used if not specified in the config
 const DEFAULT_MAX_RETRIES = 4;

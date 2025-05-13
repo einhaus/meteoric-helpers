@@ -24,7 +24,7 @@ import {
 import child_process from 'child_process';
 import fs from 'fs';
 import { pipeline } from 'node:stream/promises';
-import { msg } from '../nodeHelpers/msg.js';
+import { msg } from '../misc/msg.js';
 import path from 'path';
 import { Readable } from 'stream';
 import util from 'util';

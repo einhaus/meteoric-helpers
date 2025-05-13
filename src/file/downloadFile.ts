@@ -1,7 +1,7 @@
 import { type IncomingMessage, get as httpGet } from 'http';
 import { get as httpsGet } from 'https';
 import { URL } from 'url';
-import { sleep } from '../miscHelpers/sleep.js';
+import { sleep } from '../misc/sleep.js';
 import { createWriteStream } from 'fs';
 import { inspect } from 'util';
 
