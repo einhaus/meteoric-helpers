@@ -1,8 +1,8 @@
 import { createClient } from '@clickhouse/client';
 // eslint-disable-next-line no-duplicate-imports
 import type { ClickHouseClient } from '@clickhouse/client';
-import { msg } from '@einhaus/meteoric-helpers/node';
-import type { WhereCondition, DBConfig, SelectReturn, SelectConfigClickhouse } from '@einhaus/meteoric-helpers';
+import { msg } from '../misc/msg.js';
+import type { WhereCondition, DBConfig, SelectReturn, SelectConfigClickhouse } from './dbUtilityTypes.js';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import path from 'path';
 

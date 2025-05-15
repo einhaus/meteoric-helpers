@@ -1,7 +1,9 @@
-import { generateRandomString, checkTimezoneIsEst, getDate } from '@einhaus/meteoric-helpers';
+import { getDate } from '../date/getDate.js';
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
 import { workerData } from 'worker_threads';
 import path from 'path';
+import { generateRandomString } from '../string/generateRandomString.js';
+import { checkTimezoneIsEst } from '../index.js';
 
 export interface LoggerConfig {
     logDir: string;
