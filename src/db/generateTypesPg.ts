@@ -21,7 +21,7 @@ function hasDefaultValueToOmit(columnDefault: string | null): boolean {
 // Interface for enum type information
 interface EnumType {
     typeName: string;
-    values: string[];
+    values: string[] | string;
 }
 
 export interface GenerateTypesPgOptions {
@@ -48,7 +48,7 @@ async function fetchEnumTypes(DB: DBPostgres): Promise<Map<string, EnumType>> {
             WHERE n.nspname = 'public'
             GROUP BY t.typname
         `
-    })) as QueryResult<{ enum_name: string; enum_values: string[] }>;
+    })) as QueryResult<{ enum_name: string; enum_values: string[] | string }>;
 
     const enumTypesMap = new Map<string, EnumType>();
 
@@ -199,7 +199,11 @@ type WithOptional<T, K extends keyof T> =
                     const enumType = enumTypesMap.get(column.udt_name)!;
 
                     // Generate a union type of string literals for the enum values
-                    tsType = enumType.values.map((value) => `'${value}'`).join(' | ');
+                    // Parse the string format '{NEVER,DAILY,WEEKLY,INTERVAL}' into an array
+                    const valuesArray: string[] =
+                        typeof enumType.values === 'string' ? enumType.values.replace(/[{}]/g, '').split(',') : enumType.values;
+
+                    tsType = valuesArray.map((value: string) => `'${value}'`).join(' | ');
                 }
                 // Special case for TINYINT(1) which is often used as a boolean flag (0 or 1)
                 // PostgreSQL doesn't have a native TINYINT type, but it might be defined as a domain or custom type
