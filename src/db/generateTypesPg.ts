@@ -256,19 +256,6 @@ type WithOptional<T, K extends keyof T> =
                         typeof enumType.values === 'string' ? enumType.values.replace(/[{}]/g, '').split(',') : enumType.values;
 
                     tsType = valuesArray.map((value: string) => `'${value}'`).join(' | ');
-                }
-                // Special case for TINYINT(1) which is often used as a boolean flag (0 or 1)
-                // PostgreSQL doesn't have a native TINYINT type, but it might be defined as a domain or custom type
-                // We'll check for smallint with a constraint that limits it to 0 or 1
-                else if (
-                    (column.data_type.toLowerCase() === 'smallint' || column.data_type.toLowerCase() === 'integer') &&
-                    column.column_default !== null &&
-                    (column.column_default.includes('0') || column.column_default.includes('1')) &&
-                    (column.udt_name.toLowerCase() === 'int2' || column.udt_name.toLowerCase() === 'int4')
-                ) {
-                    // This is a heuristic - if it's a smallint/integer with a default of 0 or 1,
-                    // it's likely being used as a boolean flag
-                    tsType = '0 | 1';
                 } else {
                     // Handle standard data types
                     switch (column.data_type.toLowerCase()) {
