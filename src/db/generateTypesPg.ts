@@ -68,6 +68,49 @@ async function fetchEnumTypes(DB: DBPostgres): Promise<Map<string, EnumType>> {
     return enumTypesMap;
 }
 
+// Function to fetch table comment from PostgreSQL
+async function fetchTableComment(DB: DBPostgres, tableName: string): Promise<string | null> {
+    console.log(`Fetching comment for table: ${tableName}`);
+
+    const tableCommentResult = (await DB.doQuery({
+        queryString: `
+            SELECT pg_description.description
+            FROM pg_catalog.pg_class
+            JOIN pg_catalog.pg_namespace ON pg_namespace.oid = pg_class.relnamespace
+            LEFT JOIN pg_catalog.pg_description ON pg_description.objoid = pg_class.oid AND pg_description.objsubid = 0
+            WHERE pg_class.relname = $1 AND pg_namespace.nspname = 'public'
+        `,
+        parameters: [tableName]
+    })) as QueryResult<{ description: string }>;
+
+    return tableCommentResult.rows[0]?.description || null;
+}
+
+// Function to fetch column comments from PostgreSQL
+async function fetchColumnComments(DB: DBPostgres, tableName: string): Promise<Map<string, string | null>> {
+    console.log(`Fetching comments for columns in table: ${tableName}`);
+
+    const columnCommentsResult = (await DB.doQuery({
+        queryString: `
+            SELECT a.attname AS column_name, pg_description.description
+            FROM pg_catalog.pg_class
+            JOIN pg_catalog.pg_namespace ON pg_namespace.oid = pg_class.relnamespace
+            JOIN pg_catalog.pg_attribute a ON pg_class.oid = a.attrelid
+            LEFT JOIN pg_catalog.pg_description ON pg_description.objoid = pg_class.oid AND pg_description.objsubid = a.attnum
+            WHERE pg_class.relname = $1 AND pg_namespace.nspname = 'public' AND a.attnum > 0 AND NOT a.attisdropped
+        `,
+        parameters: [tableName]
+    })) as QueryResult<{ column_name: string; description: string }>;
+
+    const columnCommentsMap = new Map<string, string | null>();
+
+    for (const row of columnCommentsResult.rows) {
+        columnCommentsMap.set(row.column_name, row.description);
+    }
+
+    return columnCommentsMap;
+}
+
 // eslint-disable-next-line complexity, max-statements
 export const generateTypesPg = async (options: GenerateTypesPgOptions) => {
     const DB = DBPostgres.getInstance(
@@ -165,6 +208,10 @@ type WithOptional<T, K extends keyof T> =
 
             const columns = columnsResult.rows;
 
+            // Fetch table and column comments
+            const tableComment = await fetchTableComment(DB, tableName);
+            const columnComments = await fetchColumnComments(DB, tableName);
+
             // Generate TypeScript interface for the table
             const pascalCaseTableName = tableName
                 .split('_')
@@ -173,6 +220,11 @@ type WithOptional<T, K extends keyof T> =
 
             // Track columns with default values for the Insert interface
             const columnsWithDefaults: string[] = [];
+
+            // Add table comment if it exists
+            if (tableComment) {
+                typesFileContent += `/**\n * ${tableComment}\n */\n`;
+            }
 
             // Generate the main interface
             typesFileContent += `export interface ${pascalCaseTableName}Row {\n`;
@@ -254,6 +306,13 @@ type WithOptional<T, K extends keyof T> =
                         default:
                             tsType = 'string';
                     }
+                }
+
+                // Add column comment if it exists
+                const columnComment = columnComments.get(columnName);
+
+                if (columnComment) {
+                    typesFileContent += `  /** ${columnComment} */\n`;
                 }
 
                 typesFileContent += `  ${columnName}: ${tsType}${nullableSuffix};\n`;

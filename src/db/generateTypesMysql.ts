@@ -59,6 +59,28 @@ function getBaseTableName(tableName: string): string {
     return tableName.replace(/_\d+$/, '');
 }
 
+// Function to fetch table comment from MySQL
+async function fetchTableComment(DB: DBMysql, dbName: string, tableName: string): Promise<string | null> {
+    console.log(`Fetching comment for table: ${tableName}`);
+
+    const tableCommentResult = await DB.doQuery({
+        queryString: `
+            SELECT table_comment
+            FROM information_schema.tables
+            WHERE table_schema = ?
+            AND table_name = ?
+        `,
+        parameters: [dbName, tableName]
+    });
+
+    if (!tableCommentResult || (Array.isArray(tableCommentResult) && tableCommentResult.length === 0)) {
+        return null;
+    }
+
+    const comment = (tableCommentResult as ResultSetHeader & { table_comment: string }[])[0]?.table_comment;
+    return comment && comment.length > 0 ? comment : null;
+}
+
 // eslint-disable-next-line complexity, max-statements
 export const generateTypesMysql = async (options: GenerateTypesMysqlOptions) => {
     const DB = DBMysql.getInstance(
@@ -167,6 +189,9 @@ type WithOptional<T, K extends keyof T> =
             // For sharded tables, interfaceName is the base name
             // For regular tables, interfaceName equals tableName
 
+            // Get table comment
+            const tableComment = await fetchTableComment(DB, options.db, tableName);
+
             // Get column information for the table, including column_type for enums and column comments
             const columnsResult = await DB.doQuery({
                 queryString: `
@@ -211,15 +236,15 @@ type WithOptional<T, K extends keyof T> =
             // Track columns with default values for the Insert interface
             const columnsWithDefaults: string[] = [];
 
-            // Generate the main interface
-            if (interfaceName !== tableName) {
+            // Add table comment if it exists
+            if (tableComment) {
+                typesFileContent += `/**\n * ${tableComment}\n */\n`;
+            } else if (interfaceName !== tableName) {
                 // This is a sharded table
-                typesFileContent += `/**
- * Interface for the sharded table ${interfaceName}
- * This represents all shards (${interfaceName}_N)
- */\n`;
+                typesFileContent += `/**\n * Interface for the sharded table ${interfaceName}\n * This represents all shards (${interfaceName}_N)\n */\n`;
             }
 
+            // Generate the main interface
             typesFileContent += `export interface ${pascalCaseTableName}Row {\n`;
 
             for (const column of columns) {
@@ -300,6 +325,18 @@ type WithOptional<T, K extends keyof T> =
                         default:
                             tsType = 'string';
                     }
+                }
+
+                // Add column comment if it exists and isn't just a "boolean" marker for tinyint
+                if (
+                    column.column_comment &&
+                    !(
+                        column.column_comment.toLowerCase() === 'boolean' &&
+                        column.data_type.toLowerCase() === 'tinyint' &&
+                        /^tinyint\(1\)( unsigned)?$/i.test(column.column_type)
+                    )
+                ) {
+                    typesFileContent += `  /** ${column.column_comment} */\n`;
                 }
 
                 // Check if column name starts with a number or contains special characters
