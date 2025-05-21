@@ -68,47 +68,232 @@ async function fetchEnumTypes(DB: DBPostgres): Promise<Map<string, EnumType>> {
     return enumTypesMap;
 }
 
-// Function to fetch table comment from PostgreSQL
-async function fetchTableComment(DB: DBPostgres, tableName: string): Promise<string | null> {
-    console.log(`Fetching comment for table: ${tableName}`);
-
-    const tableCommentResult = (await DB.doQuery({
-        queryString: `
-            SELECT pg_description.description
-            FROM pg_catalog.pg_class
-            JOIN pg_catalog.pg_namespace ON pg_namespace.oid = pg_class.relnamespace
-            LEFT JOIN pg_catalog.pg_description ON pg_description.objoid = pg_class.oid AND pg_description.objsubid = 0
-            WHERE pg_class.relname = $1 AND pg_namespace.nspname = 'public'
-        `,
-        parameters: [tableName]
-    })) as QueryResult<{ description: string }>;
-
-    return tableCommentResult.rows[0]?.description || null;
+// Interface for table metadata
+interface TableMetadata {
+    comment: string | null;
+    columnComments: Map<string, string | null>;
+    indexes: {
+        index_name: string;
+        column_names: string[];
+        is_unique: boolean;
+        is_primary: boolean;
+        is_foreign_key: boolean;
+    }[];
+    foreignKeys: {
+        constraint_name: string;
+        column_name: string;
+        referenced_table: string;
+        referenced_column: string;
+        update_rule: string;
+        delete_rule: string;
+    }[];
 }
 
-// Function to fetch column comments from PostgreSQL
-async function fetchColumnComments(DB: DBPostgres, tableName: string): Promise<Map<string, string | null>> {
-    console.log(`Fetching comments for columns in table: ${tableName}`);
+// Function to fetch all metadata for all tables at once
+// eslint-disable-next-line max-statements
+async function fetchAllTablesMetadata(DB: DBPostgres, tables: string[]): Promise<Map<string, TableMetadata>> {
+    console.log('Fetching metadata for all tables...');
+    const tableMetadataMap = new Map<string, TableMetadata>();
+
+    // Initialize metadata for all tables
+    for (const tableName of tables) {
+        tableMetadataMap.set(tableName, {
+            comment: null,
+            columnComments: new Map<string, string | null>(),
+            indexes: [],
+            foreignKeys: []
+        });
+    }
+
+    // 1. Fetch all table comments
+    console.log('Fetching all table comments...');
+
+    const tableCommentsResult = (await DB.doQuery({
+        queryString: `
+            SELECT c.relname AS table_name, pg_description.description
+            FROM pg_catalog.pg_class c
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            LEFT JOIN pg_catalog.pg_description ON pg_description.objoid = c.oid AND pg_description.objsubid = 0
+            WHERE n.nspname = 'public' AND c.relkind = 'r'
+        `
+    })) as QueryResult<{ table_name: string; description: string }>;
+
+    for (const row of tableCommentsResult.rows) {
+        if (tableMetadataMap.has(row.table_name) && row.description) {
+            tableMetadataMap.get(row.table_name)!.comment = row.description;
+        }
+    }
+
+    // 2. Fetch all column comments
+    console.log('Fetching all column comments...');
 
     const columnCommentsResult = (await DB.doQuery({
         queryString: `
-            SELECT a.attname AS column_name, pg_description.description
-            FROM pg_catalog.pg_class
-            JOIN pg_catalog.pg_namespace ON pg_namespace.oid = pg_class.relnamespace
-            JOIN pg_catalog.pg_attribute a ON pg_class.oid = a.attrelid
-            LEFT JOIN pg_catalog.pg_description ON pg_description.objoid = pg_class.oid AND pg_description.objsubid = a.attnum
-            WHERE pg_class.relname = $1 AND pg_namespace.nspname = 'public' AND a.attnum > 0 AND NOT a.attisdropped
-        `,
-        parameters: [tableName]
-    })) as QueryResult<{ column_name: string; description: string }>;
-
-    const columnCommentsMap = new Map<string, string | null>();
+            SELECT c.relname AS table_name, a.attname AS column_name, pg_description.description
+            FROM pg_catalog.pg_class c
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            JOIN pg_catalog.pg_attribute a ON c.oid = a.attrelid
+            LEFT JOIN pg_catalog.pg_description ON pg_description.objoid = c.oid AND pg_description.objsubid = a.attnum
+            WHERE n.nspname = 'public' AND c.relkind = 'r' AND a.attnum > 0 AND NOT a.attisdropped
+        `
+    })) as QueryResult<{ table_name: string; column_name: string; description: string }>;
 
     for (const row of columnCommentsResult.rows) {
-        columnCommentsMap.set(row.column_name, row.description);
+        if (tableMetadataMap.has(row.table_name)) {
+            tableMetadataMap.get(row.table_name)!.columnComments.set(row.column_name, row.description);
+        }
     }
 
-    return columnCommentsMap;
+    // 3. Fetch all indexes
+    console.log('Fetching all indexes...');
+
+    const indexesResult = (await DB.doQuery({
+        queryString: `
+            SELECT
+                t.relname AS table_name,
+                i.relname AS index_name,
+                a.attname AS column_name,
+                ix.indisunique AS is_unique,
+                ix.indisprimary AS is_primary
+            FROM pg_class t
+            JOIN pg_index ix ON t.oid = ix.indrelid
+            JOIN pg_class i ON i.oid = ix.indexrelid
+            JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(ix.indkey)
+            JOIN pg_namespace n ON n.oid = t.relnamespace
+            WHERE n.nspname = 'public' AND t.relkind = 'r'
+            ORDER BY t.relname, i.relname, a.attnum
+        `
+    })) as QueryResult<{
+        table_name: string;
+        index_name: string;
+        column_name: string;
+        is_unique: boolean;
+        is_primary: boolean;
+    }>;
+
+    // Group indexes by table and index name
+    const indexMap = new Map<
+        string,
+        Map<
+            string,
+            {
+                columns: string[];
+                is_unique: boolean;
+                is_primary: boolean;
+            }
+        >
+    >();
+
+    for (const row of indexesResult.rows) {
+        if (!tableMetadataMap.has(row.table_name)) {
+            continue;
+        }
+
+        if (!indexMap.has(row.table_name)) {
+            indexMap.set(row.table_name, new Map());
+        }
+
+        const tableIndexMap = indexMap.get(row.table_name)!;
+
+        if (!tableIndexMap.has(row.index_name)) {
+            tableIndexMap.set(row.index_name, {
+                columns: [],
+                is_unique: row.is_unique,
+                is_primary: row.is_primary
+            });
+        }
+
+        tableIndexMap.get(row.index_name)!.columns.push(row.column_name);
+    }
+
+    // 4. Fetch all foreign keys
+    console.log('Fetching all foreign key constraints...');
+
+    const foreignKeysResult = (await DB.doQuery({
+        queryString: `
+            SELECT
+                tc.table_name,
+                tc.constraint_name,
+                kcu.column_name,
+                ccu.table_name AS referenced_table,
+                ccu.column_name AS referenced_column,
+                rc.update_rule,
+                rc.delete_rule
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name
+                AND tc.table_schema = kcu.table_schema
+            JOIN information_schema.constraint_column_usage ccu
+                ON ccu.constraint_name = tc.constraint_name
+                AND ccu.table_schema = tc.table_schema
+            JOIN information_schema.referential_constraints rc
+                ON rc.constraint_name = tc.constraint_name
+                AND rc.constraint_schema = tc.table_schema
+            WHERE tc.constraint_type = 'FOREIGN KEY'
+                AND tc.table_schema = 'public'
+            ORDER BY tc.table_name, tc.constraint_name
+        `
+    })) as QueryResult<{
+        table_name: string;
+        constraint_name: string;
+        column_name: string;
+        referenced_table: string;
+        referenced_column: string;
+        update_rule: string;
+        delete_rule: string;
+    }>;
+
+    // Create a map of foreign key constraint names for each table
+    const fkConstraintMap = new Map<string, Set<string>>();
+
+    for (const row of foreignKeysResult.rows) {
+        if (!tableMetadataMap.has(row.table_name)) {
+            continue;
+        }
+
+        // Add foreign key to the table's metadata
+        tableMetadataMap.get(row.table_name)!.foreignKeys.push({
+            constraint_name: row.constraint_name,
+            column_name: row.column_name,
+            referenced_table: row.referenced_table,
+            referenced_column: row.referenced_column,
+            update_rule: row.update_rule,
+            delete_rule: row.delete_rule
+        });
+
+        // Track the constraint name for marking indexes as foreign keys
+        if (!fkConstraintMap.has(row.table_name)) {
+            fkConstraintMap.set(row.table_name, new Set());
+        }
+
+        fkConstraintMap.get(row.table_name)!.add(row.constraint_name);
+    }
+
+    // Now process the index data and mark foreign key indexes
+    for (const [tableName, tableIndexMap] of indexMap.entries()) {
+        const indexes = [];
+        const fkConstraints = fkConstraintMap.get(tableName);
+
+        for (const [indexName, indexData] of tableIndexMap.entries()) {
+            // Check if this index is for a foreign key
+            // In PostgreSQL, foreign key indexes often have the same name as the constraint
+            const isForeignKey = fkConstraints?.has(indexName) || false;
+
+            indexes.push({
+                index_name: indexName,
+                column_names: indexData.columns,
+                is_unique: indexData.is_unique,
+                is_primary: indexData.is_primary,
+                is_foreign_key: isForeignKey
+            });
+        }
+
+        if (tableMetadataMap.has(tableName)) {
+            tableMetadataMap.get(tableName)!.indexes = indexes;
+        }
+    }
+
+    return tableMetadataMap;
 }
 
 // eslint-disable-next-line complexity, max-statements
@@ -177,6 +362,9 @@ type WithOptional<T, K extends keyof T> =
  */
 `;
 
+        // Fetch all metadata for all tables at once
+        const tableMetadataMap = await fetchAllTablesMetadata(DB, tables);
+
         // Process each table
         for (const tableName of tables) {
             console.log(`Processing table: ${tableName}`);
@@ -208,9 +396,10 @@ type WithOptional<T, K extends keyof T> =
 
             const columns = columnsResult.rows;
 
-            // Fetch table and column comments
-            const tableComment = await fetchTableComment(DB, tableName);
-            const columnComments = await fetchColumnComments(DB, tableName);
+            // Get table metadata from our pre-fetched map
+            const tableMetadata = tableMetadataMap.get(tableName);
+            const tableComment = tableMetadata?.comment || null;
+            const columnComments = tableMetadata?.columnComments || new Map<string, string | null>();
 
             // Generate TypeScript interface for the table
             const pascalCaseTableName = tableName
@@ -221,9 +410,13 @@ type WithOptional<T, K extends keyof T> =
             // Track columns with default values for the Insert interface
             const columnsWithDefaults: string[] = [];
 
-            // Add table comment if it exists
+            // Always add a comment with the table name
             if (tableComment) {
-                typesFileContent += `/**\n * ${tableComment}\n */\n`;
+                // If there's a table comment, include both the table name and the comment
+                typesFileContent += `/**\n * Table: \`${tableName}\`\n * ${tableComment}\n */\n`;
+            } else {
+                // Just add the table name
+                typesFileContent += `/**\n * Table: \`${tableName}\`\n */\n`;
             }
 
             // Generate the main interface
@@ -295,17 +488,161 @@ type WithOptional<T, K extends keyof T> =
                     }
                 }
 
-                // Add column comment if it exists
+                // Format the column comment to include the user comment, database type, and default value
                 const columnComment = columnComments.get(columnName);
 
-                if (columnComment) {
-                    typesFileContent += `  /** ${columnComment} */\n`;
+                // Get database type information
+                const dbType = column.data_type === 'USER-DEFINED' ? column.udt_name : column.data_type;
+                const maxLength = column.character_maximum_length ? `(${column.character_maximum_length})` : '';
+
+                // Build type and constraint information
+                let dbTypeInfo = `DB Type: ${dbType}${maxLength}`;
+
+                // Add default value information if it exists
+                if (column.column_default) {
+                    // Clean up the default value for display
+                    let defaultValue = column.column_default;
+
+                    // Remove nextval sequence calls for readability
+                    if (defaultValue.includes('nextval(')) {
+                        defaultValue = 'auto-increment';
+                    }
+
+                    dbTypeInfo += ` | Default: ${defaultValue}`;
                 }
 
+                // Add nullable information
+                if (column.is_nullable === 'YES') {
+                    dbTypeInfo += ' | Nullable';
+                } else {
+                    dbTypeInfo += ' | NOT NULL';
+                }
+
+                // Build the comment with both user comment and type information
+                let commentText = dbTypeInfo;
+
+                if (columnComment) {
+                    commentText = `${columnComment} | ${dbTypeInfo}`;
+                }
+
+                // Add the comment and property
+                typesFileContent += `  /** ${commentText} */\n`;
                 typesFileContent += `  ${columnName}: ${tsType}${nullableSuffix};\n`;
             }
 
             typesFileContent += '}\n\n';
+
+            // Add indexes and foreign keys as comments below the interface
+            const indexes = tableMetadata?.indexes || [];
+            const foreignKeys = tableMetadata?.foreignKeys || [];
+
+            if (indexes.length > 0 || foreignKeys.length > 0) {
+                typesFileContent += `/**\n * Database metadata for ${pascalCaseTableName}Row:\n`;
+
+                // Add indexes (excluding foreign key indexes which will be shown in the Foreign Keys section)
+                const regularIndexes = indexes.filter((index) => !index.is_foreign_key);
+
+                if (regularIndexes.length > 0) {
+                    typesFileContent += ` *\n * Indexes:\n`;
+
+                    // Process each index and build the output
+                    const indexesOutput = regularIndexes
+                        .map((index) => {
+                            // Determine index type based on properties
+                            const getIndexType = (idx: typeof index) => {
+                                if (idx.is_primary) return 'PRIMARY KEY';
+                                if (idx.is_unique) return 'UNIQUE INDEX';
+                                return 'INDEX';
+                            };
+
+                            const indexType = getIndexType(index);
+
+                            // Format column names
+                            const columnList = index.column_names.map((col) => `\`${col}\``).join(', ');
+                            return ` * - ${indexType} \`${index.index_name}\` (${columnList})`;
+                        })
+                        .join('\n');
+
+                    typesFileContent += `${indexesOutput}\n`;
+                }
+
+                // Add foreign keys
+                if (foreignKeys.length > 0) {
+                    typesFileContent += ` *\n * Foreign Keys:\n`;
+
+                    // Group foreign keys by constraint name
+                    const groupForeignKeysByConstraint = (fks: typeof foreignKeys) => {
+                        const result = new Map<
+                            string,
+                            {
+                                constraint_name: string;
+                                columns: string[];
+                                referenced_table: string;
+                                referenced_columns: string[];
+                                update_rule: string;
+                                delete_rule: string;
+                            }
+                        >();
+
+                        // Process each foreign key
+                        fks.forEach((fk) => {
+                            // Create new constraint entry if it doesn't exist
+                            if (!result.has(fk.constraint_name)) {
+                                result.set(fk.constraint_name, {
+                                    constraint_name: fk.constraint_name,
+                                    columns: [],
+                                    referenced_table: fk.referenced_table,
+                                    referenced_columns: [],
+                                    update_rule: fk.update_rule,
+                                    delete_rule: fk.delete_rule
+                                });
+                            }
+
+                            // Add column information to the constraint
+                            const constraint = result.get(fk.constraint_name)!;
+                            constraint.columns.push(fk.column_name);
+                            constraint.referenced_columns.push(fk.referenced_column);
+                        });
+
+                        return result;
+                    };
+
+                    // Group the foreign keys
+                    const fkMap = groupForeignKeysByConstraint(foreignKeys);
+
+                    // Format foreign key constraints as output
+                    const formatForeignKeyConstraint = (
+                        constraintName: string,
+                        fk: {
+                            columns: string[];
+                            referenced_table: string;
+                            referenced_columns: string[];
+                            update_rule: string;
+                            delete_rule: string;
+                        }
+                    ) => {
+                        // Format column lists
+                        const sourceColumns = fk.columns.map((col) => `\`${col}\``).join(', ');
+                        const targetColumns = fk.referenced_columns.map((col) => `\`${col}\``).join(', ');
+
+                        // Build the constraint description
+                        return [
+                            ` * - CONSTRAINT \`${constraintName}\` FOREIGN KEY (${sourceColumns})`,
+                            `REFERENCES \`${fk.referenced_table}\` (${targetColumns})`,
+                            `ON UPDATE ${fk.update_rule} ON DELETE ${fk.delete_rule}`
+                        ].join(' ');
+                    };
+
+                    // Generate the foreign key output
+                    const fkOutput = Array.from(fkMap.entries())
+                        .map(([constraintName, fk]) => formatForeignKeyConstraint(constraintName, fk))
+                        .join('\n');
+
+                    typesFileContent += `${fkOutput}\n`;
+                }
+
+                typesFileContent += ` */\n\n`;
+            }
 
             // Generate the Insert interface (making columns with default values optional)
             if (columnsWithDefaults.length > 0) {

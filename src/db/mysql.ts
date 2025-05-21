@@ -432,12 +432,12 @@ export class DBMysql {
         const ignore = config.shouldIgnore ? 'IGNORE' : '';
 
         let queryString = `
-            INSERT ${ignore} INTO ${config.table} (${columns.join(', ')})
+            INSERT ${ignore} INTO \`${config.table}\` (${columns.map((col) => `\`${String(col)}\``).join(', ')})
             VALUES ${placeholders}
         `;
 
         if (config.updateOnDuplicate) {
-            const duplicateUpdateClause = columns.map((col) => `${col.toString()} = VALUES(${col.toString()})`).join(', ');
+            const duplicateUpdateClause = columns.map((col) => `\`${String(col)}\` = VALUES(\`${String(col)}\`)`).join(', ');
             queryString += ` ON DUPLICATE KEY UPDATE ${duplicateUpdateClause}`;
         }
 
@@ -472,12 +472,12 @@ export class DBMysql {
         const ignore = config.shouldIgnore ? 'IGNORE' : '';
 
         let queryString = `
-          INSERT ${ignore} INTO ${config.table} (${columns.join(', ')})
+          INSERT ${ignore} INTO \`${config.table}\` (${columns.map((col) => `\`${String(col)}\``).join(', ')})
           VALUES ${config.values.map(() => `(${columns.map(() => '?').join(', ')})`).join(', ')}
         `;
 
         if (config.onDuplicateKeyUpdate) {
-            const updateClause = columns.map((col) => `${col.toString()} = VALUES(${col.toString()})`).join(', ');
+            const updateClause = columns.map((col) => `\`${String(col)}\` = VALUES(\`${String(col)}\`)`).join(', ');
             queryString += ` ON DUPLICATE KEY UPDATE ${updateClause}`;
         }
 

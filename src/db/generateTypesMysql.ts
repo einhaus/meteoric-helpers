@@ -1,3 +1,4 @@
+/* eslint-disable max-depth */
 /* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable max-len */
 import type { ResultSetHeader } from 'mysql2/promise';
@@ -59,26 +60,276 @@ function getBaseTableName(tableName: string): string {
     return tableName.replace(/_\d+$/, '');
 }
 
-// Function to fetch table comment from MySQL
-async function fetchTableComment(DB: DBMysql, dbName: string, tableName: string): Promise<string | null> {
-    console.log(`Fetching comment for table: ${tableName}`);
+// Interface for table metadata
+interface TableMetadata {
+    comment: string | null;
+    indexes: {
+        index_name: string;
+        column_names: string[];
+        is_unique: boolean;
+        is_primary: boolean;
+        is_foreign_key: boolean;
+    }[];
+    foreignKeys: {
+        constraint_name: string;
+        column_name: string;
+        referenced_table: string;
+        referenced_column: string;
+        update_rule: string;
+        delete_rule: string;
+    }[];
+}
 
-    const tableCommentResult = await DB.doQuery({
-        queryString: `
-            SELECT table_comment
-            FROM information_schema.tables
-            WHERE table_schema = ?
-            AND table_name = ?
-        `,
-        parameters: [dbName, tableName]
-    });
+// Function to fetch all metadata for all tables at once
+// eslint-disable-next-line max-statements, complexity
+async function fetchAllTablesMetadata(DB: DBMysql, dbName: string, tables: string[]): Promise<Map<string, TableMetadata>> {
+    console.log('Fetching metadata for all tables...');
+    const tableMetadataMap = new Map<string, TableMetadata>();
 
-    if (!tableCommentResult || (Array.isArray(tableCommentResult) && tableCommentResult.length === 0)) {
-        return null;
+    // Initialize metadata for all tables
+    for (const tableName of tables) {
+        tableMetadataMap.set(tableName, {
+            comment: null,
+            indexes: [],
+            foreignKeys: []
+        });
     }
 
-    const comment = (tableCommentResult as ResultSetHeader & { table_comment: string }[])[0]?.table_comment;
-    return comment && comment.length > 0 ? comment : null;
+    // 1. Fetch all table comments
+    console.log('Fetching all table comments...');
+
+    const tableCommentsResult = await DB.doQuery({
+        queryString: `
+            SELECT
+                table_name,
+                table_comment
+            FROM information_schema.tables
+            WHERE table_schema = ?
+            AND table_type = 'BASE TABLE'
+        `,
+        parameters: [dbName]
+    });
+
+    if (tableCommentsResult && Array.isArray(tableCommentsResult) && tableCommentsResult.length > 0) {
+        const commentRows = tableCommentsResult as ResultSetHeader &
+            {
+                table_name: string;
+                table_comment: string;
+            }[];
+
+        for (const row of commentRows) {
+            if (tableMetadataMap.has(row.table_name) && row.table_comment && row.table_comment.length > 0) {
+                tableMetadataMap.get(row.table_name)!.comment = row.table_comment;
+            }
+        }
+    }
+
+    // 2. Fetch all indexes
+    console.log('Fetching all indexes...');
+
+    const indexesResult = await DB.doQuery({
+        queryString: `
+            SELECT
+                table_name,
+                index_name,
+                column_name,
+                non_unique
+            FROM information_schema.statistics
+            WHERE table_schema = ?
+            ORDER BY table_name, index_name, seq_in_index
+        `,
+        parameters: [dbName]
+    });
+
+    // Create a temporary map to group index columns by table and index name
+    const indexColumnsMap = new Map<
+        string,
+        Map<
+            string,
+            {
+                columns: string[];
+                is_unique: boolean;
+            }
+        >
+    >();
+
+    if (indexesResult && Array.isArray(indexesResult) && indexesResult.length > 0) {
+        const indexRows = indexesResult as ResultSetHeader &
+            {
+                table_name: string;
+                index_name: string;
+                column_name: string;
+                non_unique: number;
+            }[];
+
+        // Group columns by table and index name
+        for (const row of indexRows) {
+            if (!tableMetadataMap.has(row.table_name)) {
+                continue; // Skip tables we're not processing
+            }
+
+            if (!indexColumnsMap.has(row.table_name)) {
+                indexColumnsMap.set(row.table_name, new Map());
+            }
+
+            const tableIndexMap = indexColumnsMap.get(row.table_name)!;
+
+            if (!tableIndexMap.has(row.index_name)) {
+                tableIndexMap.set(row.index_name, {
+                    columns: [],
+                    is_unique: row.non_unique === 0
+                });
+            }
+
+            tableIndexMap.get(row.index_name)!.columns.push(row.column_name);
+        }
+    }
+
+    // 3. Fetch all foreign key constraints
+    console.log('Fetching all foreign key constraints...');
+
+    const fkConstraintsResult = await DB.doQuery({
+        queryString: `
+            SELECT
+                tc.table_name,
+                tc.constraint_name,
+                kcu.column_name
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name
+                AND tc.table_schema = kcu.table_schema
+                AND tc.table_name = kcu.table_name
+            WHERE tc.table_schema = ?
+            AND tc.constraint_type = 'FOREIGN KEY'
+        `,
+        parameters: [dbName]
+    });
+
+    // Create a map of foreign key constraint names and their columns for each table
+    const fkConstraintMap = new Map<string, Map<string, string[]>>();
+
+    if (fkConstraintsResult && Array.isArray(fkConstraintsResult) && fkConstraintsResult.length > 0) {
+        const fkRows = fkConstraintsResult as ResultSetHeader &
+            {
+                table_name: string;
+                constraint_name: string;
+                column_name: string;
+            }[];
+
+        for (const row of fkRows) {
+            if (!tableMetadataMap.has(row.table_name)) {
+                continue; // Skip tables we're not processing
+            }
+
+            if (!fkConstraintMap.has(row.table_name)) {
+                fkConstraintMap.set(row.table_name, new Map());
+            }
+
+            const tableFkMap = fkConstraintMap.get(row.table_name)!;
+
+            if (!tableFkMap.has(row.constraint_name)) {
+                tableFkMap.set(row.constraint_name, []);
+            }
+
+            tableFkMap.get(row.constraint_name)!.push(row.column_name);
+        }
+    }
+
+    // Now process the index data and mark foreign key indexes
+    for (const [tableName, tableIndexMap] of indexColumnsMap.entries()) {
+        const indexes = [];
+        const tableFkMap = fkConstraintMap.get(tableName);
+
+        for (const [indexName, indexData] of tableIndexMap.entries()) {
+            // Check if this index is for a foreign key
+            let isForeignKey = false;
+
+            if (tableFkMap) {
+                // Check if index name matches a foreign key constraint name
+                if (tableFkMap.has(indexName)) {
+                    isForeignKey = true;
+                } else {
+                    // Check if any column in this index is part of a foreign key
+                    for (const fkColumns of tableFkMap.values()) {
+                        for (const column of indexData.columns) {
+                            if (fkColumns.includes(column)) {
+                                isForeignKey = true;
+                                break;
+                            }
+                        }
+
+                        if (isForeignKey) break;
+                    }
+                }
+            }
+
+            indexes.push({
+                index_name: indexName,
+                column_names: indexData.columns,
+                is_unique: indexData.is_unique,
+                is_primary: indexName === 'PRIMARY',
+                is_foreign_key: isForeignKey
+            });
+        }
+
+        if (tableMetadataMap.has(tableName)) {
+            tableMetadataMap.get(tableName)!.indexes = indexes;
+        }
+    }
+
+    // 4. Fetch all foreign key details
+    console.log('Fetching all foreign key details...');
+
+    const foreignKeysResult = await DB.doQuery({
+        queryString: `
+            SELECT
+                kcu.table_name,
+                kcu.constraint_name,
+                kcu.column_name,
+                kcu.referenced_table_name,
+                kcu.referenced_column_name,
+                rc.update_rule,
+                rc.delete_rule
+            FROM information_schema.key_column_usage kcu
+            JOIN information_schema.referential_constraints rc
+                ON kcu.constraint_name = rc.constraint_name
+                AND kcu.constraint_schema = rc.constraint_schema
+            WHERE kcu.table_schema = ?
+            AND kcu.referenced_table_name IS NOT NULL
+            ORDER BY kcu.table_name, kcu.constraint_name, kcu.ordinal_position
+        `,
+        parameters: [dbName]
+    });
+
+    if (foreignKeysResult && Array.isArray(foreignKeysResult) && foreignKeysResult.length > 0) {
+        const fkRows = foreignKeysResult as ResultSetHeader &
+            {
+                table_name: string;
+                constraint_name: string;
+                column_name: string;
+                referenced_table_name: string;
+                referenced_column_name: string;
+                update_rule: string;
+                delete_rule: string;
+            }[];
+
+        for (const row of fkRows) {
+            if (!tableMetadataMap.has(row.table_name)) {
+                continue; // Skip tables we're not processing
+            }
+
+            tableMetadataMap.get(row.table_name)!.foreignKeys.push({
+                constraint_name: row.constraint_name,
+                column_name: row.column_name,
+                referenced_table: row.referenced_table_name,
+                referenced_column: row.referenced_column_name,
+                update_rule: row.update_rule,
+                delete_rule: row.delete_rule
+            });
+        }
+    }
+
+    return tableMetadataMap;
 }
 
 // eslint-disable-next-line complexity, max-statements
@@ -155,7 +406,11 @@ export const generateTypesMysql = async (options: GenerateTypesMysqlOptions) => 
         // Convert the map to an array of [interfaceName, tableName] pairs for processing
         const tablesToProcess: [string, string][] = Array.from(tableMap.entries());
 
-        let typesFileContent = `/* eslint-disable @typescript-eslint/naming-convention */
+        // Fetch all metadata for all tables at once
+        const tableMetadataMap = await fetchAllTablesMetadata(DB, options.db, Array.from(tableMap.values()));
+
+        let typesFileContent = `/* eslint-disable max-len */
+/* eslint-disable @typescript-eslint/naming-convention */
 /**
  * Auto-generated TypeScript interfaces for MySQL database schema
  * Generated on: ${new Date().toISOString()}
@@ -189,8 +444,9 @@ type WithOptional<T, K extends keyof T> =
             // For sharded tables, interfaceName is the base name
             // For regular tables, interfaceName equals tableName
 
-            // Get table comment
-            const tableComment = await fetchTableComment(DB, options.db, tableName);
+            // Get table metadata from our pre-fetched map
+            const tableMetadata = tableMetadataMap.get(tableName);
+            const tableComment = tableMetadata?.comment || null;
 
             // Get column information for the table, including column_type for enums and column comments
             const columnsResult = await DB.doQuery({
@@ -236,12 +492,16 @@ type WithOptional<T, K extends keyof T> =
             // Track columns with default values for the Insert interface
             const columnsWithDefaults: string[] = [];
 
-            // Add table comment if it exists
+            // Always add a comment with the table name
             if (tableComment) {
-                typesFileContent += `/**\n * ${tableComment}\n */\n`;
+                // If there's a table comment, include both the table name and the comment
+                typesFileContent += `/**\n * Table: \`${tableName}\`\n * ${tableComment}\n */\n`;
             } else if (interfaceName !== tableName) {
                 // This is a sharded table
-                typesFileContent += `/**\n * Interface for the sharded table ${interfaceName}\n * This represents all shards (${interfaceName}_N)\n */\n`;
+                typesFileContent += `/**\n * Table: \`${interfaceName}\`\n * Interface for the sharded table ${interfaceName}\n * This represents all shards (${interfaceName}_N)\n */\n`;
+            } else {
+                // Just add the table name
+                typesFileContent += `/**\n * Table: \`${tableName}\`\n */\n`;
             }
 
             // Generate the main interface
@@ -259,6 +519,25 @@ type WithOptional<T, K extends keyof T> =
                 if (isAutoGenerated) {
                     columnsWithDefaults.push(columnName);
                 }
+
+                // Add column type as a comment
+                const nullableText = isNullable ? 'NULL' : 'NOT NULL';
+                const columnTypeComment = `${column.column_type} ${nullableText}`;
+                typesFileContent += `  /** ${columnTypeComment}`;
+
+                // Add column comment if it exists and isn't just a "boolean" marker for tinyint
+                if (
+                    column.column_comment &&
+                    !(
+                        column.column_comment.toLowerCase() === 'boolean' &&
+                        column.data_type.toLowerCase() === 'tinyint' &&
+                        /^tinyint\(1\)( unsigned)?$/i.test(column.column_type)
+                    )
+                ) {
+                    typesFileContent += `\n   * ${column.column_comment}`;
+                }
+
+                typesFileContent += ` */\n`;
 
                 // Map MySQL data types to TypeScript types
                 let tsType: string;
@@ -346,6 +625,85 @@ type WithOptional<T, K extends keyof T> =
             }
 
             typesFileContent += '}\n\n';
+
+            // Get indexes and foreign keys from our pre-fetched metadata
+            const indexes = tableMetadata?.indexes || [];
+            const foreignKeys = tableMetadata?.foreignKeys || [];
+
+            // Add indexes and foreign keys as comments below the interface
+            if (indexes.length > 0 || foreignKeys.length > 0) {
+                typesFileContent += `/**\n * Database metadata for ${pascalCaseTableName}Row:\n`;
+
+                // Add indexes (excluding foreign key indexes which will be shown in the Foreign Keys section)
+                const regularIndexes = indexes.filter((index: { is_foreign_key: boolean }) => !index.is_foreign_key);
+
+                if (regularIndexes.length > 0) {
+                    typesFileContent += ` *\n * Indexes:\n`;
+
+                    for (const index of regularIndexes) {
+                        let indexType = 'INDEX';
+
+                        if (index.is_primary) {
+                            indexType = 'PRIMARY KEY';
+                        } else if (index.is_unique) {
+                            indexType = 'UNIQUE INDEX';
+                        }
+
+                        // Format column names
+                        const columnList = index.column_names.map((col: string) => `\`${col}\``).join(', ');
+                        typesFileContent += ` * - ${indexType} \`${index.index_name}\` (${columnList})\n`;
+                    }
+                }
+
+                // Add foreign keys
+                if (foreignKeys.length > 0) {
+                    typesFileContent += ` *\n * Foreign Keys:\n`;
+
+                    // Group foreign keys by constraint name
+                    const fkMap = new Map<
+                        string,
+                        {
+                            constraint_name: string;
+                            columns: string[];
+                            referenced_table: string;
+                            referenced_columns: string[];
+                            update_rule: string;
+                            delete_rule: string;
+                        }
+                    >();
+
+                    for (const fk of foreignKeys) {
+                        if (!fkMap.has(fk.constraint_name)) {
+                            fkMap.set(fk.constraint_name, {
+                                constraint_name: fk.constraint_name,
+                                columns: [],
+                                referenced_table: fk.referenced_table,
+                                referenced_columns: [],
+                                update_rule: fk.update_rule,
+                                delete_rule: fk.delete_rule
+                            });
+                        }
+
+                        const constraint = fkMap.get(fk.constraint_name)!;
+                        constraint.columns.push(fk.column_name);
+                        constraint.referenced_columns.push(fk.referenced_column);
+                    }
+
+                    // Output each foreign key constraint
+                    for (const [constraintName, fk] of fkMap.entries()) {
+                        // Format column lists
+                        const sourceColumns = fk.columns.map((col: string) => `\`${col}\``).join(', ');
+                        const targetColumns = fk.referenced_columns.map((col: string) => `\`${col}\``).join(', ');
+
+                        // Build the constraint description
+                        typesFileContent += ` * - CONSTRAINT \`${constraintName}\` FOREIGN KEY (${sourceColumns}) `;
+                        typesFileContent += `REFERENCES \`${fk.referenced_table}\` (${targetColumns}) `;
+                        typesFileContent += `ON UPDATE ${fk.update_rule} ON DELETE ${fk.delete_rule}\n`;
+                    }
+                }
+
+                typesFileContent += ` */\n\n`;
+            }
 
             // Generate the Insert interface (making columns with default values optional)
             if (columnsWithDefaults.length > 0) {
