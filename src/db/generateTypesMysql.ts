@@ -606,18 +606,6 @@ type WithOptional<T, K extends keyof T> =
                     }
                 }
 
-                // Add column comment if it exists and isn't just a "boolean" marker for tinyint
-                if (
-                    column.column_comment &&
-                    !(
-                        column.column_comment.toLowerCase() === 'boolean' &&
-                        column.data_type.toLowerCase() === 'tinyint' &&
-                        /^tinyint\(1\)( unsigned)?$/i.test(column.column_type)
-                    )
-                ) {
-                    typesFileContent += `  /** ${column.column_comment} */\n`;
-                }
-
                 // Check if column name starts with a number or contains special characters
                 const needsQuotes = /^[0-9]/.test(columnName) || /[^a-zA-Z0-9_]/.test(columnName);
                 const formattedColumnName = needsQuotes ? `'${columnName}'` : columnName;
