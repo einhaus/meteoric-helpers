@@ -1,6 +1,6 @@
 {
   "name": "@einhaus/meteoric-helpers",
-  "version": "1.0.57",
+  "version": "1.0.59",
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -89,6 +89,7 @@
     "dayjs": "^1.11.13",
     "mime-types": "^3.0.1",
     "mysql2": "^3.14.1",
+    "nanoid": "^5.1.5",
     "node-cache": "^5.1.2",
     "pg": "^8.16.0",
     "tsx": "^4.19.4",

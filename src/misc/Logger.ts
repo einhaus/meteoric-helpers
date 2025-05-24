@@ -1,9 +1,9 @@
 import { getDate } from '../date/getDate.js';
-import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { workerData } from 'worker_threads';
 import path from 'path';
-import { generateRandomString } from '../string/generateRandomString.js';
 import { checkTimezoneIsEst } from '../index.js';
+import { nanoid } from 'nanoid';
 
 export interface LoggerConfig {
     logDir: string;
@@ -12,22 +12,60 @@ export interface LoggerConfig {
     debug?: boolean;
 }
 
+export interface LogEntry {
+    level: 'info' | 'error' | 'warn' | 'debug';
+    service?: string;
+    category?: string;
+    severity: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+    message?: string;
+    error?: Error;
+    extraData?: unknown;
+}
+
+export interface LoggerRecord {
+    timestamp: string;
+    unixTimestamp: number;
+    service: string;
+    category: string;
+    level: string;
+    severity: number;
+    message: string;
+    error: LoggerError | undefined;
+    extraData: string;
+    context: LoggerContext;
+}
+
+export interface LoggerError {
+    name: string;
+    message: string;
+    stack: string | undefined;
+}
+
+export interface LoggerContext {
+    argString: string;
+    workerJson: string;
+    scriptInstanceId: string;
+    processId: number;
+    uptime: number;
+    nodeVersion: string;
+    platform: string;
+}
+
 export class Logger {
     verbose = false;
     debug = false;
-    private readonly startTime: number;
     private readonly scriptInstanceId: string;
     private readonly logDir: string;
     private readonly jobLogDir: string;
+    private readonly recentErrors = new Map<string, number>();
 
     private static instance: Logger | null = null;
 
     private constructor(config?: LoggerConfig) {
-        this.startTime = Date.now();
         this.verbose = config?.verbose ?? false;
         this.setupProcessHandlers();
         this.debug = config?.debug ?? false;
-        this.scriptInstanceId = generateRandomString(15);
+        this.scriptInstanceId = nanoid();
         Error.stackTraceLimit = 25;
         checkTimezoneIsEst();
 
@@ -38,6 +76,10 @@ export class Logger {
         // Ensure log directories exist
         if (!existsSync(this.logDir)) {
             mkdirSync(this.logDir, { recursive: true });
+        }
+
+        if (!existsSync(`${this.logDir}files`)) {
+            mkdirSync(`${this.logDir}files`, { recursive: true });
         }
 
         if (!existsSync(this.jobLogDir)) {
@@ -61,63 +103,85 @@ export class Logger {
         return Logger.instance;
     }
 
-    /**
-     * Reset the singleton instance (primarily for testing)
-     */
-    public static resetInstance(): void {
-        Logger.instance = null;
-    }
+    log(config: LogEntry): void {
+        const { level, severity, message, error, extraData, service, category } = config;
 
-    logError(error: Error, extraData?: unknown): void {
+        Error.stackTraceLimit = Infinity;
+
+        const argString = process.argv.slice(1).join(' ');
+        const workerJson = workerData ? `${JSON.stringify(workerData)}` : '';
+
         let extraDataOutput = typeof extraData === 'string' ? extraData : '';
         extraDataOutput = extraData instanceof Error ? extraData.message : extraDataOutput;
         extraDataOutput = extraData instanceof TypeError ? extraData.message : extraDataOutput;
         extraDataOutput = !extraDataOutput && extraData ? JSON.stringify(extraData, null, 4) : extraDataOutput;
 
-        if (error.stack?.includes('ExperimentalWarning')) return;
+        // Enhanced error serialization - capture more error context
+        const errorDetails = error
+            ? {
+                  name: error.name,
+                  message: error.message,
+                  stack: error.stack,
+                  cause: error.cause ? JSON.stringify(error.cause) : undefined,
+                  // Capture any custom properties on the error object
+                  ...Object.getOwnPropertyNames(error).reduce(
+                      (acc: Record<string, unknown>, key) => {
+                          if (!['name', 'message', 'stack'].includes(key)) {
+                              acc[key] = (error as unknown as Record<string, unknown>)[key];
+                          }
 
-        const randomAppend = generateRandomString(5);
+                          return acc;
+                      },
+                      {} as Record<string, unknown>
+                  )
+              }
+            : undefined;
 
-        const fileName = `errorReport_${getDate({ format: 'ymdhms' })}_${randomAppend}.txt`;
+        // Get current timestamp for consistent timing
+        const timestamp = getDate({ format: 'ymdhms' });
+        const unixTimestamp = Date.now();
 
-        const argString = process.argv.slice(1).join(' ');
+        const logEntry: LoggerRecord = {
+            timestamp,
+            unixTimestamp,
+            level,
+            severity,
+            message: message ?? '',
+            error: errorDetails,
+            extraData: extraDataOutput,
+            context: {
+                argString,
+                workerJson,
+                scriptInstanceId: this.scriptInstanceId,
+                processId: process.pid,
+                uptime: process.uptime(),
+                nodeVersion: process.version,
+                platform: process.platform
+            },
+            service: service ?? '',
+            category: category ?? ''
+        };
 
-        const errorOutput = `${argString}\n${error.stack ?? ''}\nError Timestamp: ${getDate({
-            format: 'ymdhms'
-        })}\nExtra data: ${extraDataOutput}`;
+        // Better file naming - group by date and level for easier analysis
+        const dateStr = timestamp.substring(0, 10); // YYYYMMDD
+        const filename = `${this.logDir}files/${dateStr}_${level}_${nanoid(8)}.json`;
 
-        console.log('We logged an error: ', errorOutput);
+        const errorHash = error ? `${error.name}:${error.message}` : message;
 
-        writeFileSync(this.logDir + fileName, errorOutput);
-    }
+        if (errorHash && this.recentErrors.has(errorHash)) {
+            return; // Skip duplicate
+        }
 
-    logDbError(error: Error): void {
-        console.log('We logged a DB error!');
-        const fileName = `errorReport_db_${getDate({ format: 'ymdhms' })}.txt`;
+        if (errorHash) this.recentErrors.set(errorHash, Date.now());
 
-        const argString = process.argv.slice(1).join(' ');
-
-        writeFileSync(
-            this.logDir + fileName,
-            `${argString}\nError Stack: ${error.stack ?? ''}\nError Timestamp: ${getDate({ format: 'ymdhms' })}\n${JSON.stringify(
-                error,
-                null,
-                4
-            )}`
-        );
-    }
-
-    appendTextToLog(logFile: string, text: string): void {
-        appendFileSync(`${this.logDir + logFile}.log`, `${text}\n`);
-    }
-
-    logJob(cronFile: string, event: 'start' | 'end', appendText = ''): void {
-        if (!existsSync(this.jobLogDir)) mkdirSync(this.jobLogDir, { recursive: true });
-
-        appendFileSync(
-            `${this.jobLogDir + cronFile}.log`,
-            `${event}: ${getDate({ format: 'ymdhms' })} ${this.scriptInstanceId}${appendText}\n`
-        );
+        try {
+            // Use faster JSON.stringify for performance
+            writeFileSync(filename, JSON.stringify(logEntry));
+        } catch (err) {
+            console.log('Failed to write log file:', err);
+            // Emergency fallback - at least get it to console
+            console.log('Log entry:', JSON.stringify(logEntry, null, 2));
+        }
     }
 
     private setupProcessHandlers() {
@@ -125,17 +189,22 @@ export class Logger {
         this.debug = !!process.argv.includes('--debug');
 
         process.env.TZ = 'America/New_York';
-        const argString = process.argv.slice(1).join(' ');
         const originalConsoleError = console.error;
 
         console.error = (...args: unknown[]) => {
             // Log the error using the Logger's logError method
             const errorMessage = args.map((arg) => (typeof arg === 'string' ? arg : JSON.stringify(arg))).join(' ');
+            if (errorMessage.includes('punycode')) return;
 
             // Create an Error object to capture stack trace
             const error = new Error(errorMessage);
-            // TODO - at some point we can remove this
-            if (!errorMessage.includes('punycode')) this.logError(error, 'console.error called');
+
+            this.log({
+                level: 'error',
+                severity: 8,
+                message: errorMessage,
+                error
+            });
 
             // Call the original console.error to maintain normal behavior
             originalConsoleError.apply(console, args);
@@ -144,28 +213,52 @@ export class Logger {
         process.on('uncaughtException', (err, origin) => {
             console.log(err);
             console.log(origin);
-            const workerJson = workerData ? `\n${JSON.stringify(workerData)}` : '';
-            this.logError(err, `uncaughtException: ${JSON.stringify(origin)} ${argString}${workerJson}`);
+
+            this.log({
+                level: 'error',
+                severity: 10,
+                message: `uncaughtException: ${JSON.stringify(origin)}`,
+                error: err
+            });
+
             process.exit(1);
         });
 
         process.on('SIGTERM', () => {
-            this.logError(new Error('SIGTERM received'), 'SIGTERM');
+            this.log({
+                level: 'error',
+                severity: 10,
+                message: 'SIGTERM received',
+                error: new Error('SIGTERM received')
+            });
+
             process.exit(1);
         });
 
         process.on('unhandledRejection', (reason) => {
-            const workerJson = workerData ? `\n${JSON.stringify(workerData)}` : '';
             const errorMessage = reason instanceof Error ? reason.stack : reason;
-            const error = new Error(`Unhandled Rejection at: Promise ${errorMessage as string}${workerJson}`);
-            this.logError(error, argString);
+            const error = new Error(`Unhandled Rejection at: Promise ${errorMessage as string}`);
+
+            this.log({
+                level: 'error',
+                severity: 10,
+                message: `unhandledRejection: ${JSON.stringify(reason)}`,
+                error
+            });
+
             process.exit(1);
         });
 
         process.on('warning', (warning) => {
             // TODO - at some point we can remove this
             if (warning.message.includes('punycode')) return;
-            this.logError(warning, 'warning');
+
+            this.log({
+                level: 'warn',
+                severity: 5,
+                message: warning.message,
+                error: warning
+            });
         });
     }
 
@@ -201,23 +294,5 @@ export class Logger {
      */
     init(): void {
         if (this.verbose) console.log('Logger initialized');
-    }
-
-    /**
-     * Get the configured log directory
-     */
-    getLogDir(): string {
-        return this.logDir;
-    }
-
-    /**
-     * Get the configured job log directory
-     */
-    getJobLogDir(): string {
-        return this.jobLogDir;
-    }
-
-    getSecondsSinceStartTime(): number {
-        return (Date.now() - this.startTime) / 1000;
     }
 }
