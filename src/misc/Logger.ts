@@ -11,6 +11,8 @@ export interface LoggerConfig {
     jobLogDir?: string;
     verbose?: boolean;
     debug?: boolean;
+    duplicateSuppressionWindowMs?: number; // Default: 5 minutes
+    enableDuplicateSuppression?: boolean; // Default: true
 }
 
 export interface LogEntry {
@@ -60,6 +62,8 @@ export class Logger {
     private readonly logDir: string;
     private readonly jobLogDir: string;
     private readonly recentErrors = new Map<string, number>();
+    private readonly duplicateSuppressionWindowMs: number;
+    private readonly enableDuplicateSuppression: boolean;
 
     // Add recursion protection and original console methods
     private isLogging = false;
@@ -74,6 +78,10 @@ export class Logger {
         // Store original console methods before they get overridden
         this.originalConsoleError = console.error;
         this.originalConsoleLog = console.log;
+
+        // Initialize duplicate suppression settings
+        this.duplicateSuppressionWindowMs = config?.duplicateSuppressionWindowMs ?? 300000; // 5 minutes default
+        this.enableDuplicateSuppression = config?.enableDuplicateSuppression ?? true;
 
         this.setupProcessHandlers();
         this.debug = config?.debug ?? false;
@@ -113,6 +121,66 @@ export class Logger {
         }
 
         return Logger.instance;
+    }
+
+    /**
+     * Clean up expired entries from the recent errors map
+     */
+    private cleanupExpiredErrors(): void {
+        if (!this.enableDuplicateSuppression) return;
+
+        const now = Date.now();
+        const expiredKeys: string[] = [];
+
+        for (const [key, timestamp] of this.recentErrors.entries()) {
+            if (now - timestamp > this.duplicateSuppressionWindowMs) {
+                expiredKeys.push(key);
+            }
+        }
+
+        for (const key of expiredKeys) {
+            this.recentErrors.delete(key);
+        }
+    }
+
+    /**
+     * Generate a more comprehensive hash for duplicate detection
+     */
+    private generateErrorHash(config: LogEntry): string {
+        const { error, message, service, category, level } = config;
+
+        // Include more context in the hash to reduce false positives
+        const parts = [level, service || '', category || '', error ? `${error.name}:${error.message}` : message || ''];
+
+        return parts.join('|');
+    }
+
+    /**
+     * Check if this error should be suppressed as a duplicate
+     */
+    private isDuplicate(config: LogEntry): boolean {
+        if (!this.enableDuplicateSuppression) return false;
+
+        // Clean up expired entries first
+        this.cleanupExpiredErrors();
+
+        const errorHash = this.generateErrorHash(config);
+        if (!errorHash) return false;
+
+        return this.recentErrors.has(errorHash);
+    }
+
+    /**
+     * Record this error in the recent errors map
+     */
+    private recordError(config: LogEntry): void {
+        if (!this.enableDuplicateSuppression) return;
+
+        const errorHash = this.generateErrorHash(config);
+
+        if (errorHash) {
+            this.recentErrors.set(errorHash, Date.now());
+        }
     }
 
     // eslint-disable-next-line max-statements, complexity
@@ -220,17 +288,17 @@ export class Logger {
                 category: category ?? ''
             };
 
+            // Check for duplicate errors before proceeding
+            if (this.isDuplicate(config)) {
+                return; // Skip duplicate
+            }
+
             // Better file naming - group by date and level for easier analysis
             const dateStr = timestamp.substring(0, 10); // YYYYMMDD
             const filename = `${this.logDir}files/${dateStr}_${level}_${nanoid(8)}.json`;
 
-            const errorHash = error ? `${error.name}:${error.message}` : message;
-
-            if (errorHash && this.recentErrors.has(errorHash)) {
-                return; // Skip duplicate
-            }
-
-            if (errorHash) this.recentErrors.set(errorHash, Date.now());
+            // Record this error to prevent future duplicates
+            this.recordError(config);
 
             try {
                 // Safe JSON serialization for log entry
