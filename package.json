@@ -1,6 +1,6 @@
 {
   "name": "@einhaus/meteoric-helpers",
-  "version": "1.0.59",
+  "version": "1.0.61",
   "exports": {
     ".": {
       "import": "./dist/index.js",

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { getDate } from '../date/getDate.js';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { workerData } from 'worker_threads';
@@ -39,6 +40,7 @@ export interface LoggerError {
     name: string;
     message: string;
     stack: string | undefined;
+    cause?: string;
 }
 
 export interface LoggerContext {
@@ -59,10 +61,20 @@ export class Logger {
     private readonly jobLogDir: string;
     private readonly recentErrors = new Map<string, number>();
 
+    // Add recursion protection and original console methods
+    private isLogging = false;
+    private readonly originalConsoleError: typeof console.error;
+    private readonly originalConsoleLog: typeof console.log;
+
     private static instance: Logger | null = null;
 
     private constructor(config?: LoggerConfig) {
         this.verbose = config?.verbose ?? false;
+
+        // Store original console methods before they get overridden
+        this.originalConsoleError = console.error;
+        this.originalConsoleLog = console.log;
+
         this.setupProcessHandlers();
         this.debug = config?.debug ?? false;
         this.scriptInstanceId = nanoid();
@@ -103,84 +115,147 @@ export class Logger {
         return Logger.instance;
     }
 
+    // eslint-disable-next-line max-statements, complexity
     log(config: LogEntry): void {
-        const { level, severity, message, error, extraData, service, category } = config;
-
-        Error.stackTraceLimit = Infinity;
-
-        const argString = process.argv.slice(1).join(' ');
-        const workerJson = workerData ? `${JSON.stringify(workerData)}` : '';
-
-        let extraDataOutput = typeof extraData === 'string' ? extraData : '';
-        extraDataOutput = extraData instanceof Error ? extraData.message : extraDataOutput;
-        extraDataOutput = extraData instanceof TypeError ? extraData.message : extraDataOutput;
-        extraDataOutput = !extraDataOutput && extraData ? JSON.stringify(extraData, null, 4) : extraDataOutput;
-
-        // Enhanced error serialization - capture more error context
-        const errorDetails = error
-            ? {
-                  name: error.name,
-                  message: error.message,
-                  stack: error.stack,
-                  cause: error.cause ? JSON.stringify(error.cause) : undefined,
-                  // Capture any custom properties on the error object
-                  ...Object.getOwnPropertyNames(error).reduce(
-                      (acc: Record<string, unknown>, key) => {
-                          if (!['name', 'message', 'stack'].includes(key)) {
-                              acc[key] = (error as unknown as Record<string, unknown>)[key];
-                          }
-
-                          return acc;
-                      },
-                      {} as Record<string, unknown>
-                  )
-              }
-            : undefined;
-
-        // Get current timestamp for consistent timing
-        const timestamp = getDate({ format: 'ymdhms' });
-        const unixTimestamp = Date.now();
-
-        const logEntry: LoggerRecord = {
-            timestamp,
-            unixTimestamp,
-            level,
-            severity,
-            message: message ?? '',
-            error: errorDetails,
-            extraData: extraDataOutput,
-            context: {
-                argString,
-                workerJson,
-                scriptInstanceId: this.scriptInstanceId,
-                processId: process.pid,
-                uptime: process.uptime(),
-                nodeVersion: process.version,
-                platform: process.platform
-            },
-            service: service ?? '',
-            category: category ?? ''
-        };
-
-        // Better file naming - group by date and level for easier analysis
-        const dateStr = timestamp.substring(0, 10); // YYYYMMDD
-        const filename = `${this.logDir}files/${dateStr}_${level}_${nanoid(8)}.json`;
-
-        const errorHash = error ? `${error.name}:${error.message}` : message;
-
-        if (errorHash && this.recentErrors.has(errorHash)) {
-            return; // Skip duplicate
+        // Prevent infinite recursion
+        if (this.isLogging) {
+            this.originalConsoleError('Logger: Recursive call detected, skipping log entry');
+            return;
         }
 
-        if (errorHash) this.recentErrors.set(errorHash, Date.now());
+        const { level, severity, message, error, extraData, service, category } = config;
+
+        this.isLogging = true;
 
         try {
-            // Use faster JSON.stringify for performance
-            writeFileSync(filename, JSON.stringify(logEntry));
-        } catch (err) {
-            console.log('Failed to write log file:', err);
-            // Emergency fallback - at least get it to console
-            console.log('Log entry:', JSON.stringify(logEntry, null, 2));
+            Error.stackTraceLimit = Infinity;
+
+            const argString = process.argv.slice(1).join(' ');
+            let workerJson = '';
+
+            // Safe JSON serialization for worker data
+            if (workerData) {
+                try {
+                    workerJson = JSON.stringify(workerData);
+                } catch (_err) {
+                    workerJson = '[Unable to serialize worker data]';
+                }
+            }
+
+            let extraDataOutput = typeof extraData === 'string' ? extraData : '';
+            extraDataOutput = extraData instanceof Error ? extraData.message : extraDataOutput;
+            extraDataOutput = extraData instanceof TypeError ? extraData.message : extraDataOutput;
+
+            // Safe JSON serialization for extra data
+            if (!extraDataOutput && extraData) {
+                try {
+                    extraDataOutput = JSON.stringify(extraData, null, 4);
+                } catch (_err) {
+                    extraDataOutput = '[Unable to serialize extra data]';
+                }
+            }
+
+            // Enhanced error serialization - capture more error context
+            let errorDetails: LoggerError | undefined;
+
+            if (error) {
+                try {
+                    const baseErrorDetails: LoggerError = {
+                        name: error.name,
+                        message: error.message,
+                        stack: error.stack
+                    };
+
+                    // Only add cause if it exists
+                    if (error.cause) {
+                        baseErrorDetails.cause = JSON.stringify(error.cause);
+                    }
+
+                    errorDetails = {
+                        ...baseErrorDetails,
+                        // Capture any custom properties on the error object
+                        ...Object.getOwnPropertyNames(error).reduce(
+                            (acc: Record<string, unknown>, key) => {
+                                if (!['name', 'message', 'stack'].includes(key)) {
+                                    acc[key] = (error as unknown as Record<string, unknown>)[key];
+                                }
+
+                                return acc;
+                            },
+                            {} as Record<string, unknown>
+                        )
+                    };
+                } catch (_err) {
+                    // Fallback if error serialization fails
+                    errorDetails = {
+                        name: error.name || 'Unknown',
+                        message: error.message || 'Unknown error',
+                        stack: error.stack || 'No stack trace available'
+                    };
+                }
+            }
+
+            // Get current timestamp for consistent timing
+            const timestamp = getDate({ format: 'ymdhms' });
+            const unixTimestamp = Date.now();
+
+            const logEntry: LoggerRecord = {
+                timestamp,
+                unixTimestamp,
+                level,
+                severity,
+                message: message ?? '',
+                error: errorDetails,
+                extraData: extraDataOutput,
+                context: {
+                    argString,
+                    workerJson,
+                    scriptInstanceId: this.scriptInstanceId,
+                    processId: process.pid,
+                    uptime: process.uptime(),
+                    nodeVersion: process.version,
+                    platform: process.platform
+                },
+                service: service ?? '',
+                category: category ?? ''
+            };
+
+            // Better file naming - group by date and level for easier analysis
+            const dateStr = timestamp.substring(0, 10); // YYYYMMDD
+            const filename = `${this.logDir}files/${dateStr}_${level}_${nanoid(8)}.json`;
+
+            const errorHash = error ? `${error.name}:${error.message}` : message;
+
+            if (errorHash && this.recentErrors.has(errorHash)) {
+                return; // Skip duplicate
+            }
+
+            if (errorHash) this.recentErrors.set(errorHash, Date.now());
+
+            try {
+                // Safe JSON serialization for log entry
+                const logEntryJson = JSON.stringify(logEntry);
+                writeFileSync(filename, logEntryJson);
+            } catch (err) {
+                // Use original console methods to prevent recursion
+                this.originalConsoleLog('Failed to write log file:', err);
+
+                // Try to output a simplified version
+                try {
+                    const simplifiedEntry = {
+                        timestamp,
+                        level,
+                        message: message ?? '',
+                        error: error ? { name: error.name, message: error.message } : undefined
+                    };
+
+                    this.originalConsoleLog('Simplified log entry:', JSON.stringify(simplifiedEntry, null, 2));
+                } catch (_fallbackErr) {
+                    this.originalConsoleLog('Log entry (raw):', level, message);
+                }
+            }
+        } finally {
+            this.isLogging = false;
         }
     }
 
@@ -189,11 +264,35 @@ export class Logger {
         this.debug = !!process.argv.includes('--debug');
 
         process.env.TZ = 'America/New_York';
-        const originalConsoleError = console.error;
 
         console.error = (...args: unknown[]) => {
-            // Log the error using the Logger's logError method
-            const errorMessage = args.map((arg) => (typeof arg === 'string' ? arg : JSON.stringify(arg))).join(' ');
+            // Prevent recursion by checking if we're already logging
+            if (this.isLogging) {
+                this.originalConsoleError('Logger: Recursive console.error call detected');
+                this.originalConsoleError(...args);
+                return;
+            }
+
+            // Safe argument processing to prevent JSON.stringify failures
+            let errorMessage = '';
+
+            try {
+                errorMessage = args
+                    .map((arg) => {
+                        if (typeof arg === 'string') return arg;
+                        if (arg instanceof Error) return arg.message;
+
+                        try {
+                            return JSON.stringify(arg);
+                        } catch {
+                            return '[Unable to serialize argument]';
+                        }
+                    })
+                    .join(' ');
+            } catch {
+                errorMessage = 'Error processing console.error arguments';
+            }
+
             if (errorMessage.includes('punycode')) return;
 
             // Create an Error object to capture stack trace
@@ -207,17 +306,27 @@ export class Logger {
             });
 
             // Call the original console.error to maintain normal behavior
-            originalConsoleError.apply(console, args);
+            this.originalConsoleError.apply(console, args);
         };
 
         process.on('uncaughtException', (err, origin) => {
-            console.log(err);
-            console.log(origin);
+            // Use original console methods to prevent recursion in critical scenarios
+            this.originalConsoleLog(err);
+            this.originalConsoleLog(origin);
+
+            // Safe JSON serialization for origin
+            let originMessage = '';
+
+            try {
+                originMessage = JSON.stringify(origin);
+            } catch {
+                originMessage = String(origin);
+            }
 
             this.log({
                 level: 'error',
                 severity: 10,
-                message: `uncaughtException: ${JSON.stringify(origin)}`,
+                message: `uncaughtException: ${originMessage}`,
                 error: err
             });
 
@@ -239,10 +348,19 @@ export class Logger {
             const errorMessage = reason instanceof Error ? reason.stack : reason;
             const error = new Error(`Unhandled Rejection at: Promise ${errorMessage as string}`);
 
+            // Safe JSON serialization for reason
+            let reasonMessage = '';
+
+            try {
+                reasonMessage = JSON.stringify(reason);
+            } catch {
+                reasonMessage = String(reason);
+            }
+
             this.log({
                 level: 'error',
                 severity: 10,
-                message: `unhandledRejection: ${JSON.stringify(reason)}`,
+                message: `unhandledRejection: ${reasonMessage}`,
                 error
             });
 
