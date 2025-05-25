@@ -16,7 +16,7 @@ export interface LoggerConfig {
 }
 
 export interface LogEntry {
-    level: 'info' | 'error' | 'warn' | 'debug';
+    level: 'info' | 'error' | 'warn' | 'debug' | 'job';
     service?: string;
     category?: string;
     severity: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
