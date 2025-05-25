@@ -114,6 +114,18 @@ export class DBMysql {
         this.db = undefined;
     }
 
+    async doSelectFirst<T extends object>(
+        queryString: string,
+        parameters?: DbParameters,
+        connection?: PoolConnection,
+        verbose?: boolean
+    ): Promise<T | void> {
+        const rows = await this.doSelectMultiple<T>(queryString, parameters, connection, verbose);
+
+        if (!rows.length) return;
+        return rows[0];
+    }
+
     async doSelectMultiple<T extends object>(
         queryString: string,
         parameters?: DbParameters,
