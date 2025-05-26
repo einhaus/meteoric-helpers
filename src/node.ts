@@ -2,6 +2,7 @@
 export * from './index.js';
 
 // Node.js specific exports
+export * from './auth/passwords.js';
 export * from './cache/CacheService.js';
 export * from './cache/LocalCacheService.js';
 export * from './db/clickhouse.js';

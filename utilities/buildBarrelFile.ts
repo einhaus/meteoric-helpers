@@ -10,6 +10,7 @@ const nodeModules = [
     'node:path',
     'crypto',
     'node:crypto',
+    'bcrypt',
     'http',
     'node:http',
     'https',
