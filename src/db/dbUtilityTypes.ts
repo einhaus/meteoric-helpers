@@ -46,14 +46,14 @@ type ScalarWhereCondition<T> = {
     column: keyof T;
     operator?: Exclude<
         '=' | '>' | '>=' | '<' | '<=' | '!=' | '<>' | 'LIKE' | 'NOT LIKE' | 'IS' | 'IS NOT',
-        'IN' | 'BETWEEN' | 'NOT BETWEEN'
+        'IN' | 'NOT IN' | 'BETWEEN' | 'NOT BETWEEN'
     >;
     value: T[keyof T];
 };
 
 type ArrayWhereCondition<T> = {
     column: keyof T;
-    operator: 'IN' | 'BETWEEN' | 'NOT BETWEEN';
+    operator: 'IN' | 'NOT IN' | 'BETWEEN' | 'NOT BETWEEN';
     value: T[keyof T][];
 };
 

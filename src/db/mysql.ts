@@ -311,7 +311,15 @@ export class DBMysql {
                 const upperOperator = operator.toUpperCase();
                 const { value } = condition;
 
-                if (Array.isArray(value) && !(upperOperator === 'IN' || upperOperator === 'BETWEEN' || upperOperator === 'NOT BETWEEN')) {
+                if (
+                    Array.isArray(value) &&
+                    !(
+                        upperOperator === 'IN' ||
+                        upperOperator === 'NOT IN' ||
+                        upperOperator === 'BETWEEN' ||
+                        upperOperator === 'NOT BETWEEN'
+                    )
+                ) {
                     throw new Error(`Operator ${operator} does not support array values.`);
                 }
 
@@ -322,8 +330,8 @@ export class DBMysql {
 
                     parts.push(`\`${String(condition.column)}\` ${upperOperator} ? AND ?`);
                     values.push(value[0], value[1]);
-                } else if (upperOperator === 'IN' && Array.isArray(value)) {
-                    parts.push(`\`${String(condition.column)}\` IN (?)`);
+                } else if ((upperOperator === 'IN' || upperOperator === 'NOT IN') && Array.isArray(value)) {
+                    parts.push(`\`${String(condition.column)}\` ${upperOperator} (?)`);
                     values.push(value);
                 } else {
                     parts.push(`\`${String(condition.column)}\` ${operator} ?`);
