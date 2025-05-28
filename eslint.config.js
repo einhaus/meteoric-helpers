@@ -2,6 +2,7 @@
 import typescriptEslint from '@typescript-eslint/eslint-plugin';
 import sonarjs from 'eslint-plugin-sonarjs';
 import prettier from 'eslint-plugin-prettier';
+import importPlugin from 'eslint-plugin-import';
 import globals from 'globals';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment, @typescript-eslint/prefer-ts-expect-error
 // @ts-ignore
@@ -29,7 +30,8 @@ export default [
         plugins: {
             '@typescript-eslint': typescriptEslint,
             sonarjs,
-            prettier
+            prettier,
+            import: importPlugin
         },
 
         languageOptions: {
@@ -194,7 +196,7 @@ export default [
                 }
             ],
 
-            'no-duplicate-imports': 'warn',
+            'no-duplicate-imports': 'off',
             'no-useless-computed-key': 'error',
             'no-useless-rename': 'error',
             'no-var': 'error',
@@ -214,6 +216,8 @@ export default [
             'prefer-spread': 'warn',
             'prefer-template': 'warn',
             '@typescript-eslint/consistent-type-imports': 'error',
+            '@typescript-eslint/no-import-type-side-effects': 'error',
+            'import/no-duplicates': ['error', { 'prefer-inline': true }],
             'no-loss-of-precision': 'off',
             '@typescript-eslint/no-loss-of-precision': ['error'],
             '@typescript-eslint/no-unnecessary-type-constraint': 'error',
