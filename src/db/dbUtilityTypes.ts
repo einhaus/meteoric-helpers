@@ -11,13 +11,69 @@ export type WithoutNullableKeys<Type> = {
     [Key in keyof Type]-?: WithoutNullableKeys<NonNullable<Type[Key]>>;
 };
 
+/**
+ * Utility type that normalizes null and undefined to be equivalent.
+ * This allows passing undefined values where null is expected and vice versa.
+ */
+export type NullUndefinedEquivalent<T> = T extends null | undefined ? null | undefined : T;
+
+/**
+ * Utility type that converts undefined to null for database compatibility.
+ * Databases typically use NULL rather than undefined.
+ */
+export type UndefinedToNull<T> = T extends undefined ? null : T extends null | undefined ? null : T;
+
+/**
+ * Simplified utility type for making null and undefined interchangeable in object properties.
+ * This is useful for database operations where you want to accept either null or undefined
+ * for nullable fields.
+ */
+export type NullableFlexible<T> = {
+    [K in keyof T]: T[K] extends null | undefined ? T[K] | null | undefined : T[K];
+};
+
+/**
+ * Helper type to normalize null and undefined in union types
+ */
+type NormalizeNullUndefined<T> = T extends null | undefined
+    ? null | undefined
+    : T extends infer U | null
+      ? U | null | undefined
+      : T extends infer U | undefined
+        ? U | null | undefined
+        : T;
+
 export type Insertable<T> = {
-    [K in keyof T]: undefined extends T[K]
-        ? T[K] | null | undefined // Allow nulls only for originally nullable fields
-        : T[K]; // Require exact type for non-nullable fields
+    [K in keyof T]: NormalizeNullUndefined<T[K]>;
 };
 
 export type DbParametersRow = { [key: string]: AnyPrimitiveNullUndefined };
+
+/**
+ * Runtime utility function to normalize undefined values to null for database compatibility.
+ * This function recursively converts all undefined values in an object to null.
+ */
+export function normalizeUndefinedToNull<T>(obj: T): UndefinedToNull<T> {
+    if (obj === undefined) {
+        return null as UndefinedToNull<T>;
+    }
+
+    if (obj === null || typeof obj !== 'object') {
+        return obj as UndefinedToNull<T>;
+    }
+
+    if (Array.isArray(obj)) {
+        return obj.map((item) => normalizeUndefinedToNull(item)) as UndefinedToNull<T>;
+    }
+
+    const result: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(obj)) {
+        result[key] = normalizeUndefinedToNull(value);
+    }
+
+    return result as UndefinedToNull<T>;
+}
 
 /**
  * Interface for database configuration
