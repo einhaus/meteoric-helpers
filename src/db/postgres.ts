@@ -3,10 +3,11 @@ import type { PoolClient, QueryResult } from 'pg';
 // eslint-disable-next-line no-duplicate-imports
 import { Pool } from 'pg';
 import type { DBConfig, DbParameters, Insertable, SelectConfig, SelectConfigPg, SelectReturn, WhereCondition } from './dbUtilityTypes.js';
-import { writeFileSync, existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import { sleep } from '../misc/sleep.js';
 import { getDate } from '../date/getDate.js';
+import { LoggerConfig, Logger } from '../misc/Logger.js';
 
 // Default values that will be used if not specified in the config
 const DEFAULT_MAX_RETRIES = 4;
@@ -22,6 +23,7 @@ export class DBPostgres {
     private config: DBConfig;
     private readonly logFolder: string;
     private readonly maxRetries: number;
+    private logger: Logger | null = null;
     private readonly retryDelayMs: number;
 
     /**
@@ -42,6 +44,19 @@ export class DBPostgres {
                 if (!existsSync(logDir)) {
                     mkdirSync(logDir, { recursive: true });
                 }
+
+                const getLogger = (config: LoggerConfig) => {
+                    return Logger.getInstance(config);
+                };
+
+                const verbose = process.argv.includes('--verbose');
+                const debug = process.argv.includes('--debug');
+
+                this.logger = getLogger({
+                    logDir: this.logFolder,
+                    verbose,
+                    debug
+                });
             } catch (error) {
                 console.error('Failed to create log directory:', error);
             }
@@ -963,12 +978,9 @@ export class DBPostgres {
     }
 
     private handleError(e: unknown) {
-        if (this.logFolder) {
+        if (this.logger) {
             try {
                 if (e instanceof Error) {
-                    const dateTime = getDate({ format: 'ymdhms' });
-                    const fileName = `dbError-${dateTime}.log`;
-
                     const argString = process.argv.slice(1).join(' ');
 
                     // eslint-disable-next-line max-len
@@ -978,7 +990,12 @@ export class DBPostgres {
                         4
                     )}`;
 
-                    writeFileSync(path.join(this.logFolder, fileName), logEntry);
+                    this.logger.log({
+                        level: 'error',
+                        severity: 8,
+                        message: logEntry,
+                        error: e
+                    });
                 } else {
                     console.error('Failed to write to log file:', e);
                 }

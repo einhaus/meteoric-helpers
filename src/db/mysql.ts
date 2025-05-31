@@ -2,10 +2,11 @@
 import type { DBConfig, DbParameters, Insertable, SelectConfigMysql, SelectReturn, WhereCondition } from './dbUtilityTypes.js';
 
 import mysql, { type Pool, type ResultSetHeader, type PoolConnection } from 'mysql2/promise.js';
-import { writeFileSync, existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import { sleep } from '../misc/sleep.js';
 import { getDate } from '../date/getDate.js';
+import { LoggerConfig, Logger } from '../misc/Logger.js';
 // Default values that will be used if not specified in the config
 const DEFAULT_MAX_RETRIES = 4;
 const DEFAULT_RETRY_DELAY_MS = 10000;
@@ -21,6 +22,7 @@ export class DBMysql {
     private readonly logFolder: string;
     private readonly maxRetries: number;
     private readonly retryDelayMs: number;
+    private logger: Logger | null = null;
 
     /**
      * Private constructor
@@ -40,6 +42,19 @@ export class DBMysql {
                 if (!existsSync(logDir)) {
                     mkdirSync(logDir, { recursive: true });
                 }
+
+                const getLogger = (config: LoggerConfig) => {
+                    return Logger.getInstance(config);
+                };
+
+                const verbose = process.argv.includes('--verbose');
+                const debug = process.argv.includes('--debug');
+
+                this.logger = getLogger({
+                    logDir: this.logFolder,
+                    verbose,
+                    debug
+                });
             } catch (error) {
                 console.error('Failed to create log directory:', error);
             }
@@ -763,12 +778,9 @@ export class DBMysql {
     }
 
     private handleError(e: unknown) {
-        if (this.logFolder) {
+        if (this.logger) {
             try {
                 if (e instanceof Error) {
-                    const dateTime = getDate({ format: 'ymdhms' });
-                    const fileName = `dbError-${dateTime}.log`;
-
                     const argString = process.argv.slice(1).join(' ');
 
                     // eslint-disable-next-line max-len
@@ -778,7 +790,12 @@ export class DBMysql {
                         4
                     )}`;
 
-                    writeFileSync(path.join(this.logFolder, fileName), logEntry);
+                    this.logger.log({
+                        level: 'error',
+                        severity: 8,
+                        message: logEntry,
+                        error: e
+                    });
                 } else {
                     console.error('Failed to write to log file:', e);
                 }

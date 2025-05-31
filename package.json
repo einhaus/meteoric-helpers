@@ -1,6 +1,6 @@
 {
   "name": "@einhaus/meteoric-helpers",
-  "version": "1.0.66",
+  "version": "1.0.70",
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -57,24 +57,24 @@
     "url": "git+https://github.com/einhaus/meteoric-helpers.git"
   },
   "devDependencies": {
-    "@eslint/js": "^9.27.0",
+    "@eslint/js": "^9.28.0",
     "@types/bcrypt": "^5.0.2",
-    "@types/mime-types": "^2.1.4",
-    "@types/node": ">=22.15.21",
+    "@types/mime-types": "^3.0.0",
+    "@types/node": ">=22.15.29",
     "@types/pg": "^8.15.2",
-    "@typescript-eslint/eslint-plugin": "^8.32.1",
-    "@typescript-eslint/parser": "^8.32.1",
+    "@typescript-eslint/eslint-plugin": "^8.33.0",
+    "@typescript-eslint/parser": "^8.33.0",
     "concurrently": "^9.1.2",
-    "eslint": "^9.27.0",
+    "eslint": "^9.28.0",
     "eslint-config-prettier": ">=10.1.5",
     "eslint-plugin-import": "^2.31.0",
-    "eslint-plugin-prettier": ">=5.4.0",
+    "eslint-plugin-prettier": ">=5.4.1",
     "eslint-plugin-sonarjs": "^3.0.2",
     "prettier": "3.5.3",
     "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.32.1",
+    "typescript-eslint": "^8.33.0",
     "vitest": "^3.1.4"
   },
   "publishConfig": {
@@ -83,11 +83,11 @@
   },
   "private": false,
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.817.0",
-    "@aws-sdk/client-ses": "^3.817.0",
+    "@aws-sdk/client-s3": "^3.821.0",
+    "@aws-sdk/client-ses": "^3.821.0",
     "@clickhouse/client": "^1.11.1",
     "@eslint/eslintrc": "^3.3.1",
-    "@redis/client": "^5.1.0",
+    "@redis/client": "^5.1.1",
     "bcrypt": "^6.0.0",
     "dayjs": "^1.11.13",
     "mime-types": "^3.0.1",
