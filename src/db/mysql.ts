@@ -1,9 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { DBConfig, DbParameters, Insertable, SelectConfigMysql, SelectReturn, WhereCondition } from './dbUtilityTypes.js';
 
-import type { PoolConnection } from 'mysql2/promise.js';
-// eslint-disable-next-line no-duplicate-imports
-import mysql, { type Pool, type ResultSetHeader } from 'mysql2/promise.js';
+import mysql, { type Pool, type ResultSetHeader, type PoolConnection } from 'mysql2/promise.js';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import { sleep } from '../misc/sleep.js';
@@ -386,10 +384,22 @@ export class DBMysql {
         return error instanceof Error && error.message.includes('Pool is closed.');
     }
 
+    async createResultStream(queryString: string, parameters?: DbParameters) {
+        if (!this.db) throw new Error(`No db! ${queryString}`);
+
+        try {
+            const query = this.db.format(queryString, parameters);
+            const stream = this.db.pool.query(query).stream();
+
+            return stream;
+        } catch (e: unknown) {
+            return this.handleError(e);
+        }
+    }
     async doInsert<T>(config: {
         queryString: string;
         parameters?: T[] | DbParameters | undefined;
-        retryAttempts: number;
+        retryAttempts?: number;
         connection?: PoolConnection | undefined;
         verbose?: boolean | undefined;
     }): Promise<number | void> {
