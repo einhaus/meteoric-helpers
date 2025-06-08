@@ -6,7 +6,7 @@ import { existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import { sleep } from '../misc/sleep.js';
 import { getDate } from '../date/getDate.js';
-import { LoggerConfig, Logger } from '../misc/Logger.js';
+import { type LoggerConfig, Logger } from '../misc/Logger.js';
 // Default values that will be used if not specified in the config
 const DEFAULT_MAX_RETRIES = 4;
 const DEFAULT_RETRY_DELAY_MS = 10000;
@@ -22,7 +22,7 @@ export class DBMysql {
     private readonly logFolder: string;
     private readonly maxRetries: number;
     private readonly retryDelayMs: number;
-    private logger: Logger | null = null;
+    private readonly logger: Logger | null = null;
 
     /**
      * Private constructor
@@ -399,7 +399,7 @@ export class DBMysql {
         return error instanceof Error && error.message.includes('Pool is closed.');
     }
 
-    async createResultStream(queryString: string, parameters?: DbParameters) {
+    createResultStream(queryString: string, parameters?: DbParameters) {
         if (!this.db) throw new Error(`No db! ${queryString}`);
 
         try {
@@ -411,6 +411,7 @@ export class DBMysql {
             return this.handleError(e);
         }
     }
+
     async doInsert<T>(config: {
         queryString: string;
         parameters?: T[] | DbParameters | undefined;
