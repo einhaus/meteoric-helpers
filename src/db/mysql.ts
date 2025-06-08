@@ -469,6 +469,7 @@ export class DBMysql {
         params: Insertable<T>;
         shouldIgnore?: boolean;
         updateOnDuplicate?: boolean;
+        updateOnDuplicateColumns?: (keyof T)[];
         connection?: PoolConnection;
         verbose?: boolean;
     }): Promise<number | void> {
@@ -483,7 +484,8 @@ export class DBMysql {
         `;
 
         if (config.updateOnDuplicate) {
-            const duplicateUpdateClause = columns.map((col) => `\`${String(col)}\` = VALUES(\`${String(col)}\`)`).join(', ');
+            const updateColumns = config.updateOnDuplicateColumns || columns;
+            const duplicateUpdateClause = updateColumns.map((col) => `\`${String(col)}\` = VALUES(\`${String(col)}\`)`).join(', ');
             queryString += ` ON DUPLICATE KEY UPDATE ${duplicateUpdateClause}`;
         }
 
@@ -502,6 +504,7 @@ export class DBMysql {
         values: Insertable<T>[];
         shouldIgnore?: boolean;
         onDuplicateKeyUpdate?: boolean;
+        onDuplicateKeyUpdateColumns?: (keyof T)[];
         connection?: PoolConnection;
         verbose?: boolean;
     }): Promise<number | void> {
@@ -523,7 +526,8 @@ export class DBMysql {
         `;
 
         if (config.onDuplicateKeyUpdate) {
-            const updateClause = columns.map((col) => `\`${String(col)}\` = VALUES(\`${String(col)}\`)`).join(', ');
+            const updateColumns = config.onDuplicateKeyUpdateColumns || columns;
+            const updateClause = updateColumns.map((col) => `\`${String(col)}\` = VALUES(\`${String(col)}\`)`).join(', ');
             queryString += ` ON DUPLICATE KEY UPDATE ${updateClause}`;
         }
 

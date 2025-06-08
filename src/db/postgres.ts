@@ -249,6 +249,7 @@ export class DBPostgres {
         params: Insertable<T>;
         shouldIgnore?: boolean;
         updateOnDuplicate?: boolean;
+        onDuplicateKeyUpdateColumns?: (keyof T)[];
         connection?: PoolClient;
         verbose?: boolean;
     }): Promise<number | void> {
@@ -268,7 +269,7 @@ export class DBPostgres {
             // Need to identify the primary key for the table
             // This is a simplification - in practice you'd need to know which column(s) are the primary key
             const primaryKey = 'id';
-            const updateColumns = columns.filter((col) => String(col) !== primaryKey);
+            const updateColumns = config.onDuplicateKeyUpdateColumns || columns.filter((col) => String(col) !== primaryKey);
 
             const duplicateUpdateClause = updateColumns.map((col) => `"${String(col)}" = EXCLUDED."${String(col)}"`).join(', ');
 
@@ -294,6 +295,7 @@ export class DBPostgres {
         values: Insertable<T>[];
         shouldIgnore?: boolean;
         onDuplicateKeyUpdate?: boolean;
+        onDuplicateKeyUpdateColumns?: (keyof T)[];
         connection?: PoolClient;
         verbose?: boolean;
     }): Promise<number | void> {
@@ -371,7 +373,7 @@ export class DBPostgres {
             // Need to identify the primary key for the table
             // This is a simplification - in practice you'd need to know which column(s) are the primary key
             const primaryKey = 'id';
-            const updateColumns = columns.filter((col) => String(col) !== primaryKey);
+            const updateColumns = config.onDuplicateKeyUpdateColumns || columns.filter((col) => String(col) !== primaryKey);
 
             const updateClause = updateColumns.map((col) => `"${String(col)}" = EXCLUDED."${String(col)}"`).join(', ');
 
