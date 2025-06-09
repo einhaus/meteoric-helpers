@@ -301,6 +301,7 @@ export class DBMysql {
         return results[0];
     }
 
+    // eslint-disable-next-line complexity
     private buildWhereClause<T>(conditions: WhereCondition<T>[], joinOperator: 'AND' | 'OR'): { clause: string; values: unknown[] } {
         const parts: string[] = [];
         const values: unknown[] = [];

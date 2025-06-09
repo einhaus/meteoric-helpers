@@ -1,14 +1,4 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import type {
-    _Object,
-    CompletedPart,
-    CompleteMultipartUploadCommandInput,
-    DeleteObjectCommandInput,
-    DeleteObjectCommandOutput,
-    ListObjectsCommandInput,
-    ListObjectsV2CommandInput
-} from '@aws-sdk/client-s3';
-// eslint-disable-next-line no-duplicate-imports
 import {
     CompleteMultipartUploadCommand,
     CreateMultipartUploadCommand,
@@ -19,7 +9,14 @@ import {
     PutObjectCommand,
     S3Client,
     UploadPartCommand,
-    AbortMultipartUploadCommand
+    AbortMultipartUploadCommand,
+    type _Object,
+    type CompletedPart,
+    type CompleteMultipartUploadCommandInput,
+    type DeleteObjectCommandInput,
+    type DeleteObjectCommandOutput,
+    type ListObjectsCommandInput,
+    type ListObjectsV2CommandInput
 } from '@aws-sdk/client-s3';
 import child_process from 'child_process';
 import fs from 'fs';
