@@ -264,11 +264,11 @@ export class Logger {
             }
 
             // Get current timestamp for consistent timing
-            const timestamp = getDate({ format: 'ymdhms' });
+            const dateTime = getDate({ format: 'ymdhms' });
             const unixTimestamp = Date.now();
 
             const logEntry: LoggerRecord = {
-                timestamp,
+                timestamp: dateTime,
                 unixTimestamp,
                 level,
                 severity,
@@ -294,8 +294,7 @@ export class Logger {
             }
 
             // Better file naming - group by date and level for easier analysis
-            const dateStr = timestamp.substring(0, 10); // YYYYMMDD
-            const filename = `${this.logDir}files/${dateStr}_${level}_${nanoid(8)}.json`;
+            const filename = `${this.logDir}files/${dateTime}_${level}_${nanoid(8)}.json`;
 
             // Record this error to prevent future duplicates
             this.recordError(config);
@@ -311,7 +310,7 @@ export class Logger {
                 // Try to output a simplified version
                 try {
                     const simplifiedEntry = {
-                        timestamp,
+                        timestamp: dateTime,
                         level,
                         message: message ?? '',
                         error: error ? { name: error.name, message: error.message } : undefined
