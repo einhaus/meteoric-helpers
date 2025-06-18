@@ -1,6 +1,6 @@
 {
   "name": "@einhaus/meteoric-helpers",
-  "version": "1.0.71",
+  "version": "1.0.72",
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -50,7 +50,8 @@
     "build": "npm run clean && tsc -v && node -v && tsx -r tsconfig-paths/register './utilities/buildBarrelFile.ts' && tsc -p .",
     "test": "vitest --dir ./test",
     "build:barrel": "tsx -r tsconfig-paths/register './utilities/buildBarrelFile.ts'",
-    "watch": "npm run clean && npm run build:barrel && tsc -p . && concurrently \"tsc -p . --watch --preserveWatchOutput\" \"nodemon\""
+    "watch": "npm run clean && npm run build:barrel && tsc -p . && concurrently \"tsc -p . --watch --preserveWatchOutput\" \"nodemon\"",
+    "type-check": "tsc --noEmit"
   },
   "repository": {
     "type": "git",

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { getDate } from '../date/getDate.js';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
@@ -27,14 +28,14 @@ export interface LogEntry {
 
 export interface LoggerRecord {
     timestamp: string;
-    unixTimestamp: number;
+    unix_timestamp: number;
     service: string;
     category: string;
     level: string;
     severity: number;
     message: string;
     error: LoggerError | undefined;
-    extraData: string;
+    extra_data: string;
     context: LoggerContext;
 }
 
@@ -265,16 +266,17 @@ export class Logger {
 
             // Get current timestamp for consistent timing
             const dateTime = getDate({ format: 'ymdhms' });
-            const unixTimestamp = Date.now();
+
+            const unix_timestamp = Date.now();
 
             const logEntry: LoggerRecord = {
                 timestamp: dateTime,
-                unixTimestamp,
+                unix_timestamp,
                 level,
                 severity,
                 message: message ?? '',
                 error: errorDetails,
-                extraData: extraDataOutput,
+                extra_data: extraDataOutput,
                 context: {
                     argString,
                     workerJson,

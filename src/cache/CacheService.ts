@@ -1,6 +1,4 @@
-import type { RedisClientType, RedisFunctions, RedisModules, RedisScripts } from '@redis/client';
-// eslint-disable-next-line no-duplicate-imports
-import { createClient } from '@redis/client';
+import { type RedisClientType, type RedisFunctions, type RedisModules, type RedisScripts, createClient } from '@redis/client';
 
 /**
  * Configuration options for the CacheService
