@@ -192,7 +192,8 @@ export class Logger {
             return;
         }
 
-        const { level, severity, message, error, extraData, service, category } = config;
+        const { level, severity, message, extraData, service, category } = config;
+        let { error } = config;
 
         this.isLogging = true;
 
@@ -226,6 +227,8 @@ export class Logger {
 
             // Enhanced error serialization - capture more error context
             let errorDetails: LoggerError | undefined;
+
+            error = (level === 'error' || level === 'warn') && !error ? new Error(message) : error;
 
             if (error) {
                 try {
