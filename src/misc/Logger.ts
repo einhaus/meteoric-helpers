@@ -304,6 +304,23 @@ export class Logger {
             // Record this error to prevent future duplicates
             this.recordError(config);
 
+            // Log to console if verbose is true and it's an error or warn
+            if (this.verbose && (level === 'error' || level === 'warn')) {
+                this.originalConsoleLog(`[${dateTime}] [${level.toUpperCase()}] ${message || 'No message'}`);
+
+                if (errorDetails) {
+                    this.originalConsoleLog('Error Details:', {
+                        name: errorDetails.name,
+                        message: errorDetails.message,
+                        stack: errorDetails.stack
+                    });
+                }
+
+                if (extraDataOutput && extraDataOutput !== '{}') {
+                    this.originalConsoleLog('Extra Data:', extraDataOutput);
+                }
+            }
+
             try {
                 // Safe JSON serialization for log entry
                 const logEntryJson = JSON.stringify(logEntry);
