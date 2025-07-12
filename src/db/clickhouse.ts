@@ -482,4 +482,43 @@ export class DBClickhouse {
 
         return false;
     }
+
+    /**
+     * Execute a raw SQL query and return results
+     * @param query Raw SQL query string
+     * @param verbose Whether to log the query
+     * @returns Array of results
+     */
+    async doQuery<T = Record<string, unknown>>(query: string, verbose?: boolean): Promise<T[]> {
+        const client = this.getOrThrowClient();
+        const results: T[] = [];
+        let retryAttempts = 0;
+
+        while (retryAttempts <= this.maxRetries) {
+            try {
+                if (verbose) msg(query);
+                const resultSet = await client.query({ query, format: 'JSONEachRow' });
+
+                for await (const rows of resultSet.stream()) {
+                    rows.forEach((row: { json: () => T }) => {
+                        results.push(row.json());
+                    });
+                }
+
+                return results;
+            } catch (error) {
+                this.handleError(error, query);
+
+                if (retryAttempts >= this.maxRetries) {
+                    return [];
+                }
+
+                // Wait before retrying
+                await new Promise((resolve) => setTimeout(resolve, this.retryDelayMs));
+                retryAttempts++;
+            }
+        }
+
+        return [];
+    }
 }
