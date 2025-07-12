@@ -83,6 +83,7 @@ export interface DBConfig {
     host: string;
     password: string;
     db: string;
+    charset?: string;
     connectionLimit?: number;
     logFolder: string;
     /** Maximum number of retry attempts for database operations. Defaults to 4 if not specified. */

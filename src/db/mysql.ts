@@ -112,6 +112,7 @@ export class DBMysql {
             user: this.config.user,
             password: this.config.password,
             database: this.config.db,
+            charset: this.config.charset ?? 'utf8mb4',
             multipleStatements: true,
             connectionLimit,
             dateStrings: true,
