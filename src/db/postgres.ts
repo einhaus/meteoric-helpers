@@ -1,13 +1,11 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import type { PoolClient, QueryResult } from 'pg';
-// eslint-disable-next-line no-duplicate-imports
-import { Pool } from 'pg';
+import { Pool, type PoolClient, type QueryResult } from 'pg';
 import type { DBConfig, DbParameters, Insertable, SelectConfig, SelectConfigPg, SelectReturn, WhereCondition } from './dbUtilityTypes.js';
 import { existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import { sleep } from '../misc/sleep.js';
 import { getDate } from '../date/getDate.js';
-import { LoggerConfig, Logger } from '../misc/Logger.js';
+import { type LoggerConfig, Logger } from '../misc/Logger.js';
 
 // Default values that will be used if not specified in the config
 const DEFAULT_MAX_RETRIES = 4;
@@ -23,7 +21,7 @@ export class DBPostgres {
     private config: DBConfig;
     private readonly logFolder: string;
     private readonly maxRetries: number;
-    private logger: Logger | null = null;
+    private readonly logger: Logger | null = null;
     private readonly retryDelayMs: number;
 
     /**
@@ -185,8 +183,12 @@ export class DBPostgres {
                         throw e;
                     }
                 } else if (this.isTransientError(e) && retryAttempts < this.maxRetries) {
+                    const errorCode = (e as { code?: string }).code;
+                    const errorType = this.getErrorType(errorCode);
+
                     console.warn(
-                        `Retryable error encountered (${(e as Error).message}). Retrying (${retryAttempts + 1}/${this.maxRetries})...`
+                        // eslint-disable-next-line max-len
+                        `[${errorType}] Retryable error encountered: ${errorCode || 'Unknown'} - ${(e as Error).message}. Retrying (${retryAttempts + 1}/${this.maxRetries})...`
                     );
 
                     await sleep(this.retryDelayMs * (retryAttempts + 1));
@@ -231,8 +233,12 @@ export class DBPostgres {
                 retryAttempts++;
 
                 if (this.isTransientError(e) && retryAttempts < this.maxRetries) {
+                    const errorCode = (e as { code?: string }).code;
+                    const errorType = this.getErrorType(errorCode);
+
                     console.warn(
-                        `Retryable error encountered (${(e as Error).message}). Retrying (${retryAttempts}/${this.maxRetries})...`
+                        // eslint-disable-next-line max-len
+                        `[${errorType}] Retryable error encountered: ${errorCode || 'Unknown'} - ${(e as Error).message}. Retrying (${retryAttempts}/${this.maxRetries})...`
                     );
 
                     await sleep(this.retryDelayMs * retryAttempts);
@@ -664,7 +670,7 @@ export class DBPostgres {
         };
     }
 
-    // eslint-disable-next-line complexity
+    // eslint-disable-next-line complexity, max-statements
     async doInsert<T>(config: {
         queryString: string;
         parameters?: T[] | DbParameters | undefined;
@@ -731,7 +737,13 @@ export class DBPostgres {
                     throw e;
                 }
             } else if (this.isTransientError(e, true) && retryAttempts < this.maxRetries) {
-                console.warn(`Insert transient error (${(e as Error).message}). Retrying in ${this.retryDelayMs} ms...`);
+                const errorCode = (e as { code?: string }).code;
+                const errorType = this.getErrorType(errorCode);
+
+                console.warn(
+                    // eslint-disable-next-line max-len
+                    `[${errorType}] Insert transient error: ${errorCode || 'Unknown'} - ${(e as Error).message}. Retrying in ${this.retryDelayMs} ms...`
+                );
 
                 if (!connection) {
                     await this.closeConnection();
@@ -1009,23 +1021,90 @@ export class DBPostgres {
         }
     }
 
+    private getErrorType(code: string | undefined): string {
+        if (!code) return 'Database Error';
+
+        // Network errors
+        if (
+            ['EADDRNOTAVAIL', 'ECONNREFUSED', 'ETIMEDOUT', 'ECONNRESET', 'EPIPE', 'ENETUNREACH', 'EHOSTUNREACH', 'ENETDOWN'].includes(code)
+        ) {
+            return 'Network Error';
+        }
+
+        // DNS errors
+        if (['ENOTFOUND', 'EAI_AGAIN'].includes(code)) {
+            return 'DNS Error';
+        }
+
+        // PostgreSQL connection errors
+        if (['08001', '08003', '08006', '57P01', '57P02', '57P03'].includes(code)) {
+            return 'PostgreSQL Connection Error';
+        }
+
+        // PostgreSQL transaction errors
+        if (['40001', '40P01'].includes(code)) {
+            return 'PostgreSQL Transaction Error';
+        }
+
+        return 'Database Error';
+    }
+
     private isTransientError(error: unknown, isInsert: boolean = false): boolean {
-        const pgError = error as { code?: string };
-        if (!pgError?.code) return false;
+        const pgError = error as { code?: string; errno?: number; syscall?: string; message?: string };
+
+        // Check for network-level errors (these occur at TCP/IP level, not PostgreSQL level)
+        if (pgError?.code && typeof pgError.code === 'string') {
+            const networkErrorCodes = [
+                'EADDRNOTAVAIL', // Address not available (common when network disconnects)
+                'ECONNREFUSED', // Connection refused
+                'ETIMEDOUT', // Connection timeout
+                'ECONNRESET', // Connection reset by peer
+                'EPIPE', // Broken pipe
+                'ENETUNREACH', // Network unreachable
+                'EHOSTUNREACH', // Host unreachable
+                'ENETDOWN', // Network is down
+                'ENOTFOUND', // DNS lookup failed
+                'EAI_AGAIN' // DNS temporary failure
+            ];
+
+            if (networkErrorCodes.includes(pgError.code)) {
+                return true;
+            }
+        }
+
+        // Check for error messages that indicate connection issues
+        if (pgError?.message) {
+            const connectionErrorPatterns = [
+                'Connection terminated unexpectedly',
+                'terminating connection',
+                'connection lost',
+                'read ECONNRESET',
+                'Client has encountered a connection error',
+                'FATAL: terminating connection due to administrator command',
+                'server closed the connection unexpectedly'
+            ];
+
+            if (connectionErrorPatterns.some((pattern) => pgError?.message?.includes(pattern))) {
+                return true;
+            }
+        }
+
+        // Original PostgreSQL error code checking
+        if (!pgError?.code || typeof pgError.code !== 'string') return false;
 
         const readRetryErrors = [
-            '57P01',
-            '57P02',
-            '57P03',
-            '53300',
-            '08006',
-            '08003',
-            '08001',
-            '2BP01',
-            '40001',
-            '40P01',
-            '57014',
-            '57033'
+            '57P01', // admin_shutdown
+            '57P02', // crash_shutdown
+            '57P03', // cannot_connect_now
+            '53300', // too_many_connections
+            '08006', // connection_failure
+            '08003', // connection_does_not_exist
+            '08001', // sqlclient_unable_to_establish_sqlconnection
+            '2BP01', // dependent_objects_still_exist
+            '40001', // serialization_failure
+            '40P01', // deadlock_detected
+            '57014', // query_canceled
+            '57033' // imminent_database_shutdown
         ];
 
         const insertRetryErrors = ['40001', '40P01'];
