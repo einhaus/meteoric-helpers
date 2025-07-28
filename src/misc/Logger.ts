@@ -389,7 +389,7 @@ export class Logger {
 
             this.log({
                 level: 'error',
-                severity: 8,
+                severity: 6,
                 message: errorMessage,
                 error
             });
