@@ -389,7 +389,7 @@ export class Logger {
 
             this.log({
                 level: 'error',
-                severity: 6,
+                severity: 7,
                 message: errorMessage,
                 error
             });
@@ -462,7 +462,7 @@ export class Logger {
 
             this.log({
                 level: 'warn',
-                severity: 5,
+                severity: 7,
                 message: warning.message,
                 error: warning
             });
