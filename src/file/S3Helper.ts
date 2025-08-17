@@ -18,6 +18,7 @@ import {
     type ListObjectsCommandInput,
     type ListObjectsV2CommandInput
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import child_process from 'child_process';
 import fs from 'fs';
 import { pipeline } from 'node:stream/promises';
@@ -380,5 +381,67 @@ export class S3Helper {
         } catch (e: unknown) {
             console.error(e);
         }
+    }
+
+    /**
+     * Generate a pre-signed URL for downloading an object
+     * @param key The S3 object key
+     * @param expiresIn Expiration time in seconds (default: 3600)
+     * @param options Additional options for the download
+     */
+    async getPresignedDownloadUrl(
+        key: string,
+        expiresIn: number = 3600,
+        options?: {
+            responseContentDisposition?: string;
+            responseContentType?: string;
+        }
+    ): Promise<string> {
+        const command = new GetObjectCommand({
+            Bucket: this.bucketName,
+            Key: key,
+            ResponseContentDisposition: options?.responseContentDisposition,
+            ResponseContentType: options?.responseContentType
+        });
+
+        try {
+            const url = await getSignedUrl(this.s3, command, { expiresIn });
+            return url;
+        } catch (error) {
+            console.error(`Failed to generate pre-signed URL for key ${key}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Generate a pre-signed URL for viewing an object inline
+     * @param key The S3 object key
+     * @param filename The filename to use in the Content-Disposition header
+     * @param expiresIn Expiration time in seconds (default: 3600)
+     */
+    async getPresignedViewUrl(
+        key: string,
+        filename: string,
+        expiresIn: number = 3600
+    ): Promise<string> {
+        return this.getPresignedDownloadUrl(key, expiresIn, {
+            responseContentDisposition: `inline; filename="${filename}"`
+        });
+    }
+
+    /**
+     * Generate a pre-signed URL for downloading an object as attachment
+     * @param key The S3 object key
+     * @param filename The filename to use for download
+     * @param expiresIn Expiration time in seconds (default: 3600)
+     */
+    async getPresignedAttachmentUrl(
+        key: string,
+        filename: string,
+        expiresIn: number = 3600
+    ): Promise<string> {
+        return this.getPresignedDownloadUrl(key, expiresIn, {
+            responseContentDisposition: `attachment; filename="${filename}"`
+        });
     }
 }
