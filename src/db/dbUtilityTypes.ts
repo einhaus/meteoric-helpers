@@ -90,6 +90,14 @@ export interface DBConfig {
     maxRetries?: number;
     /** Delay in milliseconds between retry attempts. Defaults to 10000 (10 seconds) if not specified. */
     retryDelayMs?: number;
+    /** Request timeout in milliseconds for ClickHouse HTTP requests. Defaults to 400000 (400 seconds) if not specified. */
+    requestTimeout?: number;
+    /** Server-side max execution time in seconds for ClickHouse queries. Defaults to 360 (6 minutes) if not specified. */
+    maxExecutionTime?: number;
+    /** Send progress headers to keep connection alive for long queries (ClickHouse). Defaults to true. */
+    sendProgressHeaders?: boolean;
+    /** Interval in milliseconds for sending progress headers (ClickHouse). Defaults to 20000 (20 seconds). */
+    progressHeaderInterval?: number;
 }
 
 // PostgreSQL client type

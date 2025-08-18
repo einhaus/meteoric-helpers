@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import { createClient, type ClickHouseClient } from '@clickhouse/client';
 
 import { msg } from '../misc/msg.js';
@@ -8,6 +9,10 @@ import path from 'path';
 // Default values that will be used if not specified in the config
 const DEFAULT_MAX_RETRIES = 4;
 const DEFAULT_RETRY_DELAY_MS = 10000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 400000; // 400 seconds for long queries
+const DEFAULT_MAX_EXECUTION_TIME_SEC = 360; // 360 seconds (6 minutes) server-side
+const DEFAULT_SEND_PROGRESS_HEADERS = true; // Keep connection alive
+const DEFAULT_PROGRESS_HEADER_INTERVAL_MS = 20000; // Send progress every 20 seconds
 
 /**
  * ClickHouse DB Helper using registry pattern
@@ -20,6 +25,10 @@ export class DBClickhouse {
     private readonly logFolder: string;
     private readonly maxRetries: number;
     private readonly retryDelayMs: number;
+    private readonly requestTimeout: number;
+    private readonly maxExecutionTime: number;
+    private readonly sendProgressHeaders: boolean;
+    private readonly progressHeaderInterval: number;
 
     /**
      * Private constructor
@@ -30,6 +39,10 @@ export class DBClickhouse {
         this.logFolder = config.logFolder;
         this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
         this.retryDelayMs = config.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
+        this.requestTimeout = config.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT_MS;
+        this.maxExecutionTime = config.maxExecutionTime ?? DEFAULT_MAX_EXECUTION_TIME_SEC;
+        this.sendProgressHeaders = config.sendProgressHeaders ?? DEFAULT_SEND_PROGRESS_HEADERS;
+        this.progressHeaderInterval = config.progressHeaderInterval ?? DEFAULT_PROGRESS_HEADER_INTERVAL_MS;
 
         // Create log directory if it doesn't exist and a log path is provided
         if (this.logFolder) {
@@ -105,11 +118,30 @@ export class DBClickhouse {
     getClient() {
         if (this.client) return this.client;
 
+        // Build ClickHouse settings object
+        const clickhouseSettings: Record<string, string | number> = {
+            max_execution_time: this.maxExecutionTime
+        };
+
+        // Add progress headers if enabled
+        if (this.sendProgressHeaders) {
+            clickhouseSettings.send_progress_in_http_headers = 1;
+            clickhouseSettings.http_headers_progress_interval_ms = this.progressHeaderInterval.toString();
+        }
+
+        // Log timeout configuration for debugging
+        console.log(
+            `[ClickHouse] Initializing client with timeouts: ` +
+                `request_timeout=${this.requestTimeout}ms (${Math.round(this.requestTimeout / 1000)}s), ` +
+                `max_execution_time=${this.maxExecutionTime}s`
+        );
+
         this.client = createClient({
             url: this.config.host,
             password: this.config.password,
-            database: this.config.db
-            // Additional options as needed
+            database: this.config.db,
+            request_timeout: this.requestTimeout,
+            clickhouse_settings: clickhouseSettings
         });
 
         return this.client;
