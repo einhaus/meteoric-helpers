@@ -1,6 +1,15 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import { Pool, type PoolClient, type QueryResult } from 'pg';
-import type { DBConfig, DbParameters, Insertable, SelectConfig, SelectConfigPg, SelectReturn, WhereCondition } from './dbUtilityTypes.js';
+import type {
+    DBConfig,
+    DbParameters,
+    DbParametersWithDate,
+    Insertable,
+    SelectConfig,
+    SelectConfigPg,
+    SelectReturn,
+    WhereCondition
+} from './dbUtilityTypes.js';
 import { existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import { sleep } from '../misc/sleep.js';
@@ -211,7 +220,7 @@ export class DBPostgres {
 
     async doQuery(config: {
         queryString: string;
-        parameters?: DbParameters | undefined;
+        parameters?: DbParametersWithDate | undefined;
         connection?: PoolClient | undefined;
         verbose?: boolean | undefined;
     }): Promise<QueryResult | void> {

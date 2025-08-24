@@ -6,6 +6,7 @@ export type AnyPrimitiveNull = string | number | boolean | null;
 export type AnyPrimitiveNullUndefined = string | number | boolean | null | undefined;
 
 export type DbParameters = (AnyPrimitiveNullUndefined | AnyPrimitiveNullUndefined[] | AnyPrimitiveNullUndefined[][])[];
+export type DbParametersWithDate = (Date | AnyPrimitiveNullUndefined | AnyPrimitiveNullUndefined[] | AnyPrimitiveNullUndefined[][])[];
 
 export type WithoutNullableKeys<Type> = {
     [Key in keyof Type]-?: WithoutNullableKeys<NonNullable<Type[Key]>>;
@@ -63,7 +64,9 @@ export function normalizeUndefinedToNull<T>(obj: T): UndefinedToNull<T> {
     }
 
     if (Array.isArray(obj)) {
-        return obj.map((item) => normalizeUndefinedToNull(item)) as UndefinedToNull<T>;
+        return obj.map((item) =>
+            normalizeUndefinedToNull(item as string | number | boolean | Date | null | undefined)
+        ) as UndefinedToNull<T>;
     }
 
     const result: Record<string, unknown> = {};
