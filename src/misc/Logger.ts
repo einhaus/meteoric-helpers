@@ -14,6 +14,7 @@ export interface LoggerConfig {
     debug?: boolean;
     duplicateSuppressionWindowMs?: number; // Default: 5 minutes
     enableDuplicateSuppression?: boolean; // Default: true
+    outputSeverity?: number; // Default: 7
 }
 
 export interface LogEntry {
@@ -64,6 +65,7 @@ export class Logger {
     private readonly jobLogDir: string;
     private readonly recentErrors = new Map<string, number>();
     private readonly duplicateSuppressionWindowMs: number;
+    private readonly outputSeverity: number = 7;
     private readonly enableDuplicateSuppression: boolean;
 
     // Add recursion protection and original console methods
@@ -75,6 +77,7 @@ export class Logger {
 
     private constructor(config?: LoggerConfig) {
         this.verbose = config?.verbose ?? false;
+        this.outputSeverity = config?.outputSeverity ?? 7;
 
         // Store original console methods before they get overridden
         this.originalConsoleError = console.error;
@@ -325,6 +328,10 @@ export class Logger {
                 // Safe JSON serialization for log entry
                 const logEntryJson = JSON.stringify(logEntry);
                 writeFileSync(filename, logEntryJson);
+
+                if (severity >= this.outputSeverity) {
+                    console.log(logEntry);
+                }
             } catch (err) {
                 // Use original console methods to prevent recursion
                 this.originalConsoleLog('Failed to write log file:', err);
