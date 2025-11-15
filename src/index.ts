@@ -62,6 +62,7 @@ export * from './math/isApproximatelyEqual.js';
 export * from './math/isValidNumber.js';
 export * from './math/meanNumberArray.js';
 export * from './math/medianNumberArray.js';
+export * from './math/medianNumberArrayFast.js';
 export * from './math/normalCDF.js';
 export * from './math/numCheck.js';
 export * from './math/randomArrayValueNumber.js';
