@@ -16,6 +16,7 @@ export * from './file/appendToFileAsync.js';
 export * from './file/downloadFile.js';
 export * from './file/gunzipFile.js';
 export * from './misc/Logger.js';
+export * from './misc/PerformanceBenchmark.js';
 export * from './misc/doFetch.js';
 export * from './misc/msg.js';
 export * from './misc/sendEmailFromTemplate.js';
