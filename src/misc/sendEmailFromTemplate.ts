@@ -36,7 +36,8 @@ export const sendEmailFromTemplate = async (config: {
     // Process any extra replacement macros (replaceAll to handle multiple occurrences)
     if (extraReplacements) {
         for (const extraReplacement of extraReplacements) {
-            if (!extraReplacement.macro || !extraReplacement.string) continue;
+            // Skip if macro is missing, but allow empty strings as valid replacements
+            if (!extraReplacement.macro || extraReplacement.string == null) continue;
 
             // Replace all occurrences of the macro with the string
             htmlBody = htmlBody.replaceAll(extraReplacement.macro, extraReplacement.string);
