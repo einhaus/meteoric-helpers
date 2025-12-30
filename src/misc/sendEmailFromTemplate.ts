@@ -27,20 +27,20 @@ export const sendEmailFromTemplate = async (config: {
     // Import the text template
     let plainTextBody = fs.existsSync(textTemplatePath) ? fs.readFileSync(textTemplatePath).toString() : '';
 
-    // Populate the first name
+    // Populate the first name (replaceAll to handle multiple occurrences)
     if (firstName) {
-        htmlBody = htmlBody.replace('{{first_name}}', firstName);
-        plainTextBody = plainTextBody.replace('{{first_name}}', firstName);
+        htmlBody = htmlBody.replaceAll('{{first_name}}', firstName);
+        plainTextBody = plainTextBody.replaceAll('{{first_name}}', firstName);
     }
 
-    // Process any extra replacement macros
+    // Process any extra replacement macros (replaceAll to handle multiple occurrences)
     if (extraReplacements) {
         for (const extraReplacement of extraReplacements) {
             if (!extraReplacement.macro || !extraReplacement.string) continue;
 
-            // Replace the macro with the string
-            htmlBody = htmlBody.replace(extraReplacement.macro, extraReplacement.string);
-            plainTextBody = plainTextBody.replace(extraReplacement.macro, extraReplacement.string);
+            // Replace all occurrences of the macro with the string
+            htmlBody = htmlBody.replaceAll(extraReplacement.macro, extraReplacement.string);
+            plainTextBody = plainTextBody.replaceAll(extraReplacement.macro, extraReplacement.string);
         }
     }
 
