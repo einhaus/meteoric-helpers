@@ -27,14 +27,16 @@ import path from 'path';
 import { Readable } from 'stream';
 import util from 'util';
 
+export type AwsCredentials = { accessKeyId: string; secretAccessKey: string };
+
 const exec = util.promisify(child_process.exec);
 export class S3Helper {
     private readonly s3: S3Client;
     private readonly bucketName: string;
     private readonly verbose: boolean;
 
-    constructor(bucketName: string, region: string, verbose: boolean = false) {
-        this.s3 = new S3Client({ region });
+    constructor(bucketName: string, region: string, verbose: boolean = false, credentials?: AwsCredentials) {
+        this.s3 = new S3Client({ region, ...(credentials && { credentials }) });
         this.bucketName = bucketName;
         this.verbose = verbose;
     }
@@ -419,11 +421,7 @@ export class S3Helper {
      * @param filename The filename to use in the Content-Disposition header
      * @param expiresIn Expiration time in seconds (default: 3600)
      */
-    async getPresignedViewUrl(
-        key: string,
-        filename: string,
-        expiresIn: number = 3600
-    ): Promise<string> {
+    async getPresignedViewUrl(key: string, filename: string, expiresIn: number = 3600): Promise<string> {
         return this.getPresignedDownloadUrl(key, expiresIn, {
             responseContentDisposition: `inline; filename="${filename}"`
         });
@@ -435,11 +433,7 @@ export class S3Helper {
      * @param filename The filename to use for download
      * @param expiresIn Expiration time in seconds (default: 3600)
      */
-    async getPresignedAttachmentUrl(
-        key: string,
-        filename: string,
-        expiresIn: number = 3600
-    ): Promise<string> {
+    async getPresignedAttachmentUrl(key: string, filename: string, expiresIn: number = 3600): Promise<string> {
         return this.getPresignedDownloadUrl(key, expiresIn, {
             responseContentDisposition: `attachment; filename="${filename}"`
         });

@@ -3,6 +3,7 @@ import { SendRawEmailCommand, SESClient, type SendRawEmailCommandInput } from '@
 import * as fs from 'fs';
 import * as mime from 'mime-types';
 import * as path from 'path';
+import type { AwsCredentials } from '../file/S3Helper.js';
 
 export const sendEmailWithAttachment = async (config: {
     toEmail: string;
@@ -11,8 +12,9 @@ export const sendEmailWithAttachment = async (config: {
     awsRegion: string;
     body?: string;
     attachmentPath?: string;
+    credentials?: AwsCredentials;
 }) => {
-    const { toEmail, fromEmail, subject, awsRegion, body = '', attachmentPath } = config;
+    const { toEmail, fromEmail, subject, awsRegion, body = '', attachmentPath, credentials } = config;
 
     // Create the base64-encoded body for the plain text and HTML parts of the email
     const emailBody = `MIME-Version: 1.0
@@ -65,7 +67,7 @@ ${attachmentBase64}
     };
 
     try {
-        const sesClient = new SESClient({ region: awsRegion });
+        const sesClient = new SESClient({ region: awsRegion, ...(credentials && { credentials }) });
 
         await sesClient.send(new SendRawEmailCommand(params));
     } catch (error) {

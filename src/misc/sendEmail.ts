@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import { SendEmailCommand, SESClient, type SendEmailCommandInput, type SendEmailCommandOutput } from '@aws-sdk/client-ses';
+import type { AwsCredentials } from '../file/S3Helper.js';
 
 export const sendEmail = async (config: {
     toEmail: string;
@@ -8,8 +9,9 @@ export const sendEmail = async (config: {
     subject: string;
     body?: string;
     replyTo?: string;
+    credentials?: AwsCredentials;
 }) => {
-    const { toEmail, subject, fromEmail, awsRegion, replyTo, body = '' } = config;
+    const { toEmail, subject, fromEmail, awsRegion, replyTo, body = '', credentials } = config;
 
     const replyToAddresses = replyTo ? [replyTo] : [];
 
@@ -40,7 +42,7 @@ export const sendEmail = async (config: {
 
     const sendEmailCommand = new SendEmailCommand(params);
 
-    const sesClient = new SESClient({ region: awsRegion });
+    const sesClient = new SESClient({ region: awsRegion, ...(credentials && { credentials }) });
 
     try {
         await sesClient.send<SendEmailCommandInput, SendEmailCommandOutput>(sendEmailCommand);

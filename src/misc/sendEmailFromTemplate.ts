@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { sendEmail } from './sendEmail.js';
+import type { AwsCredentials } from '../file/S3Helper.js';
 
 export const sendEmailFromTemplate = async (config: {
     toEmail: string;
@@ -11,8 +12,11 @@ export const sendEmailFromTemplate = async (config: {
     fromEmail: string;
     replyTo?: string;
     extraReplacements?: { macro: string; string: string }[];
+    credentials?: AwsCredentials;
 }): Promise<void> => {
-    const { toEmail, subject, templateName, firstName, extraReplacements, replyTo, templateDirectory, awsRegion, fromEmail } = config;
+    const { toEmail, subject, templateName, firstName, extraReplacements, replyTo, templateDirectory, awsRegion, fromEmail, credentials } =
+        config;
+
     const htmlTemplatePath = `${templateDirectory}${templateName}.html`;
 
     // The file doesn't exist
@@ -52,6 +56,7 @@ export const sendEmailFromTemplate = async (config: {
         body: htmlBody,
         replyTo: replyTo ? replyTo : fromEmail,
         fromEmail,
-        awsRegion
+        awsRegion,
+        ...(credentials && { credentials })
     });
 };
