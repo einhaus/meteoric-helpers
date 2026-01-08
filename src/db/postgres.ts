@@ -32,6 +32,7 @@ export class DBPostgres {
     private readonly maxRetries: number;
     private readonly logger: Logger | null = null;
     private readonly retryDelayMs: number;
+    private poolResetPromise: Promise<void> | null = null;
 
     /**
      * Private constructor
@@ -89,11 +90,21 @@ export class DBPostgres {
             DBPostgres.instances.set(instanceKey, newInstance);
             return newInstance;
         } else if (config) {
+            const previousConfig = instance.config;
             // If config is provided and instance exists, update the config
             instance.config = config;
-            // Close existing connection to apply new config on next getPool call
-            // eslint-disable-next-line no-void
-            void instance.closeConnection();
+
+            const shouldResetPool =
+                previousConfig.host !== config.host ||
+                previousConfig.user !== config.user ||
+                previousConfig.password !== config.password ||
+                previousConfig.db !== config.db;
+
+            // Only reset the pool if connection-affecting config actually changed.
+            if (shouldResetPool) {
+                // eslint-disable-next-line no-void
+                void instance.resetPool('config updated');
+            }
         }
 
         return instance;
@@ -129,19 +140,7 @@ export class DBPostgres {
      */
     getPool() {
         if (this.db) return this.db;
-
-        const connectionLimit = this.config.connectionLimit || 3;
-
-        this.db = new Pool({
-            host: this.config.host,
-            user: this.config.user,
-            password: this.config.password,
-            database: this.config.db,
-            max: connectionLimit,
-            idleTimeoutMillis: 30000,
-            connectionTimeoutMillis: 30000
-            // PostgreSQL handles numeric types differently than MySQL
-        });
+        this.db = this.createPool();
 
         return this.db;
     }
@@ -151,18 +150,60 @@ export class DBPostgres {
         this.db = undefined;
     }
 
+    private createPool() {
+        const connectionLimit = this.config.connectionLimit || 3;
+
+        return new Pool({
+            host: this.config.host,
+            user: this.config.user,
+            password: this.config.password,
+            database: this.config.db,
+            max: connectionLimit,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 30000
+            // PostgreSQL handles numeric types differently than MySQL
+        });
+    }
+
+    private async resetPool(reason: string) {
+        if (this.poolResetPromise) return this.poolResetPromise;
+
+        // eslint-disable-next-line @typescript-eslint/require-await
+        this.poolResetPromise = (async () => {
+            const oldPool = this.db;
+            // Swap in a fresh pool immediately so concurrent callers can proceed.
+            this.db = this.createPool();
+
+            if (oldPool) {
+                // Close the old pool in the background; don't block callers on draining.
+                // eslint-disable-next-line no-void
+                void oldPool.end().catch((e: unknown) => {
+                    this.handleError(e);
+                });
+            }
+
+            if (reason) {
+                console.warn(`Postgres pool reset: ${reason}`);
+            }
+        })().finally(() => {
+            this.poolResetPromise = null;
+        });
+
+        return this.poolResetPromise;
+    }
+
     async doSelectMultiple<T extends object>(
         queryString: string,
         parameters?: DbParameters,
         connection?: PoolClient,
         verbose?: boolean
     ): Promise<T[]> {
-        let dbConnection: Pool | PoolClient = connection ? connection : this.getOrThrowPool();
         let retryAttempts = 0;
 
         while (retryAttempts < this.maxRetries) {
             try {
                 if (verbose) console.log(`Executing query: ${queryString}`, parameters);
+                const dbConnection: Pool | PoolClient = connection ? connection : this.getOrThrowPool();
 
                 // PostgreSQL uses parameterized queries differently than MySQL
                 // Use proper type casting for pg query parameters
@@ -181,11 +222,7 @@ export class DBPostgres {
             } catch (e: unknown) {
                 if (this.isPoolClosedError(e)) {
                     if (!connection) {
-                        console.warn('Pool was closed, recreating pool.');
-                        // To avoid spamming re-creations
-                        await sleep(10000);
-                        await this.closeConnection();
-                        dbConnection = this.getPool();
+                        await this.resetPool('pool closed');
                     } else {
                         // If a specific connection is provided, we can't recreate the pool
                         this.handleError(e);
@@ -201,11 +238,6 @@ export class DBPostgres {
                     );
 
                     await sleep(this.retryDelayMs * (retryAttempts + 1));
-
-                    if (!connection && (e as { code?: string }).code === '08001') {
-                        await this.closeConnection();
-                        dbConnection = this.getPool();
-                    }
                 } else {
                     this.handleError(e);
                     throw e;
@@ -225,12 +257,12 @@ export class DBPostgres {
         verbose?: boolean | undefined;
     }): Promise<QueryResult | void> {
         const { queryString, parameters, connection, verbose } = config;
-        const dbConnection: Pool | PoolClient = connection ? connection : this.getOrThrowPool();
         let retryAttempts = 0;
 
         while (retryAttempts < this.maxRetries) {
             try {
                 if (verbose) console.log(`Executing query: ${queryString}`, parameters);
+                const dbConnection: Pool | PoolClient = connection ? connection : this.getOrThrowPool();
 
                 // PostgreSQL uses parameterized queries differently than MySQL
                 // eslint-disable-next-line no-nested-ternary
@@ -241,7 +273,9 @@ export class DBPostgres {
             } catch (e: unknown) {
                 retryAttempts++;
 
-                if (this.isTransientError(e) && retryAttempts < this.maxRetries) {
+                if (!connection && this.isPoolClosedError(e) && retryAttempts < this.maxRetries) {
+                    await this.resetPool('pool closed');
+                } else if (this.isTransientError(e) && retryAttempts < this.maxRetries) {
                     const errorCode = (e as { code?: string }).code;
                     const errorType = this.getErrorType(errorCode);
 
@@ -679,7 +713,7 @@ export class DBPostgres {
         };
     }
 
-    // eslint-disable-next-line complexity, max-statements
+    // eslint-disable-next-line complexity
     async doInsert<T>(config: {
         queryString: string;
         parameters?: T[] | DbParameters | undefined;
@@ -688,86 +722,75 @@ export class DBPostgres {
         verbose?: boolean | undefined;
     }): Promise<number | void> {
         const { queryString, parameters, connection, verbose } = config;
-        const { retryAttempts = 0 } = config;
-        let dbConnection: Pool | PoolClient = connection ? connection : this.getOrThrowPool();
+        let retryAttempts = 0;
 
-        try {
-            if (verbose) {
-                console.log(`Executing query: ${queryString}`);
+        while (retryAttempts < this.maxRetries) {
+            try {
+                const dbConnection: Pool | PoolClient = connection ? connection : this.getOrThrowPool();
+
+                if (verbose) {
+                    console.log(`Executing query: ${queryString}`);
+
+                    if (parameters) {
+                        console.log(`Parameter count: ${Array.isArray(parameters) ? parameters.length : 'not an array'}`);
+
+                        if (Array.isArray(parameters) && parameters.length > 1000) {
+                            console.log(
+                                `Large parameter array detected (${parameters.length} items), showing first few:`,
+                                parameters.slice(0, 5)
+                            );
+                        } else {
+                            console.log(`Parameters:`, parameters);
+                        }
+                    } else {
+                        console.log('No parameters provided');
+                    }
+                }
+
+                // PostgreSQL uses parameterized queries differently than MySQL
+                // Ensure parameters is always an array that pg can handle
+                let paramArray: (string | number | boolean | null)[] = [];
 
                 if (parameters) {
-                    console.log(`Parameter count: ${Array.isArray(parameters) ? parameters.length : 'not an array'}`);
-
-                    if (Array.isArray(parameters) && parameters.length > 1000) {
-                        console.log(
-                            `Large parameter array detected (${parameters.length} items), showing first few:`,
-                            parameters.slice(0, 5)
-                        );
+                    if (Array.isArray(parameters)) {
+                        paramArray = parameters as (string | number | boolean | null)[];
                     } else {
-                        console.log(`Parameters:`, parameters);
+                        paramArray = [parameters as string | number | boolean | null];
                     }
-                } else {
-                    console.log('No parameters provided');
                 }
-            }
 
-            // PostgreSQL uses parameterized queries differently than MySQL
-            // Ensure parameters is always an array that pg can handle
-            let paramArray: (string | number | boolean | null)[] = [];
+                const result = await dbConnection.query(queryString, paramArray);
 
-            if (parameters) {
-                if (Array.isArray(parameters)) {
-                    paramArray = parameters as (string | number | boolean | null)[];
-                } else {
-                    paramArray = [parameters as string | number | boolean | null];
+                // In PostgreSQL, we need to check if the query returned any rows and has an id
+                if (result.rows && result.rows.length > 0 && result.rows[0] && 'id' in result.rows[0]) {
+                    return result.rows[0].id as number;
                 }
-            }
 
-            const result = await dbConnection.query(queryString, paramArray);
+                // If no id field was returned, return the number of affected rows
+                return result.rowCount || 0;
+            } catch (e: unknown) {
+                if (!connection && this.isPoolClosedError(e)) {
+                    await this.resetPool('pool closed');
+                } else if (this.isTransientError(e, true) && retryAttempts < this.maxRetries) {
+                    const errorCode = (e as { code?: string }).code;
+                    const errorType = this.getErrorType(errorCode);
 
-            // In PostgreSQL, we need to check if the query returned any rows and has an id
-            if (result.rows && result.rows.length > 0 && result.rows[0] && 'id' in result.rows[0]) {
-                return result.rows[0].id as number;
-            }
+                    console.warn(
+                        // eslint-disable-next-line max-len
+                        `[${errorType}] Insert transient error: ${errorCode || 'Unknown'} - ${(e as Error).message}. Retrying (${retryAttempts + 1}/${this.maxRetries})...`
+                    );
 
-            // If no id field was returned, return the number of affected rows
-            return result.rowCount || 0;
-        } catch (e: unknown) {
-            if (this.isPoolClosedError(e)) {
-                if (!connection) {
-                    console.warn('Pool was closed, recreating pool.');
-
-                    await sleep(10000);
-                    await this.closeConnection();
-                    dbConnection = this.getPool();
-                    return this.doInsert({ queryString, parameters, retryAttempts: 0, verbose, connection });
+                    await sleep(this.retryDelayMs * (retryAttempts + 1));
                 } else {
                     this.handleError(e);
                     throw e;
                 }
-            } else if (this.isTransientError(e, true) && retryAttempts < this.maxRetries) {
-                const errorCode = (e as { code?: string }).code;
-                const errorType = this.getErrorType(errorCode);
 
-                console.warn(
-                    // eslint-disable-next-line max-len
-                    `[${errorType}] Insert transient error: ${errorCode || 'Unknown'} - ${(e as Error).message}. Retrying in ${this.retryDelayMs} ms...`
-                );
-
-                if (!connection) {
-                    await this.closeConnection();
-                    await sleep(retryAttempts * this.retryDelayMs);
-                    dbConnection = this.getPool();
-                } else {
-                    await sleep(retryAttempts * this.retryDelayMs);
-                }
-
-                return this.doInsert({ queryString, parameters, retryAttempts: retryAttempts + 1, connection, verbose });
-            } else {
-                this.handleError(e);
-                throw e;
+                retryAttempts++;
             }
         }
+
+        throw new Error(`Max retries (${this.maxRetries}) reached for query: ${queryString}`);
     }
 
     async select<T extends object, C extends (keyof T)[] | undefined = undefined>(
@@ -997,7 +1020,10 @@ export class DBPostgres {
     }
 
     private isPoolClosedError(error: unknown): boolean {
-        return error instanceof Error && error.message.includes('Pool is closed.');
+        if (!(error instanceof Error)) return false;
+        if (error.message.includes('Pool is closed.')) return true;
+        if (error.message.includes('Cannot use a pool after calling end on the pool')) return true;
+        return false;
     }
 
     private handleError(e: unknown) {

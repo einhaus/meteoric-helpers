@@ -23,6 +23,7 @@ export class DBMysql {
     private readonly maxRetries: number;
     private readonly retryDelayMs: number;
     private readonly logger: Logger | null = null;
+    private poolResetPromise: Promise<void> | null = null;
 
     /**
      * Private constructor
@@ -80,11 +81,22 @@ export class DBMysql {
             DBMysql.instances.set(instanceKey, newInstance);
             return newInstance;
         } else if (config) {
+            const previousConfig = instance.config;
             // If config is provided and instance exists, update the config
             instance.config = config;
-            // Close existing connection to apply new config on next getPool call
-            // eslint-disable-next-line no-void
-            void instance.closeConnection();
+
+            const shouldResetPool =
+                previousConfig.host !== config.host ||
+                previousConfig.user !== config.user ||
+                previousConfig.password !== config.password ||
+                previousConfig.db !== config.db ||
+                previousConfig.charset !== config.charset;
+
+            // Only reset the pool if connection-affecting config actually changed.
+            if (shouldResetPool) {
+                // eslint-disable-next-line no-void
+                void instance.resetPool('config updated');
+            }
         }
 
         return instance;
@@ -104,10 +116,20 @@ export class DBMysql {
      */
     getPool() {
         if (this.db) return this.db;
+        this.db = this.createPool();
 
+        return this.db;
+    }
+
+    async closeConnection() {
+        if (this.db) await this.db.end();
+        this.db = undefined;
+    }
+
+    private createPool() {
         const connectionLimit = this.config.connectionLimit || 3;
 
-        this.db = mysql.createPool({
+        return mysql.createPool({
             host: this.config.host,
             user: this.config.user,
             password: this.config.password,
@@ -116,16 +138,36 @@ export class DBMysql {
             multipleStatements: true,
             connectionLimit,
             dateStrings: true,
+            enableKeepAlive: true,
             connectTimeout: 30000
             // We don't use decimalNumbers, so we can fetch decimals as strings and convert them to numbers in the code
         });
-
-        return this.db;
     }
 
-    async closeConnection() {
-        if (this.db) await this.db.end();
-        this.db = undefined;
+    private async resetPool(reason: string) {
+        if (this.poolResetPromise) return this.poolResetPromise;
+
+        this.poolResetPromise = (async () => {
+            const oldPool = this.db;
+            // Swap in a fresh pool immediately so concurrent callers can proceed.
+            this.db = this.createPool();
+
+            if (oldPool) {
+                // Close the old pool in the background; don't block callers on draining.
+                // eslint-disable-next-line no-void
+                void oldPool.end().catch((e: unknown) => {
+                    this.handleError(e);
+                });
+            }
+
+            if (reason) {
+                console.warn(`MySQL pool reset: ${reason}`);
+            }
+        })().finally(() => {
+            this.poolResetPromise = null;
+        });
+
+        return this.poolResetPromise;
     }
 
     async doSelectFirst<T extends object>(
@@ -146,11 +188,11 @@ export class DBMysql {
         connection?: PoolConnection,
         verbose?: boolean
     ): Promise<T[]> {
-        let dbConnection: Pool | PoolConnection = connection ? connection : this.getOrThrowPool();
         let retryAttempts = 0;
 
         while (retryAttempts < this.maxRetries) {
             try {
+                const dbConnection: Pool | PoolConnection = connection ? connection : this.getOrThrowPool();
                 const query = dbConnection.format(queryString, parameters);
                 const [rows] = await dbConnection.query(query);
                 if (verbose) console.log(`Executing query: ${query}`);
@@ -158,11 +200,7 @@ export class DBMysql {
             } catch (e: unknown) {
                 if (this.isPoolClosedError(e)) {
                     if (!connection) {
-                        console.warn('Pool was closed, recreating pool.');
-                        // To avoid spamming re-creations
-                        await sleep(10000);
-                        await this.closeConnection();
-                        dbConnection = this.getPool();
+                        await this.resetPool('pool closed');
                     } else {
                         // If a specific connection is provided, we can't recreate the pool
                         this.handleError(e);
@@ -174,11 +212,6 @@ export class DBMysql {
                     );
 
                     await sleep(this.retryDelayMs * (retryAttempts + 1));
-
-                    if (!connection && (e as { code?: string }).code === 'ECONNREFUSED') {
-                        await this.closeConnection();
-                        dbConnection = this.getPool();
-                    }
                 } else {
                     this.handleError(e);
                     throw e;
@@ -365,13 +398,13 @@ export class DBMysql {
         verbose?: boolean | undefined;
     }): Promise<ResultSetHeader | void> {
         const { queryString, parameters, connection, verbose } = config;
-        const dbConnection: Pool | PoolConnection = connection ? connection : this.getOrThrowPool();
         let retryAttempts = 0;
         const MAX_RETRIES = this.maxRetries;
         const RETRY_DELAY_MS = this.retryDelayMs;
 
         while (retryAttempts < MAX_RETRIES) {
             try {
+                const dbConnection: Pool | PoolConnection = connection ? connection : this.getOrThrowPool();
                 const query = dbConnection.format(queryString, parameters);
                 if (verbose) console.log(`Executing query: ${query}`);
                 const [row] = await dbConnection.query(query);
@@ -379,7 +412,9 @@ export class DBMysql {
             } catch (e: unknown) {
                 retryAttempts++;
 
-                if (this.isTransientError(e) && retryAttempts < MAX_RETRIES) {
+                if (!connection && this.isPoolClosedError(e) && retryAttempts < MAX_RETRIES) {
+                    await this.resetPool('pool closed');
+                } else if (this.isTransientError(e) && retryAttempts < MAX_RETRIES) {
                     console.warn(`Retryable error encountered (${(e as Error).message}). Retrying (${retryAttempts}/${MAX_RETRIES})...`);
 
                     await sleep(RETRY_DELAY_MS * retryAttempts);
@@ -398,7 +433,11 @@ export class DBMysql {
     }
 
     private isPoolClosedError(error: unknown): boolean {
-        return error instanceof Error && error.message.includes('Pool is closed.');
+        if (error instanceof Error && error.message.includes('Pool is closed.')) return true;
+        const err = error as { code?: string; message?: string };
+        if (err?.code === 'PROTOCOL_ENQUEUE_AFTER_QUIT') return true;
+        if (typeof err?.message === 'string' && err.message.includes('Cannot enqueue Query after invoking quit')) return true;
+        return false;
     }
 
     createResultStream(queryString: string, parameters?: DbParameters) {
@@ -422,48 +461,34 @@ export class DBMysql {
         verbose?: boolean | undefined;
     }): Promise<number | void> {
         const { queryString, parameters, connection, verbose } = config;
-        const { retryAttempts = 0 } = config;
-        let dbConnection: Pool | PoolConnection = connection ? connection : this.getOrThrowPool();
+        let retryAttempts = 0;
 
-        const MAX_RETRIES = this.maxRetries;
-        const RETRY_DELAY_MS = this.retryDelayMs;
-
-        try {
-            const query = dbConnection.format(queryString, parameters);
-            if (verbose) console.log(`Executing query: ${query}`);
-            const [row] = await dbConnection.query(query);
-            const results = row as ResultSetHeader;
-            return results.insertId;
-        } catch (e: unknown) {
-            if (this.isPoolClosedError(e)) {
-                if (!connection) {
-                    console.warn('Pool was closed, recreating pool.');
-
-                    await sleep(10000);
-                    await this.closeConnection();
-                    dbConnection = this.getPool();
-                    return this.doInsert({ queryString, parameters, retryAttempts: 0, connection, verbose });
+        while (retryAttempts < this.maxRetries) {
+            try {
+                const dbConnection: Pool | PoolConnection = connection ? connection : this.getOrThrowPool();
+                const query = dbConnection.format(queryString, parameters);
+                if (verbose) console.log(`Executing query: ${query}`);
+                const [row] = await dbConnection.query(query);
+                const results = row as ResultSetHeader;
+                return results.insertId;
+            } catch (e: unknown) {
+                if (!connection && this.isPoolClosedError(e)) {
+                    await this.resetPool('pool closed');
+                } else if (this.isTransientError(e, true) && retryAttempts < this.maxRetries) {
+                    console.warn(
+                        `Insert transient error (${(e as Error).message}). Retrying (${retryAttempts + 1}/${this.maxRetries})...`
+                    );
+                    await sleep(this.retryDelayMs * (retryAttempts + 1));
                 } else {
                     this.handleError(e);
                     throw e;
                 }
-            } else if (this.isTransientError(e, true) && retryAttempts < MAX_RETRIES) {
-                console.warn(`Insert transient error (${(e as Error).message}). Retrying in ${RETRY_DELAY_MS} ms...`);
 
-                if (!connection) {
-                    await this.closeConnection();
-                    await sleep(retryAttempts * RETRY_DELAY_MS);
-                    dbConnection = this.getPool();
-                } else {
-                    await sleep(retryAttempts * RETRY_DELAY_MS);
-                }
-
-                return this.doInsert({ queryString, parameters, retryAttempts: retryAttempts + 1, connection, verbose });
-            } else {
-                this.handleError(e);
-                throw e;
+                retryAttempts++;
             }
         }
+
+        throw new Error(`Max retries (${this.maxRetries}) reached for query: ${queryString}`);
     }
 
     async insert<T extends object>(config: {
