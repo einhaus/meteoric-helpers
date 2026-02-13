@@ -7,12 +7,15 @@ import { DBMysql } from './mysql.js';
 
 // Helper function to check if a column has a default value that should be omitted
 function hasDefaultValueToOmit(columnDefault: string | null): boolean {
-    // Don't omit if default is null or 0
     if (columnDefault === null) return false;
-    if (columnDefault === '0') return false;
-    if (columnDefault.startsWith('0.0')) return false;
-    if (columnDefault === 'NULL') return false;
-    if (columnDefault.toLowerCase() === 'null') return false;
+
+    const normalized = columnDefault.trim();
+
+    // Don't omit if default is null.
+    if (normalized.toLowerCase() === 'null') return false;
+
+    // Don't omit if default is exactly 0 (covers 0, 0.0, 0.0000, etc).
+    if (/^0(\.0+)?$/.test(normalized)) return false;
 
     // Otherwise, consider it a default value to omit
     return true;
