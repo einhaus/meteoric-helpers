@@ -1,6 +1,6 @@
 {
   "name": "@einhaus/meteoric-helpers",
-  "version": "1.0.93",
+  "version": "1.0.94",
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -101,6 +101,7 @@
     "typedi": "^0.10.0"
   },
   "overrides": {
-    "fast-xml-parser": "5.3.6"
+    "fast-xml-parser": "5.3.6",
+    "rollup": "4.59.0"
   }
 }
