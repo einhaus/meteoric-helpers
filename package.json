@@ -1,6 +1,6 @@
 {
   "name": "@einhaus/meteoric-helpers",
-  "version": "1.0.95",
+  "version": "1.0.96",
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -47,10 +47,10 @@
   "type": "module",
   "scripts": {
     "clean": "rm -rf ./dist",
-    "build": "npm run clean && tsc -v && node -v && tsx -r tsconfig-paths/register './utilities/buildBarrelFile.ts' && tsc -p .",
+    "build": "bun run clean && tsc -v && node -v && tsx -r tsconfig-paths/register './utilities/buildBarrelFile.ts' && tsc -p .",
     "test": "vitest --dir ./test",
     "build:barrel": "tsx -r tsconfig-paths/register './utilities/buildBarrelFile.ts'",
-    "watch": "npm run clean && npm run build:barrel && tsc -p . && concurrently \"tsc -p . --watch --preserveWatchOutput\" \"nodemon\"",
+    "watch": "bun run clean && bun run build:barrel && tsc -p . && concurrently \"tsc -p . --watch --preserveWatchOutput\" \"nodemon\"",
     "type-check": "tsc --noEmit"
   },
   "repository": {
@@ -61,12 +61,12 @@
     "@eslint/js": "^10.0.1",
     "@types/bcrypt": "^6.0.0",
     "@types/mime-types": "^3.0.1",
-    "@types/node": ">=25.2.3",
-    "@types/pg": "^8.16.0",
-    "@typescript-eslint/eslint-plugin": "^8.56.0",
-    "@typescript-eslint/parser": "^8.56.0",
+    "@types/node": "^25.3.3",
+    "@types/pg": "^8.18.0",
+    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@typescript-eslint/parser": "^8.56.1",
     "concurrently": "^9.2.1",
-    "eslint": "^10.0.0",
+    "eslint": "^10.0.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-prettier": "^5.5.5",
@@ -75,7 +75,7 @@
     "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.56.0",
+    "typescript-eslint": "^8.56.1",
     "vitest": "^4.0.18"
   },
   "publishConfig": {
@@ -84,19 +84,19 @@
   },
   "private": false,
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.893.0",
-    "@aws-sdk/client-ses": "^3.893.0",
-    "@aws-sdk/s3-request-presigner": "^3.893.0",
-    "@clickhouse/client": "^1.17.0",
-    "@eslint/eslintrc": "^3.3.3",
+    "@aws-sdk/client-s3": "^3.1000.0",
+    "@aws-sdk/client-ses": "^3.1000.0",
+    "@aws-sdk/s3-request-presigner": "^3.1000.0",
+    "@clickhouse/client": "^1.18.1",
+    "@eslint/eslintrc": "^3.3.4",
     "@redis/client": "^5.11.0",
     "bcrypt": "^6.0.0",
     "dayjs": "^1.11.19",
     "mime-types": "^3.0.2",
-    "mysql2": "^3.17.2",
+    "mysql2": "^3.18.2",
     "nanoid": "^5.1.6",
     "node-cache": "^5.1.2",
-    "pg": "^8.18.0",
+    "pg": "^8.19.0",
     "tsx": "^4.21.0",
     "typedi": "^0.10.0"
   },
