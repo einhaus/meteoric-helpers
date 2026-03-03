@@ -47,9 +47,9 @@
   "type": "module",
   "scripts": {
     "clean": "rm -rf ./dist",
-    "build": "bun run clean && tsc -v && node -v && tsx -r tsconfig-paths/register './utilities/buildBarrelFile.ts' && tsc -p .",
+    "build": "bun run clean && tsc -v && bun -v && bun './utilities/buildBarrelFile.ts' && tsc -p .",
     "test": "vitest --dir ./test",
-    "build:barrel": "tsx -r tsconfig-paths/register './utilities/buildBarrelFile.ts'",
+    "build:barrel": "bun './utilities/buildBarrelFile.ts'",
     "watch": "bun run clean && bun run build:barrel && tsc -p . && concurrently \"tsc -p . --watch --preserveWatchOutput\" \"nodemon\"",
     "type-check": "tsc --noEmit"
   },
@@ -97,7 +97,6 @@
     "nanoid": "^5.1.6",
     "node-cache": "^5.1.2",
     "pg": "^8.19.0",
-    "tsx": "^4.21.0",
     "typedi": "^0.10.0"
   },
   "overrides": {
