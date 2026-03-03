@@ -73,7 +73,6 @@
     "eslint-plugin-sonarjs": "^4.0.0",
     "prettier": "3.8.1",
     "tsc-alias": "^1.8.16",
-    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1",
     "vitest": "^4.0.18"
