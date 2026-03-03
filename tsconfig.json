@@ -47,12 +47,5 @@
     ],
     "include": [
         "./src/**/*"
-    ],
-    "ts-node": {
-        "files": true,
-        "esm": true,
-        "moduleTypes": {
-            "node": "es2022"
-        }
-    }
+    ]
 }
