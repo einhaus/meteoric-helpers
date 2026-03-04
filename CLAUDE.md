@@ -5,28 +5,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ### Build and Development
-- `npm run build` - Clean, regenerate barrel files, and compile TypeScript
-- `npm run build:barrel` - Regenerate barrel export files (index.ts and node.ts)
-- `npm run watch` - Development mode with file watching and auto-compilation
-- `npm run clean` - Remove dist directory
-- `npm test` - Run tests using Vitest
+- `bun run build` - Clean, regenerate barrel files, and compile TypeScript
+- `bun run build:barrel` - Regenerate barrel export files (index.ts and node.ts)
+- `bun run watch` - Development mode with file watching and auto-compilation
+- `bun run clean` - Remove dist directory
+- `bun run test` - Run tests using Vitest
 
 ### Publishing
-- `npm publish --access public` - Publish to npm registry
-- Set `GITHUB_PACKAGE_TOKEN` environment variable for GitHub package publishing
+- `bun publish` - Publish package (uses `publishConfig.registry` / `publishConfig.access` in `package.json`)
+- Set `GITHUB_PACKAGE_TOKEN` environment variable for GitHub Packages publishing
 
 ## Architecture Overview
 
 ### Barrel File System
 This project uses an automated barrel file generation system (`utilities/buildBarrelFile.ts`) that creates two entry points:
 
-- **`src/index.ts`** - Web-compatible exports only (excludes Node.js-specific modules)
-- **`src/node.ts`** - All exports including Node.js-specific utilities
+- **`src/index.ts`** - Web-compatible exports only (excludes server-runtime-only modules)
+- **`src/node.ts`** - All exports including server-runtime utilities (Bun/Node APIs)
 
 The build script automatically categorizes functions based on their imports:
-- Functions importing Node.js modules (fs, path, crypto, etc.) go to node.js entry point only
+- Functions importing server-runtime built-ins (`fs`, `path`, `crypto`, etc.; provided via Bun's Node-compat layer) go to the server-runtime entry point only
 - Web-compatible functions are included in both entry points
-- Files like `S3Helper` are always considered Node.js-specific
+- Files like `S3Helper` are always considered server-runtime-only
 
 ### Module Organization
 Utilities are organized by category in `src/` subdirectories:
@@ -49,9 +49,9 @@ The project includes comprehensive database support:
 
 ### Dual Export Strategy
 The package.json defines multiple export paths supporting both CommonJS and ES modules:
-- Main exports for web/Node.js environments
+- Main exports for web/server-runtime (Bun) environments
 - Specialized database helper exports
 - Flexible import patterns supporting various module systems
 
 ### Development Workflow
-The barrel file generation runs automatically during build to ensure all new utilities are properly exported. The system distinguishes between web-safe and Node.js-specific code to maintain browser compatibility for the main entry point.
+The barrel file generation runs automatically during build to ensure all new utilities are properly exported. The system distinguishes between web-safe and server-runtime-only code to maintain browser compatibility for the main entry point.

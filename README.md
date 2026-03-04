@@ -1,5 +1,8 @@
-To publish to npm:
-Interate build
-npm publish --access public
+To publish (GitHub Packages):
+Run build:
+bun run build
 
-To setup Github access token environment variable: export GITHUB_PACKAGE_TOKEN=
+Publish:
+bun publish
+
+To setup GitHub Packages token environment variable: export GITHUB_PACKAGE_TOKEN=

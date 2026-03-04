@@ -9,19 +9,19 @@
 
 This package uses a dual entry-point export strategy:
 - `src/index.ts`: browser-safe exports.
-- `src/node.ts`: includes Node-specific utilities.
+- `src/node.ts`: includes server-runtime utilities (Bun runtime; Node-compatible built-ins like `fs`, `path`, `crypto`).
 
 Both barrel files are generated; add new modules under `src/**` and regenerate barrels rather than editing exports manually.
 
 ## Build, Test, and Development Commands
 
-- `npm ci`: install dependencies from `package-lock.json`.
-- `npm run clean`: remove `dist/`.
-- `npm run build`: clean, regenerate barrel files, and compile TypeScript to `dist/`.
-- `npm run build:barrel`: regenerate `src/index.ts` and `src/node.ts`.
-- `npm run watch`: TypeScript watch + auto-regeneration workflow for local iteration.
-- `npm run type-check`: run `tsc --noEmit` for a fast correctness check.
-- `npm test`: run Vitest (expects tests under `test/` when present).
+- `bun install --frozen-lockfile`: install dependencies from `bun.lock`.
+- `bun run clean`: remove `dist/`.
+- `bun run build`: clean, regenerate barrel files, and compile TypeScript to `dist/`.
+- `bun run build:barrel`: regenerate `src/index.ts` and `src/node.ts`.
+- `bun run watch`: TypeScript watch + auto-regeneration workflow for local iteration.
+- `bun run type-check`: run `tsc --noEmit` for a fast correctness check.
+- `bun run test`: run Vitest (expects tests under `test/` when present).
 
 ## Coding Style & Naming Conventions
 
@@ -39,7 +39,7 @@ Both barrel files are generated; add new modules under `src/**` and regenerate b
 ## Commit & Pull Request Guidelines
 
 - Commits: follow the repo’s descriptive, sentence-style summaries (e.g., “Updated package version…”, “Enhanced DBMysql…”).
-- PRs: include what/why, any API changes, and how you validated (`npm run type-check`, `npm run build`, and `npm test` if applicable).
+- PRs: include what/why, any API changes, and how you validated (`bun run type-check`, `bun run build`, and `bun run test` if applicable).
 
 ## Security & Configuration Tips
 

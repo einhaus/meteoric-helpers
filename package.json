@@ -50,7 +50,8 @@
     "build": "bun run clean && tsc -v && bun -v && bun './utilities/buildBarrelFile.ts' && tsc -p .",
     "test": "vitest --dir ./test",
     "build:barrel": "bun './utilities/buildBarrelFile.ts'",
-    "watch": "bun run clean && bun run build:barrel && tsc -p . && concurrently \"tsc -p . --watch --preserveWatchOutput\" \"nodemon\"",
+    "watch:barrel": "bun './utilities/watchBarrelFile.ts'",
+    "watch": "bun run clean && bun run build:barrel && tsc -p . && concurrently \"tsc -p . --watch --preserveWatchOutput\" \"bun run watch:barrel -- --no-initial\"",
     "type-check": "tsc --noEmit"
   },
   "repository": {
