@@ -2,10 +2,15 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { getDate } from '../date/getDate.js';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
-import { workerData } from 'worker_threads';
+import { isMainThread, threadId, workerData } from 'worker_threads';
 import path from 'path';
 import { checkTimezoneIsEst } from '../index.js';
 import { nanoid } from 'nanoid';
+import os from 'os';
+
+type JsonPrimitive = string | number | boolean | null;
+type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
+type LoggerRuntimeName = 'bun' | 'node' | 'unknown';
 
 export interface LoggerConfig {
     logDir: string;
@@ -32,19 +37,58 @@ export interface LoggerRecord {
     unix_timestamp: number;
     service: string;
     category: string;
+    env: string | null;
+    host: string | null;
     level: string;
     severity: number;
     message: string;
     error: LoggerError | undefined;
     extra_data: string;
     context: LoggerContext;
+    tags: string[];
 }
 
 export interface LoggerError {
+    [key: string]: JsonValue | undefined;
     name: string;
     message: string;
     stack: string | undefined;
-    cause?: string;
+    cause?: JsonValue;
+}
+
+export interface LoggerRuntimeContext {
+    name: LoggerRuntimeName;
+    version: string;
+    nodeCompatibilityVersion: string;
+}
+
+export interface LoggerLaunchContext {
+    entrypoint: string;
+    argv: string[];
+    execArgv: string[];
+    cwd: string;
+    flags: {
+        verbose: boolean;
+        debug: boolean;
+    };
+}
+
+export interface LoggerProcessContext {
+    id: number;
+    uptimeSeconds: number;
+    hostname: string;
+    arch: string;
+}
+
+export interface LoggerWorkerContext {
+    isWorkerThread: boolean;
+    threadId: number;
+    data: JsonValue | null;
+}
+
+export interface LoggerMemoryContext {
+    bunJscGcMaxHeapSize?: string;
+    maxOldSpaceSizeMb?: number;
 }
 
 export interface LoggerContext {
@@ -55,11 +99,39 @@ export interface LoggerContext {
     uptime: number;
     nodeVersion: string;
     platform: string;
+    runtimeName: LoggerRuntimeName;
+    runtimeVersion: string;
+    uptimeSeconds: number;
+    hostname: string;
+    arch: string;
+    runtime: LoggerRuntimeContext;
+    launch: LoggerLaunchContext;
+    process: LoggerProcessContext;
+    worker: LoggerWorkerContext;
+    memory: LoggerMemoryContext;
 }
 
 export class Logger {
     verbose = false;
     debug = false;
+    private static readonly sensitiveKeyFragments = [
+        'token',
+        'secret',
+        'password',
+        'passwd',
+        'pwd',
+        'apikey',
+        'appkey',
+        'clientkey',
+        'accesskey',
+        'privatekey',
+        'authorization',
+        'auth',
+        'cookie',
+        'session',
+        'jwt',
+        'bearer'
+    ];
     private readonly scriptInstanceId: string;
     private readonly logDir: string;
     private readonly jobLogDir: string;
@@ -125,6 +197,202 @@ export class Logger {
         }
 
         return Logger.instance;
+    }
+
+    private getRuntimeMetadata(): LoggerRuntimeContext {
+        const bunGlobal = globalThis as typeof globalThis & {
+            Bun?: {
+                version?: string;
+                main?: string;
+            };
+        };
+        const processVersions = process.versions as NodeJS.ProcessVersions & {
+            bun?: string;
+        };
+        const bunVersion = bunGlobal.Bun?.version ?? processVersions.bun;
+
+        return {
+            name: bunVersion ? 'bun' : process.release?.name === 'node' ? 'node' : 'unknown',
+            version: bunVersion ?? process.version,
+            nodeCompatibilityVersion: process.version
+        };
+    }
+
+    private isSensitiveKey(key: string): boolean {
+        const normalizedKey = key.toLowerCase().replaceAll(/[^a-z0-9]/g, '');
+
+        return Logger.sensitiveKeyFragments.some((fragment) => normalizedKey.includes(fragment));
+    }
+
+    private normalizeForJson(value: unknown, seen: WeakSet<object> = new WeakSet<object>(), key = ''): JsonValue | undefined {
+        if (key && this.isSensitiveKey(key)) {
+            return '[REDACTED]';
+        }
+
+        if (value === undefined) {
+            return undefined;
+        }
+
+        if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            return value;
+        }
+
+        if (typeof value === 'bigint') {
+            return value.toString();
+        }
+
+        if (value instanceof Date) {
+            return value.toISOString();
+        }
+
+        if (value instanceof Error) {
+            if (seen.has(value)) {
+                return '[Circular]';
+            }
+
+            seen.add(value);
+
+            const normalizedError: { [key: string]: JsonValue } = {
+                name: value.name,
+                message: value.message,
+                ...(value.stack ? { stack: value.stack } : {})
+            };
+
+            if (value.cause !== undefined) {
+                const normalizedCause = this.normalizeForJson(value.cause, seen, 'cause');
+
+                if (normalizedCause !== undefined) {
+                    normalizedError.cause = normalizedCause;
+                }
+            }
+
+            for (const propertyName of Object.getOwnPropertyNames(value)) {
+                if (['name', 'message', 'stack', 'cause'].includes(propertyName)) {
+                    continue;
+                }
+
+                const propertyValue = this.normalizeForJson(Reflect.get(value, propertyName), seen, propertyName);
+
+                if (propertyValue !== undefined) {
+                    normalizedError[propertyName] = propertyValue;
+                }
+            }
+
+            return normalizedError;
+        }
+
+        if (Array.isArray(value)) {
+            return value.map((item) => this.normalizeForJson(item, seen) ?? null);
+        }
+
+        if (typeof value === 'object') {
+            if (seen.has(value)) {
+                return '[Circular]';
+            }
+
+            seen.add(value);
+
+            const normalizedObject: { [key: string]: JsonValue } = {};
+
+            for (const [propertyName, propertyValue] of Object.entries(value)) {
+                const normalizedValue = this.normalizeForJson(propertyValue, seen, propertyName);
+
+                if (normalizedValue !== undefined) {
+                    normalizedObject[propertyName] = normalizedValue;
+                }
+            }
+
+            return normalizedObject;
+        }
+
+        return String(value);
+    }
+
+    private serializeForLog(value: unknown): string {
+        const normalizedValue = this.normalizeForJson(value);
+
+        if (normalizedValue === undefined) {
+            return '';
+        }
+
+        return typeof normalizedValue === 'string' ? normalizedValue : JSON.stringify(normalizedValue, null, 4);
+    }
+
+    private redactCliArgs(args: string[]): string[] {
+        const redactedArgs: string[] = [];
+        let shouldRedactNextValue = false;
+        const redactNextArgFlags = new Set(['-e', '--eval', '-p', '--print']);
+
+        for (const arg of args) {
+            if (shouldRedactNextValue) {
+                redactedArgs.push('[REDACTED]');
+                shouldRedactNextValue = false;
+                continue;
+            }
+
+            const equalsIndex = arg.indexOf('=');
+            const prefix = equalsIndex >= 0 ? arg.slice(0, equalsIndex) : arg;
+            const key = prefix.replace(/^-+/, '');
+
+            if (redactNextArgFlags.has(arg)) {
+                redactedArgs.push(arg);
+                shouldRedactNextValue = true;
+                continue;
+            }
+
+            if (this.isSensitiveKey(key)) {
+                if (equalsIndex >= 0) {
+                    redactedArgs.push(`${prefix}=[REDACTED]`);
+                } else {
+                    redactedArgs.push(arg);
+                    shouldRedactNextValue = true;
+                }
+
+                continue;
+            }
+
+            redactedArgs.push(arg);
+        }
+
+        return redactedArgs;
+    }
+
+    private getEntrypoint(args: string[]): string {
+        const bunGlobal = globalThis as typeof globalThis & {
+            Bun?: {
+                main?: string;
+            };
+        };
+
+        return bunGlobal.Bun?.main ?? args[0] ?? '';
+    }
+
+    private getMaxOldSpaceSizeMb(args: string[]): number | undefined {
+        for (let index = 0; index < args.length; index += 1) {
+            const currentArg = args[index];
+
+            if (!currentArg) {
+                continue;
+            }
+
+            if (currentArg.startsWith('--max-old-space-size=')) {
+                const parsedValue = Number.parseInt(currentArg.split('=')[1] ?? '', 10);
+
+                if (Number.isFinite(parsedValue) && parsedValue > 0) {
+                    return parsedValue;
+                }
+            }
+
+            if (currentArg === '--max-old-space-size') {
+                const parsedValue = Number.parseInt(args[index + 1] ?? '', 10);
+
+                if (Number.isFinite(parsedValue) && parsedValue > 0) {
+                    return parsedValue;
+                }
+            }
+        }
+
+        return undefined;
     }
 
     /**
@@ -203,17 +471,27 @@ export class Logger {
         try {
             Error.stackTraceLimit = Infinity;
 
-            const argString = process.argv.slice(1).join(' ');
-            let workerJson = '';
-
-            // Safe JSON serialization for worker data
-            if (workerData) {
-                try {
-                    workerJson = JSON.stringify(workerData);
-                } catch (_err) {
-                    workerJson = '[Unable to serialize worker data]';
-                }
-            }
+            const runtime = this.getRuntimeMetadata();
+            const redactedArgv = this.redactCliArgs(process.argv.slice(1));
+            const redactedExecArgv = this.redactCliArgs(process.execArgv);
+            const argString = redactedArgv.join(' ');
+            const normalizedWorkerData = workerData === undefined ? null : this.normalizeForJson(workerData) ?? null;
+            const workerJson = normalizedWorkerData === null ? '' : JSON.stringify(normalizedWorkerData);
+            const hostname = os.hostname();
+            const uptimeSeconds = process.uptime();
+            const maxOldSpaceSizeMb = this.getMaxOldSpaceSizeMb(process.execArgv);
+            const bunJscGcMaxHeapSize = process.env.BUN_JSC_gcMaxHeapSize?.trim();
+            const env = process.env.NODE_ENV ?? process.env.BUN_ENV ?? null;
+            const tags = Array.from(
+                new Set(
+                    [
+                        `runtime:${runtime.name}`,
+                        isMainThread ? 'main-thread' : 'worker-thread',
+                        ...(this.verbose ? ['verbose'] : []),
+                        ...(this.debug ? ['debug'] : [])
+                    ].filter((tag): tag is string => tag.length > 0)
+                )
+            );
 
             let extraDataOutput = typeof extraData === 'string' ? extraData : '';
             extraDataOutput = extraData instanceof Error ? extraData.message : extraDataOutput;
@@ -222,7 +500,7 @@ export class Logger {
             // Safe JSON serialization for extra data
             if (!extraDataOutput && extraData) {
                 try {
-                    extraDataOutput = JSON.stringify(extraData, null, 4);
+                    extraDataOutput = this.serializeForLog(extraData);
                 } catch (_err) {
                     extraDataOutput = '[Unable to serialize extra data]';
                 }
@@ -243,21 +521,35 @@ export class Logger {
 
                     // Only add cause if it exists
                     if (error.cause) {
-                        baseErrorDetails.cause = JSON.stringify(error.cause);
+                        const normalizedCause = this.normalizeForJson(error.cause);
+
+                        if (normalizedCause !== undefined) {
+                            baseErrorDetails.cause = normalizedCause;
+                        }
                     }
+
+                    const loggedError = error;
 
                     errorDetails = {
                         ...baseErrorDetails,
                         // Capture any custom properties on the error object
-                        ...Object.getOwnPropertyNames(error).reduce(
-                            (acc: Record<string, unknown>, key) => {
+                        ...Object.getOwnPropertyNames(loggedError).reduce(
+                            (acc: Record<string, JsonValue>, key) => {
                                 if (!['name', 'message', 'stack'].includes(key)) {
-                                    acc[key] = (error as unknown as Record<string, unknown>)[key];
+                                    const normalizedValue = this.normalizeForJson(
+                                        Reflect.get(loggedError, key),
+                                        new WeakSet<object>(),
+                                        key
+                                    );
+
+                                    if (normalizedValue !== undefined) {
+                                        acc[key] = normalizedValue;
+                                    }
                                 }
 
                                 return acc;
                             },
-                            {} as Record<string, unknown>
+                            {}
                         )
                     };
                 } catch (_err) {
@@ -281,6 +573,8 @@ export class Logger {
                 level,
                 severity,
                 message: message ?? '',
+                env,
+                host: hostname,
                 error: errorDetails,
                 extra_data: extraDataOutput,
                 context: {
@@ -288,10 +582,42 @@ export class Logger {
                     workerJson,
                     scriptInstanceId: this.scriptInstanceId,
                     processId: process.pid,
-                    uptime: process.uptime(),
-                    nodeVersion: process.version,
-                    platform: process.platform
+                    uptime: uptimeSeconds,
+                    nodeVersion: runtime.nodeCompatibilityVersion,
+                    platform: process.platform,
+                    runtimeName: runtime.name,
+                    runtimeVersion: runtime.version,
+                    uptimeSeconds,
+                    hostname,
+                    arch: process.arch,
+                    runtime,
+                    launch: {
+                        entrypoint: this.getEntrypoint(redactedArgv),
+                        argv: redactedArgv,
+                        execArgv: redactedExecArgv,
+                        cwd: process.cwd(),
+                        flags: {
+                            verbose: this.verbose,
+                            debug: this.debug
+                        }
+                    },
+                    process: {
+                        id: process.pid,
+                        uptimeSeconds,
+                        hostname,
+                        arch: process.arch
+                    },
+                    worker: {
+                        isWorkerThread: !isMainThread,
+                        threadId,
+                        data: normalizedWorkerData
+                    },
+                    memory: {
+                        ...(bunJscGcMaxHeapSize ? { bunJscGcMaxHeapSize } : {}),
+                        ...(maxOldSpaceSizeMb !== undefined ? { maxOldSpaceSizeMb } : {})
+                    }
                 },
+                tags,
                 service: service ?? '',
                 category: category ?? ''
             };
