@@ -96,8 +96,7 @@
     "mysql2": "^3.19.0",
     "nanoid": "^5.1.6",
     "node-cache": "^5.1.2",
-    "pg": "^8.20.0",
-    "typedi": "^0.10.0"
+    "pg": "^8.20.0"
   },
   "overrides": {
     "fast-xml-parser": "5.3.6",
