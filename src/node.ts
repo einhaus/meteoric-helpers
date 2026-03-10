@@ -2,7 +2,6 @@
 export * from './index.js';
 
 // Node.js specific exports
-export * from './misc/msg.js';
 export * from './misc/Logger.js';
 export * from './misc/PerformanceBenchmark.js';
 export * from './misc/sendEmailWithAttachment.js';

@@ -2,11 +2,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { getDate } from '../date/getDate.js';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
-import { isMainThread, threadId, workerData } from 'worker_threads';
 import path from 'path';
 import { checkTimezoneIsEst } from '../index.js';
 import { nanoid } from 'nanoid';
 import os from 'os';
+import { getMeteoricWorkerData, getMeteoricWorkerThreadId, isBunWorkerRuntime } from './workerRuntime.js';
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -132,6 +132,7 @@ export class Logger {
         'jwt',
         'bearer'
     ];
+
     private readonly scriptInstanceId: string;
     private readonly logDir: string;
     private readonly jobLogDir: string;
@@ -206,9 +207,11 @@ export class Logger {
                 main?: string;
             };
         };
+
         const processVersions = process.versions as NodeJS.ProcessVersions & {
             bun?: string;
         };
+
         const bunVersion = bunGlobal.Bun?.version ?? processVersions.bun;
 
         return {
@@ -305,7 +308,11 @@ export class Logger {
             return normalizedObject;
         }
 
-        return String(value);
+        if (typeof value === 'symbol') {
+            return value.toString();
+        }
+
+        return `[Unsupported value type: ${typeof value}]`;
     }
 
     private serializeForLog(value: unknown): string {
@@ -475,18 +482,22 @@ export class Logger {
             const redactedArgv = this.redactCliArgs(process.argv.slice(1));
             const redactedExecArgv = this.redactCliArgs(process.execArgv);
             const argString = redactedArgv.join(' ');
-            const normalizedWorkerData = workerData === undefined ? null : this.normalizeForJson(workerData) ?? null;
+            const isWorkerThread = isBunWorkerRuntime();
+            const workerData = getMeteoricWorkerData();
+            const normalizedWorkerData = workerData === undefined ? null : (this.normalizeForJson(workerData) ?? null);
             const workerJson = normalizedWorkerData === null ? '' : JSON.stringify(normalizedWorkerData);
+            const workerThreadId = isWorkerThread ? getMeteoricWorkerThreadId() : 0;
             const hostname = os.hostname();
             const uptimeSeconds = process.uptime();
             const maxOldSpaceSizeMb = this.getMaxOldSpaceSizeMb(process.execArgv);
             const bunJscGcMaxHeapSize = process.env.BUN_JSC_gcMaxHeapSize?.trim();
             const env = process.env.NODE_ENV ?? process.env.BUN_ENV ?? null;
+
             const tags = Array.from(
                 new Set(
                     [
                         `runtime:${runtime.name}`,
-                        isMainThread ? 'main-thread' : 'worker-thread',
+                        isWorkerThread ? 'worker-thread' : 'main-thread',
                         ...(this.verbose ? ['verbose'] : []),
                         ...(this.debug ? ['debug'] : [])
                     ].filter((tag): tag is string => tag.length > 0)
@@ -533,24 +544,17 @@ export class Logger {
                     errorDetails = {
                         ...baseErrorDetails,
                         // Capture any custom properties on the error object
-                        ...Object.getOwnPropertyNames(loggedError).reduce(
-                            (acc: Record<string, JsonValue>, key) => {
-                                if (!['name', 'message', 'stack'].includes(key)) {
-                                    const normalizedValue = this.normalizeForJson(
-                                        Reflect.get(loggedError, key),
-                                        new WeakSet<object>(),
-                                        key
-                                    );
+                        ...Object.getOwnPropertyNames(loggedError).reduce((acc: Record<string, JsonValue>, key) => {
+                            if (!['name', 'message', 'stack'].includes(key)) {
+                                const normalizedValue = this.normalizeForJson(Reflect.get(loggedError, key), new WeakSet<object>(), key);
 
-                                    if (normalizedValue !== undefined) {
-                                        acc[key] = normalizedValue;
-                                    }
+                                if (normalizedValue !== undefined) {
+                                    acc[key] = normalizedValue;
                                 }
+                            }
 
-                                return acc;
-                            },
-                            {}
-                        )
+                            return acc;
+                        }, {})
                     };
                 } catch (_err) {
                     // Fallback if error serialization fails
@@ -608,8 +612,8 @@ export class Logger {
                         arch: process.arch
                     },
                     worker: {
-                        isWorkerThread: !isMainThread,
-                        threadId,
+                        isWorkerThread,
+                        threadId: workerThreadId,
                         data: normalizedWorkerData
                     },
                     memory: {

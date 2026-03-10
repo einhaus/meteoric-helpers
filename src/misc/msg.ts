@@ -1,9 +1,7 @@
-import { parentPort } from 'worker_threads';
+import { postMeteoricWorkerMessage } from './workerRuntime.js';
 
 export const msg = (message: unknown) => {
-    if (parentPort) {
-        parentPort.postMessage(message);
-    } else {
-        console.log(message);
-    }
+    if (postMeteoricWorkerMessage(message)) return;
+
+    console.log(message);
 };
