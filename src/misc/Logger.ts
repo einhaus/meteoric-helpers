@@ -6,7 +6,12 @@ import path from 'path';
 import { checkTimezoneIsEst } from '../index.js';
 import { nanoid } from 'nanoid';
 import os from 'os';
-import { getMeteoricWorkerData, getMeteoricWorkerThreadId, isBunWorkerRuntime } from './workerRuntime.js';
+import {
+    getMeteoricWorkerData,
+    getMeteoricWorkerThreadId,
+    isBunIpcChildProcessRuntime,
+    isBunThreadWorkerRuntime
+} from './workerRuntime.js';
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -81,6 +86,8 @@ export interface LoggerProcessContext {
 }
 
 export interface LoggerWorkerContext {
+    executionModel: 'main-thread' | 'worker-thread' | 'ipc-child-process';
+    isIpcChildProcess: boolean;
     isWorkerThread: boolean;
     threadId: number;
     data: JsonValue | null;
@@ -145,6 +152,7 @@ export class Logger {
     private isLogging = false;
     private readonly originalConsoleError: typeof console.error;
     private readonly originalConsoleLog: typeof console.log;
+    private gracefulExitTimer: ReturnType<typeof setTimeout> | null = null;
 
     private static instance: Logger | null = null;
 
@@ -160,7 +168,6 @@ export class Logger {
         this.duplicateSuppressionWindowMs = config?.duplicateSuppressionWindowMs ?? 300000; // 5 minutes default
         this.enableDuplicateSuppression = config?.enableDuplicateSuppression ?? true;
 
-        this.setupProcessHandlers();
         this.debug = config?.debug ?? false;
         this.scriptInstanceId = nanoid();
         Error.stackTraceLimit = 25;
@@ -182,6 +189,8 @@ export class Logger {
         if (!existsSync(this.jobLogDir)) {
             mkdirSync(this.jobLogDir, { recursive: true });
         }
+
+        this.setupProcessHandlers();
     }
 
     /**
@@ -427,9 +436,10 @@ export class Logger {
      */
     private generateErrorHash(config: LogEntry): string {
         const { error, message, service, category, level } = config;
+        const topStackFrame = error?.stack?.split('\n')[1]?.trim() ?? '';
 
         // Include more context in the hash to reduce false positives
-        const parts = [level, service || '', category || '', error ? `${error.name}:${error.message}` : message || ''];
+        const parts = [level, service || '', category || '', error ? `${error.name}:${error.message}` : message || '', topStackFrame];
 
         return parts.join('|');
     }
@@ -439,6 +449,7 @@ export class Logger {
      */
     private isDuplicate(config: LogEntry): boolean {
         if (!this.enableDuplicateSuppression) return false;
+        if (config.severity >= 9) return false;
 
         // Clean up expired entries first
         this.cleanupExpiredErrors();
@@ -454,6 +465,7 @@ export class Logger {
      */
     private recordError(config: LogEntry): void {
         if (!this.enableDuplicateSuppression) return;
+        if (config.severity >= 9) return;
 
         const errorHash = this.generateErrorHash(config);
 
@@ -482,7 +494,15 @@ export class Logger {
             const redactedArgv = this.redactCliArgs(process.argv.slice(1));
             const redactedExecArgv = this.redactCliArgs(process.execArgv);
             const argString = redactedArgv.join(' ');
-            const isWorkerThread = isBunWorkerRuntime();
+            const isWorkerThread = isBunThreadWorkerRuntime();
+            const isIpcChildProcess = isBunIpcChildProcessRuntime();
+
+            const executionModel: LoggerWorkerContext['executionModel'] = isWorkerThread
+                ? 'worker-thread'
+                : isIpcChildProcess
+                  ? 'ipc-child-process'
+                  : 'main-thread';
+
             const workerData = getMeteoricWorkerData();
             const normalizedWorkerData = workerData === undefined ? null : (this.normalizeForJson(workerData) ?? null);
             const workerJson = normalizedWorkerData === null ? '' : JSON.stringify(normalizedWorkerData);
@@ -497,7 +517,7 @@ export class Logger {
                 new Set(
                     [
                         `runtime:${runtime.name}`,
-                        isWorkerThread ? 'worker-thread' : 'main-thread',
+                        executionModel,
                         ...(this.verbose ? ['verbose'] : []),
                         ...(this.debug ? ['debug'] : [])
                     ].filter((tag): tag is string => tag.length > 0)
@@ -612,6 +632,8 @@ export class Logger {
                         arch: process.arch
                     },
                     worker: {
+                        executionModel,
+                        isIpcChildProcess,
                         isWorkerThread,
                         threadId: workerThreadId,
                         data: normalizedWorkerData
@@ -660,7 +682,7 @@ export class Logger {
                 writeFileSync(filename, logEntryJson);
 
                 if (severity >= this.outputSeverity) {
-                    console.log(logEntry);
+                    this.originalConsoleLog(logEntry);
                 }
             } catch (err) {
                 // Use original console methods to prevent recursion
@@ -685,6 +707,55 @@ export class Logger {
         }
     }
 
+    private getConsoleErrorMessage(args: unknown[]): string {
+        return args
+            .map((arg) => {
+                if (typeof arg === 'string') return arg;
+                if (arg instanceof Error) return arg.stack || arg.message;
+
+                try {
+                    return this.serializeForLog(arg);
+                } catch {
+                    return '[Unable to serialize argument]';
+                }
+            })
+            .join(' ');
+    }
+
+    private getPrimaryConsoleError(args: unknown[]): Error | undefined {
+        const foundError = args.find((arg): arg is Error => arg instanceof Error);
+
+        return foundError ?? undefined;
+    }
+
+    private logGracefulSignal(signal: 'SIGINT' | 'SIGHUP' | 'SIGTERM') {
+        this.log({
+            level: 'warn',
+            severity: 3,
+            message: `${signal} received`,
+            error: new Error(`${signal} received`),
+            service: 'ProcessLifecycle',
+            category: 'graceful-shutdown'
+        });
+    }
+
+    private scheduleDefaultGracefulExit(signal: 'SIGINT' | 'SIGHUP' | 'SIGTERM') {
+        if (this.gracefulExitTimer) return;
+
+        if (process.listenerCount(signal) > 1) {
+            process.exitCode = 0;
+            return;
+        }
+
+        process.exitCode = 0;
+
+        this.gracefulExitTimer = setTimeout(() => {
+            process.exit(0);
+        }, 50);
+
+        this.gracefulExitTimer.unref?.();
+    }
+
     private setupProcessHandlers() {
         this.verbose = !!process.argv.includes('--verbose');
         this.debug = !!process.argv.includes('--debug');
@@ -699,43 +770,30 @@ export class Logger {
                 return;
             }
 
-            // Safe argument processing to prevent JSON.stringify failures
             let errorMessage = '';
 
             try {
-                errorMessage = args
-                    .map((arg) => {
-                        if (typeof arg === 'string') return arg;
-                        if (arg instanceof Error) return arg.message;
-
-                        try {
-                            return JSON.stringify(arg);
-                        } catch {
-                            return '[Unable to serialize argument]';
-                        }
-                    })
-                    .join(' ');
+                errorMessage = this.getConsoleErrorMessage(args);
             } catch {
                 errorMessage = 'Error processing console.error arguments';
             }
 
             if (errorMessage.includes('punycode')) return;
 
-            // Create an Error object to capture stack trace
-            const error = new Error(errorMessage);
+            const primaryError = this.getPrimaryConsoleError(args);
 
             this.log({
                 level: 'error',
                 severity: 7,
                 message: errorMessage,
-                error
+                ...(primaryError ? { error: primaryError } : { error: new Error(errorMessage) })
             });
 
             // Call the original console.error to maintain normal behavior
             this.originalConsoleError.apply(console, args);
         };
 
-        process.on('uncaughtException', (err, origin) => {
+        process.once('uncaughtException', (err, origin) => {
             // Use original console methods to prevent recursion in critical scenarios
             this.originalConsoleLog(err);
             this.originalConsoleLog(origin);
@@ -759,18 +817,7 @@ export class Logger {
             process.exit(1);
         });
 
-        process.on('SIGTERM', () => {
-            this.log({
-                level: 'error',
-                severity: 10,
-                message: 'SIGTERM received',
-                error: new Error('SIGTERM received')
-            });
-
-            process.exit(1);
-        });
-
-        process.on('unhandledRejection', (reason) => {
+        process.once('unhandledRejection', (reason) => {
             const errorMessage = reason instanceof Error ? reason.stack : reason;
             const error = new Error(`Unhandled Rejection at: Promise ${errorMessage as string}`);
 
@@ -804,6 +851,13 @@ export class Logger {
                 error: warning
             });
         });
+
+        for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP'] as const) {
+            process.once(signal, () => {
+                this.logGracefulSignal(signal);
+                this.scheduleDefaultGracefulExit(signal);
+            });
+        }
     }
 
     setVerbose(verbose: boolean): void {

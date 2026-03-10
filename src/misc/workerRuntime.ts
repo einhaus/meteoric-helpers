@@ -16,11 +16,16 @@ const createSyntheticWorkerThreadId = () => {
 };
 
 export const isBunWorkerRuntime = () => {
+    return isBunThreadWorkerRuntime() || isBunIpcChildProcessRuntime();
+};
+
+export const isBunIpcChildProcessRuntime = () => {
+    return typeof process !== 'undefined' && typeof process.send === 'function';
+};
+
+export const isBunThreadWorkerRuntime = () => {
     const runtimeGlobal = getWorkerRuntimeGlobal() as Record<string, unknown>;
     const bunGlobal = runtimeGlobal[BUN_GLOBAL_KEY];
-    const isIpcChildProcess = typeof process !== 'undefined' && typeof process.send === 'function';
-
-    if (isIpcChildProcess) return true;
 
     if (typeof bunGlobal !== 'object' || bunGlobal === null) return false;
 
@@ -59,8 +64,8 @@ export const getMeteoricWorkerData = () => {
 export const postMeteoricWorkerMessage = (message: unknown) => {
     if (!isBunWorkerRuntime()) return false;
 
-    if (typeof process !== 'undefined' && typeof process.send === 'function') {
-        process.send(message);
+    if (isBunIpcChildProcessRuntime()) {
+        process.send?.(message);
         return true;
     }
 
