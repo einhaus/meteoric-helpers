@@ -37,6 +37,11 @@ interface SpanRecord {
     completed: boolean;
 }
 
+interface SpanTracker {
+    activeSpans: SpanRecord[];
+    lastCompletedSpan?: SpanRecord;
+}
+
 interface AggregateRecord {
     totalTimeNs: bigint;
     callCount: number;
@@ -82,7 +87,7 @@ export class PerformanceBenchmark {
 
     private inceptionTime: bigint;
     private checkpoints: Checkpoint[] = [];
-    private readonly spans: Map<string, SpanRecord> = new Map();
+    private readonly spans: Map<string, SpanTracker> = new Map();
     private readonly aggregates: Map<string, AggregateRecord> = new Map();
 
     private constructor(config: PerformanceBenchmarkConfig) {
@@ -180,10 +185,14 @@ export class PerformanceBenchmark {
     public startTracking(id: string): void {
         if (!this.enabled) return;
 
-        this.spans.set(id, {
+        const tracker = this.spans.get(id) ?? { activeSpans: [] };
+
+        tracker.activeSpans.push({
             startTime: process.hrtime.bigint(),
             completed: false
         });
+
+        this.spans.set(id, tracker);
     }
 
     /**
@@ -195,15 +204,17 @@ export class PerformanceBenchmark {
     public endTracking(id: string): number {
         if (!this.enabled) return 0;
 
-        const span = this.spans.get(id);
+        const tracker = this.spans.get(id);
+        const span = tracker?.activeSpans.pop();
 
-        if (!span || span.completed) {
+        if (!tracker || !span) {
             throw new Error(`No active span found for id: ${id}`);
         }
 
         const endTime = process.hrtime.bigint();
         span.endTime = endTime;
         span.completed = true;
+        tracker.lastCompletedSpan = span;
 
         const durationNs = endTime - span.startTime;
         return this.convertNsToOutput(durationNs);
@@ -285,12 +296,16 @@ export class PerformanceBenchmark {
 
         const spanSummaries: Record<string, SpanSummary> = {};
 
-        for (const [id, span] of this.spans.entries()) {
+        for (const [id, tracker] of this.spans.entries()) {
+            const activeSpan = tracker.activeSpans[tracker.activeSpans.length - 1];
+            const span = activeSpan ?? tracker.lastCompletedSpan;
+            if (!span) continue;
+
             let duration = 0;
 
             if (span.endTime !== undefined) {
                 duration = this.convertNsToOutput(span.endTime - span.startTime);
-            } else if (!span.completed) {
+            } else {
                 // Still running - calculate current duration
                 const currentDuration = process.hrtime.bigint() - span.startTime;
                 duration = this.convertNsToOutput(currentDuration);
@@ -298,7 +313,7 @@ export class PerformanceBenchmark {
 
             spanSummaries[id] = {
                 duration,
-                completed: span.completed
+                completed: activeSpan === undefined
             };
         }
 
