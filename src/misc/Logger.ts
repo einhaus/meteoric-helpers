@@ -119,6 +119,17 @@ export interface LoggerContext {
 }
 
 export class Logger {
+    private static readonly maxMessageBytes = 32 * 1024;
+    private static readonly maxExtraDataBytes = 64 * 1024;
+    private static readonly maxErrorBytes = 48 * 1024;
+    private static readonly maxErrorFieldBytes = 16 * 1024;
+    private static readonly maxErrorStackBytes = 24 * 1024;
+    private static readonly maxContextBytes = 24 * 1024;
+    private static readonly maxContextFieldBytes = 4 * 1024;
+    private static readonly maxWorkerDataBytes = 4 * 1024;
+    private static readonly maxWorkerJsonBytes = 4 * 1024;
+    private static readonly maxLogRecordBytes = 256 * 1024;
+
     verbose = false;
     debug = false;
     private static readonly sensitiveKeyFragments = [
@@ -324,6 +335,254 @@ export class Logger {
         return `[Unsupported value type: ${typeof value}]`;
     }
 
+    private getUtf8ByteLength(value: string): number {
+        return Buffer.byteLength(value, 'utf8');
+    }
+
+    private truncateStringToMaxBytes(value: string, maxBytes: number, label: string): string {
+        const originalBytes = this.getUtf8ByteLength(value);
+        if (originalBytes <= maxBytes) return value;
+
+        const suffix = `...[TRUNCATED ${label}; originalBytes=${originalBytes}]`;
+        const suffixBytes = this.getUtf8ByteLength(suffix);
+
+        if (suffixBytes >= maxBytes) {
+            let low = 0;
+            let high = suffix.length;
+            let best = '';
+
+            while (low <= high) {
+                const mid = Math.floor((low + high) / 2);
+                const candidate = suffix.slice(0, mid);
+
+                if (this.getUtf8ByteLength(candidate) <= maxBytes) {
+                    best = candidate;
+                    low = mid + 1;
+                } else {
+                    high = mid - 1;
+                }
+            }
+
+            return best;
+        }
+
+        const targetBytes = maxBytes - suffixBytes;
+        let low = 0;
+        let high = value.length;
+        let best = '';
+
+        while (low <= high) {
+            const mid = Math.floor((low + high) / 2);
+            const candidate = value.slice(0, mid);
+
+            if (this.getUtf8ByteLength(candidate) <= targetBytes) {
+                best = candidate;
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
+        }
+
+        return `${best}${suffix}`;
+    }
+
+    private boundJsonValue(value: JsonValue | null, maxBytes: number, label: string): JsonValue | null {
+        if (value === null) return null;
+
+        const serializedValue = JSON.stringify(value);
+        const serializedBytes = this.getUtf8ByteLength(serializedValue);
+
+        if (serializedBytes <= maxBytes) {
+            return value;
+        }
+
+        return {
+            truncated: true,
+            label,
+            originalBytes: serializedBytes,
+            preview: this.truncateStringToMaxBytes(
+                serializedValue,
+                Math.max(256, Math.min(2048, Math.floor(maxBytes / 2))),
+                `${label}.preview`
+            )
+        };
+    }
+
+    private compactErrorDetails(errorDetails: LoggerError | undefined, aggressive = false): LoggerError | undefined {
+        if (!errorDetails) return undefined;
+
+        const boundedErrorDetails: LoggerError = {
+            name: this.truncateStringToMaxBytes(errorDetails.name, 512, 'error.name'),
+            message: this.truncateStringToMaxBytes(errorDetails.message, aggressive ? 1024 : Logger.maxErrorFieldBytes, 'error.message'),
+            stack: errorDetails.stack
+                ? this.truncateStringToMaxBytes(errorDetails.stack, aggressive ? 2048 : Logger.maxErrorStackBytes, 'error.stack')
+                : undefined
+        };
+
+        for (const [key, value] of Object.entries(errorDetails)) {
+            if (['name', 'message', 'stack'].includes(key) || value === undefined) {
+                continue;
+            }
+
+            const boundedValue = this.boundJsonValue(value, aggressive ? 512 : Logger.maxErrorFieldBytes, `error.${key}`);
+            boundedErrorDetails[key] = boundedValue;
+        }
+
+        const serializedBytes = this.getUtf8ByteLength(JSON.stringify(boundedErrorDetails));
+
+        if (serializedBytes <= (aggressive ? 8 * 1024 : Logger.maxErrorBytes)) {
+            return boundedErrorDetails;
+        }
+
+        return {
+            name: boundedErrorDetails.name,
+            message: boundedErrorDetails.message,
+            stack: boundedErrorDetails.stack,
+            truncated: true,
+            originalBytes: serializedBytes
+        };
+    }
+
+    private compactContext(context: LoggerContext, aggressive = false): LoggerContext {
+        const boundedContext: LoggerContext = {
+            ...context,
+            argString: this.truncateStringToMaxBytes(
+                context.argString,
+                aggressive ? 1024 : Logger.maxContextFieldBytes,
+                'context.argString'
+            ),
+            workerJson: this.truncateStringToMaxBytes(
+                context.workerJson,
+                aggressive ? 512 : Logger.maxWorkerJsonBytes,
+                'context.workerJson'
+            ),
+            launch: {
+                ...context.launch,
+                entrypoint: this.truncateStringToMaxBytes(
+                    context.launch.entrypoint,
+                    aggressive ? 256 : Logger.maxContextFieldBytes,
+                    'context.launch.entrypoint'
+                ),
+                argv: context.launch.argv
+                    .slice(0, aggressive ? 10 : 25)
+                    .map((arg) => this.truncateStringToMaxBytes(arg, aggressive ? 128 : 512, 'context.launch.argv')),
+                execArgv: context.launch.execArgv
+                    .slice(0, aggressive ? 10 : 25)
+                    .map((arg) => this.truncateStringToMaxBytes(arg, aggressive ? 128 : 512, 'context.launch.execArgv')),
+                cwd: this.truncateStringToMaxBytes(context.launch.cwd, aggressive ? 256 : Logger.maxContextFieldBytes, 'context.launch.cwd')
+            },
+            worker: {
+                ...context.worker,
+                data: this.boundJsonValue(context.worker.data, aggressive ? 512 : Logger.maxWorkerDataBytes, 'context.worker.data')
+            }
+        };
+
+        const serializedBytes = this.getUtf8ByteLength(JSON.stringify(boundedContext));
+
+        if (serializedBytes <= (aggressive ? 6 * 1024 : Logger.maxContextBytes)) {
+            return boundedContext;
+        }
+
+        return {
+            ...boundedContext,
+            workerJson: '',
+            launch: {
+                ...boundedContext.launch,
+                argv: boundedContext.launch.argv.slice(0, aggressive ? 3 : 5),
+                execArgv: boundedContext.launch.execArgv.slice(0, aggressive ? 3 : 5)
+            },
+            worker: {
+                ...boundedContext.worker,
+                data: boundedContext.worker.data === null ? null : '[TRUNCATED]'
+            }
+        };
+    }
+
+    private ensureLogEntryFits(logEntry: LoggerRecord): LoggerRecord {
+        if (this.getUtf8ByteLength(JSON.stringify(logEntry)) <= Logger.maxLogRecordBytes) {
+            return logEntry;
+        }
+
+        const compactEntry: LoggerRecord = {
+            ...logEntry,
+            message: this.truncateStringToMaxBytes(logEntry.message, 8 * 1024, 'message'),
+            extra_data: logEntry.extra_data
+                ? this.truncateStringToMaxBytes(logEntry.extra_data, 8 * 1024, 'extra_data')
+                : logEntry.extra_data,
+            error: this.compactErrorDetails(logEntry.error, true),
+            context: this.compactContext(logEntry.context, true),
+            tags: logEntry.tags.slice(0, 10)
+        };
+
+        if (this.getUtf8ByteLength(JSON.stringify(compactEntry)) <= Logger.maxLogRecordBytes) {
+            return compactEntry;
+        }
+
+        const fallbackEntry: LoggerRecord = {
+            ...compactEntry,
+            message: this.truncateStringToMaxBytes(compactEntry.message, 2048, 'message'),
+            extra_data: '',
+            error: compactEntry.error
+                ? {
+                      name: compactEntry.error.name,
+                      message: this.truncateStringToMaxBytes(compactEntry.error.message, 512, 'error.message'),
+                      stack: compactEntry.error.stack
+                          ? this.truncateStringToMaxBytes(compactEntry.error.stack, 512, 'error.stack')
+                          : undefined,
+                      truncated: true
+                  }
+                : undefined,
+            context: {
+                ...compactEntry.context,
+                argString: this.truncateStringToMaxBytes(compactEntry.context.argString, 256, 'context.argString'),
+                workerJson: '',
+                launch: {
+                    ...compactEntry.context.launch,
+                    entrypoint: this.truncateStringToMaxBytes(compactEntry.context.launch.entrypoint, 128, 'context.launch.entrypoint'),
+                    argv: [],
+                    execArgv: [],
+                    cwd: this.truncateStringToMaxBytes(compactEntry.context.launch.cwd, 128, 'context.launch.cwd')
+                },
+                worker: {
+                    ...compactEntry.context.worker,
+                    data: null
+                }
+            },
+            tags: compactEntry.tags.slice(0, 5)
+        };
+
+        if (this.getUtf8ByteLength(JSON.stringify(fallbackEntry)) <= Logger.maxLogRecordBytes) {
+            return fallbackEntry;
+        }
+
+        return {
+            ...fallbackEntry,
+            message: '[TRUNCATED] Log entry exceeded max record size after compaction',
+            extra_data: '',
+            error: fallbackEntry.error
+                ? {
+                      name: fallbackEntry.error.name,
+                      message: fallbackEntry.error.message,
+                      stack: fallbackEntry.error.stack,
+                      truncated: true
+                  }
+                : undefined,
+            context: {
+                ...fallbackEntry.context,
+                argString: '',
+                workerJson: '',
+                launch: {
+                    ...fallbackEntry.context.launch,
+                    entrypoint: '',
+                    argv: [],
+                    execArgv: [],
+                    cwd: ''
+                }
+            },
+            tags: []
+        };
+    }
+
     private serializeForLog(value: unknown): string {
         const normalizedValue = this.normalizeForJson(value);
 
@@ -505,7 +764,6 @@ export class Logger {
 
             const workerData = getMeteoricWorkerData();
             const normalizedWorkerData = workerData === undefined ? null : (this.normalizeForJson(workerData) ?? null);
-            const workerJson = normalizedWorkerData === null ? '' : JSON.stringify(normalizedWorkerData);
             const workerThreadId = isWorkerThread ? getMeteoricWorkerThreadId() : 0;
             const hostname = os.hostname();
             const uptimeSeconds = process.uptime();
@@ -540,7 +798,18 @@ export class Logger {
             // Enhanced error serialization - capture more error context
             let errorDetails: LoggerError | undefined;
 
-            error = (level === 'error' || level === 'warn') && !error ? new Error(message) : error;
+            const boundedMessage = this.truncateStringToMaxBytes(message ?? '', Logger.maxMessageBytes, 'message');
+            const boundedExtraDataOutput = this.truncateStringToMaxBytes(extraDataOutput, Logger.maxExtraDataBytes, 'extra_data');
+
+            const boundedWorkerData =
+                normalizedWorkerData === null ? null : this.boundJsonValue(normalizedWorkerData, Logger.maxWorkerDataBytes, 'worker.data');
+
+            const workerJson =
+                boundedWorkerData === null
+                    ? ''
+                    : this.truncateStringToMaxBytes(JSON.stringify(boundedWorkerData), Logger.maxWorkerJsonBytes, 'workerJson');
+
+            error = (level === 'error' || level === 'warn') && !error ? new Error(boundedMessage) : error;
 
             if (error) {
                 try {
@@ -596,11 +865,11 @@ export class Logger {
                 unix_timestamp,
                 level,
                 severity,
-                message: message ?? '',
+                message: boundedMessage,
                 env,
                 host: hostname,
-                error: errorDetails,
-                extra_data: extraDataOutput,
+                error: this.compactErrorDetails(errorDetails),
+                extra_data: boundedExtraDataOutput,
                 context: {
                     argString,
                     workerJson,
@@ -636,7 +905,7 @@ export class Logger {
                         isIpcChildProcess,
                         isWorkerThread,
                         threadId: workerThreadId,
-                        data: normalizedWorkerData
+                        data: boundedWorkerData
                     },
                     memory: {
                         ...(bunJscGcMaxHeapSize ? { bunJscGcMaxHeapSize } : {}),
@@ -647,6 +916,8 @@ export class Logger {
                 service: service ?? '',
                 category: category ?? ''
             };
+
+            const boundedLogEntry = this.ensureLogEntryFits(logEntry);
 
             // Check for duplicate errors before proceeding
             if (this.isDuplicate(config)) {
@@ -661,28 +932,28 @@ export class Logger {
 
             // Log to console if verbose is true and it's an error or warn
             if (this.verbose && (level === 'error' || level === 'warn')) {
-                this.originalConsoleLog(`[${dateTime}] [${level.toUpperCase()}] ${message || 'No message'}`);
+                this.originalConsoleLog(`[${dateTime}] [${level.toUpperCase()}] ${boundedLogEntry.message || 'No message'}`);
 
-                if (errorDetails) {
+                if (boundedLogEntry.error) {
                     this.originalConsoleLog('Error Details:', {
-                        name: errorDetails.name,
-                        message: errorDetails.message,
-                        stack: errorDetails.stack
+                        name: boundedLogEntry.error.name,
+                        message: boundedLogEntry.error.message,
+                        stack: boundedLogEntry.error.stack
                     });
                 }
 
-                if (extraDataOutput && extraDataOutput !== '{}') {
-                    this.originalConsoleLog('Extra Data:', extraDataOutput);
+                if (boundedLogEntry.extra_data && boundedLogEntry.extra_data !== '{}') {
+                    this.originalConsoleLog('Extra Data:', boundedLogEntry.extra_data);
                 }
             }
 
             try {
                 // Safe JSON serialization for log entry
-                const logEntryJson = JSON.stringify(logEntry);
+                const logEntryJson = JSON.stringify(boundedLogEntry);
                 writeFileSync(filename, logEntryJson);
 
                 if (severity >= this.outputSeverity) {
-                    this.originalConsoleLog(logEntry);
+                    this.originalConsoleLog(boundedLogEntry);
                 }
             } catch (err) {
                 // Use original console methods to prevent recursion
