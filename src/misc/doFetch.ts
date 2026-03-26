@@ -4,7 +4,7 @@ import { appendToFile } from '../file/appendToFile.js';
 import { sleep } from './sleep.js';
 import url from 'url';
 
-export type RequestMethod = 'GET' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT';
+export type RequestMethod = 'GET' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT' | 'PATCH';
 
 type RedactionConfig = {
     enabled?: boolean;
