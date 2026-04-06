@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { DBConfig, DbParameters, Insertable, SelectConfigMysql, SelectReturn, WhereCondition } from './dbUtilityTypes.js';
 
-import mysql, { type Pool, type ResultSetHeader, type PoolConnection } from 'mysql2/promise.js';
+import mysql, { type Connection, type Pool, type ResultSetHeader, type PoolConnection } from 'mysql2/promise.js';
 import { existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import { sleep } from '../misc/sleep.js';
@@ -126,20 +126,30 @@ export class DBMysql {
         this.db = undefined;
     }
 
-    private createPool() {
-        const connectionLimit = this.config.connectionLimit || 3;
+    async createConnection(): Promise<Connection> {
+        return mysql.createConnection(this.buildConnectionConfig());
+    }
 
-        return mysql.createPool({
+    private buildConnectionConfig() {
+        return {
             host: this.config.host,
             user: this.config.user,
             password: this.config.password,
             database: this.config.db,
             charset: this.config.charset ?? 'utf8mb4',
             multipleStatements: true,
-            connectionLimit,
             dateStrings: true,
             enableKeepAlive: true,
             connectTimeout: 30000
+        };
+    }
+
+    private createPool() {
+        const connectionLimit = this.config.connectionLimit || 3;
+
+        return mysql.createPool({
+            ...this.buildConnectionConfig(),
+            connectionLimit
             // We don't use decimalNumbers, so we can fetch decimals as strings and convert them to numbers in the code
         });
     }
@@ -147,25 +157,27 @@ export class DBMysql {
     private async resetPool(reason: string) {
         if (this.poolResetPromise) return this.poolResetPromise;
 
-        this.poolResetPromise = (async () => {
-            const oldPool = this.db;
-            // Swap in a fresh pool immediately so concurrent callers can proceed.
-            this.db = this.createPool();
+        this.poolResetPromise = Promise.resolve()
+            .then(() => {
+                const oldPool = this.db;
+                // Swap in a fresh pool immediately so concurrent callers can proceed.
+                this.db = this.createPool();
 
-            if (oldPool) {
-                // Close the old pool in the background; don't block callers on draining.
-                // eslint-disable-next-line no-void
-                void oldPool.end().catch((e: unknown) => {
-                    this.handleError(e);
-                });
-            }
+                if (oldPool) {
+                    // Close the old pool in the background; don't block callers on draining.
+                    // eslint-disable-next-line no-void
+                    void oldPool.end().catch((e: unknown) => {
+                        this.handleError(e);
+                    });
+                }
 
-            if (reason) {
-                console.warn(`MySQL pool reset: ${reason}`);
-            }
-        })().finally(() => {
-            this.poolResetPromise = null;
-        });
+                if (reason) {
+                    console.warn(`MySQL pool reset: ${reason}`);
+                }
+            })
+            .finally(() => {
+                this.poolResetPromise = null;
+            });
 
         return this.poolResetPromise;
     }
@@ -173,7 +185,7 @@ export class DBMysql {
     async doSelectFirst<T extends object>(
         queryString: string,
         parameters?: DbParameters,
-        connection?: PoolConnection,
+        connection?: Connection | PoolConnection,
         verbose?: boolean
     ): Promise<T | void> {
         const rows = await this.doSelectMultiple<T>(queryString, parameters, connection, verbose);
@@ -185,24 +197,25 @@ export class DBMysql {
     async doSelectMultiple<T extends object>(
         queryString: string,
         parameters?: DbParameters,
-        connection?: PoolConnection,
+        connection?: Connection | PoolConnection,
         verbose?: boolean
     ): Promise<T[]> {
         let retryAttempts = 0;
 
         while (retryAttempts < this.maxRetries) {
             try {
-                const dbConnection: Pool | PoolConnection = connection ? connection : this.getOrThrowPool();
+                const dbConnection: Pool | Connection | PoolConnection = connection ? connection : this.getOrThrowPool();
                 const query = dbConnection.format(queryString, parameters);
                 const [rows] = await dbConnection.query(query);
                 if (verbose) console.log(`Executing query: ${query}`);
                 return rows as T[];
             } catch (e: unknown) {
-                if (this.isPoolClosedError(e)) {
+                if (this.isClosedConnectionError(e)) {
                     if (!connection) {
                         await this.resetPool('pool closed');
                     } else {
-                        // If a specific connection is provided, we can't recreate the pool
+                        // If a specific connection is provided, we can't recreate it safely because
+                        // session-scoped state like transactions or advisory locks would be lost.
                         this.handleError(e);
                         throw e;
                     }
@@ -394,7 +407,7 @@ export class DBMysql {
     async doQuery(config: {
         queryString: string;
         parameters?: DbParameters | undefined;
-        connection?: PoolConnection | undefined;
+        connection?: Connection | PoolConnection | undefined;
         verbose?: boolean | undefined;
     }): Promise<ResultSetHeader | void> {
         const { queryString, parameters, connection, verbose } = config;
@@ -404,7 +417,7 @@ export class DBMysql {
 
         while (retryAttempts < MAX_RETRIES) {
             try {
-                const dbConnection: Pool | PoolConnection = connection ? connection : this.getOrThrowPool();
+                const dbConnection: Pool | Connection | PoolConnection = connection ? connection : this.getOrThrowPool();
                 const query = dbConnection.format(queryString, parameters);
                 if (verbose) console.log(`Executing query: ${query}`);
                 const [row] = await dbConnection.query(query);
@@ -412,7 +425,7 @@ export class DBMysql {
             } catch (e: unknown) {
                 retryAttempts++;
 
-                if (!connection && this.isPoolClosedError(e) && retryAttempts < MAX_RETRIES) {
+                if (!connection && this.isClosedConnectionError(e) && retryAttempts < MAX_RETRIES) {
                     await this.resetPool('pool closed');
                 } else if (this.isTransientError(e) && retryAttempts < MAX_RETRIES) {
                     console.warn(`Retryable error encountered (${(e as Error).message}). Retrying (${retryAttempts}/${MAX_RETRIES})...`);
@@ -432,11 +445,14 @@ export class DBMysql {
         return this.db;
     }
 
-    private isPoolClosedError(error: unknown): boolean {
+    private isClosedConnectionError(error: unknown): boolean {
         if (error instanceof Error && error.message.includes('Pool is closed.')) return true;
         const err = error as { code?: string; message?: string };
         if (err?.code === 'PROTOCOL_ENQUEUE_AFTER_QUIT') return true;
         if (typeof err?.message === 'string' && err.message.includes('Cannot enqueue Query after invoking quit')) return true;
+        if (typeof err?.message === 'string' && err.message.includes("Can't add new command when connection is in closed state"))
+            return true;
+        if (typeof err?.message === 'string' && err.message.includes("Can't write in closed state")) return true;
         return false;
     }
 
@@ -457,7 +473,7 @@ export class DBMysql {
         queryString: string;
         parameters?: T[] | DbParameters | undefined;
         retryAttempts?: number;
-        connection?: PoolConnection | undefined;
+        connection?: Connection | PoolConnection | undefined;
         verbose?: boolean | undefined;
     }): Promise<number | void> {
         const { queryString, parameters, connection, verbose } = config;
@@ -465,19 +481,18 @@ export class DBMysql {
 
         while (retryAttempts < this.maxRetries) {
             try {
-                const dbConnection: Pool | PoolConnection = connection ? connection : this.getOrThrowPool();
+                const dbConnection: Pool | Connection | PoolConnection = connection ? connection : this.getOrThrowPool();
                 const query = dbConnection.format(queryString, parameters);
                 if (verbose) console.log(`Executing query: ${query}`);
                 const [row] = await dbConnection.query(query);
                 const results = row as ResultSetHeader;
                 return results.insertId;
             } catch (e: unknown) {
-                if (!connection && this.isPoolClosedError(e)) {
+                if (!connection && this.isClosedConnectionError(e)) {
                     await this.resetPool('pool closed');
                 } else if (this.isTransientError(e, true) && retryAttempts < this.maxRetries) {
-                    console.warn(
-                        `Insert transient error (${(e as Error).message}). Retrying (${retryAttempts + 1}/${this.maxRetries})...`
-                    );
+                    console.warn(`Insert transient error (${(e as Error).message}). Retrying (${retryAttempts + 1}/${this.maxRetries})...`);
+
                     await sleep(this.retryDelayMs * (retryAttempts + 1));
                 } else {
                     this.handleError(e);
@@ -497,7 +512,7 @@ export class DBMysql {
         shouldIgnore?: boolean;
         updateOnDuplicate?: boolean;
         updateOnDuplicateColumns?: (keyof T)[];
-        connection?: PoolConnection;
+        connection?: Connection | PoolConnection;
         verbose?: boolean;
     }): Promise<number | void> {
         const { connection, verbose } = config;
@@ -532,7 +547,7 @@ export class DBMysql {
         shouldIgnore?: boolean;
         onDuplicateKeyUpdate?: boolean;
         onDuplicateKeyUpdateColumns?: (keyof T)[];
-        connection?: PoolConnection;
+        connection?: Connection | PoolConnection;
         verbose?: boolean;
     }): Promise<number | void> {
         if (!config.values || config.values.length === 0) return;
@@ -570,7 +585,7 @@ export class DBMysql {
 
     async update<T extends object>(config: {
         table: string;
-        connection?: PoolConnection;
+        connection?: Connection | PoolConnection;
         params: Partial<Insertable<T>>;
         where?: WhereCondition<T>[] | WhereCondition<T>; // Accept a single condition or an array
         whereOperator?: 'AND' | 'OR';
@@ -621,7 +636,7 @@ export class DBMysql {
             finalOrderBy?: { column: keyof T; direction?: 'ASC' | 'DESC' } | { column: keyof T; direction?: 'ASC' | 'DESC' }[];
             finalLimit?: number;
             finalOffset?: number;
-            connection?: PoolConnection;
+            connection?: Connection | PoolConnection;
             verbose?: boolean;
         }
     ): Promise<SelectReturn<T, C>> {

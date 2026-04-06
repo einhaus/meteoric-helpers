@@ -1,4 +1,4 @@
-import type { PoolConnection } from 'mysql2/promise';
+import type { Connection, PoolConnection } from 'mysql2/promise';
 import type { PoolClient, QueryResult } from 'pg';
 
 export type AnyPrimitive = string | number | boolean;
@@ -184,7 +184,7 @@ export interface SelectConfigPg<T extends object = object, C extends (keyof T)[]
 }
 
 export interface SelectConfigMysql<T extends object = object, C extends (keyof T)[] | undefined = undefined> extends SelectConfig<T, C> {
-    connection?: PoolConnection;
+    connection?: Connection | PoolConnection;
 }
 
 /**
@@ -195,8 +195,10 @@ export type ClickHouseWrapper = 'DISTINCT' | 'SUM' | 'COUNT' | 'AVG' | 'MAX' | '
 /**
  * SelectConfigClickhouse extends the base SelectConfig for ClickHouse-specific functionality
  */
-export interface SelectConfigClickhouse<T extends object = object, C extends (keyof T)[] | undefined = undefined>
-    extends Omit<SelectConfig<T, C>, 'computedColumns'> {
+export interface SelectConfigClickhouse<T extends object = object, C extends (keyof T)[] | undefined = undefined> extends Omit<
+    SelectConfig<T, C>,
+    'computedColumns'
+> {
     computedColumns?: {
         column: keyof T;
         wrapper: ClickHouseWrapper;
