@@ -17,7 +17,7 @@ const DEFAULT_RETRY_DELAY_MS = 10000;
 export class DBMysql {
     private static readonly instances: Map<string, DBMysql> = new Map();
     private static readonly DEFAULT_KEY = 'default';
-    db?: Pool | undefined;
+    private db?: Pool | undefined;
     private config: DBConfig;
     private readonly logFolder: string;
     private readonly maxRetries: number;
@@ -457,11 +457,10 @@ export class DBMysql {
     }
 
     createResultStream(queryString: string, parameters?: DbParameters) {
-        if (!this.db) throw new Error(`No db! ${queryString}`);
-
         try {
-            const query = this.db.format(queryString, parameters);
-            const stream = this.db.pool.query(query).stream();
+            const pool = this.getOrThrowPool();
+            const query = pool.format(queryString, parameters);
+            const stream = pool.pool.query(query).stream();
 
             return stream;
         } catch (e: unknown) {
