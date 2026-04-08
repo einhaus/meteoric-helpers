@@ -118,6 +118,16 @@ export interface LoggerContext {
     memory: LoggerMemoryContext;
 }
 
+export const formatLoggerTimestampForClickHouse = (unixTimestampMs: number): string => {
+    const timestampIso = getDate({
+        date: unixTimestampMs / 1000,
+        format: 'iso',
+        timezone: 'Etc/UTC'
+    });
+
+    return typeof timestampIso === 'string' ? timestampIso.replace('T', ' ').replace('Z', '') : '';
+};
+
 export class Logger {
     private static readonly maxMessageBytes = 32 * 1024;
     private static readonly maxExtraDataBytes = 64 * 1024;
@@ -218,6 +228,10 @@ export class Logger {
         }
 
         return Logger.instance;
+    }
+
+    static resetInstanceForTests(): void {
+        Logger.instance = null;
     }
 
     private getRuntimeMetadata(): LoggerRuntimeContext {
@@ -856,12 +870,12 @@ export class Logger {
             }
 
             // Get current timestamp for consistent timing
-            const dateTime = getDate({ format: 'ymdhms' });
-
             const unix_timestamp = Date.now();
+            const timestamp = formatLoggerTimestampForClickHouse(unix_timestamp);
+            const fileDateTime = getDate({ format: 'ymdhms' });
 
             const logEntry: LoggerRecord = {
-                timestamp: dateTime,
+                timestamp,
                 unix_timestamp,
                 level,
                 severity,
@@ -925,14 +939,14 @@ export class Logger {
             }
 
             // Better file naming - group by date and level for easier analysis
-            const filename = `${this.logDir}files/${dateTime}_${level}_${nanoid(8)}.json`;
+            const filename = `${this.logDir}files/${fileDateTime}_${level}_${nanoid(8)}.json`;
 
             // Record this error to prevent future duplicates
             this.recordError(config);
 
             // Log to console if verbose is true and it's an error or warn
             if (this.verbose && (level === 'error' || level === 'warn')) {
-                this.originalConsoleLog(`[${dateTime}] [${level.toUpperCase()}] ${boundedLogEntry.message || 'No message'}`);
+                this.originalConsoleLog(`[${timestamp}] [${level.toUpperCase()}] ${boundedLogEntry.message || 'No message'}`);
 
                 if (boundedLogEntry.error) {
                     this.originalConsoleLog('Error Details:', {
@@ -962,7 +976,7 @@ export class Logger {
                 // Try to output a simplified version
                 try {
                     const simplifiedEntry = {
-                        timestamp: dateTime,
+                        timestamp,
                         level,
                         message: message ?? '',
                         error: error ? { name: error.name, message: error.message } : undefined
