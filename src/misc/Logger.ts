@@ -261,6 +261,69 @@ export class Logger {
         return Logger.sensitiveKeyFragments.some((fragment) => normalizedKey.includes(fragment));
     }
 
+    private redactStringSecretValue(value: string): string {
+        if (!value) return '[REDACTED]';
+        if (value.includes('[REDACTED]')) return value;
+
+        const trimmedValue = value.trim();
+
+        if (!trimmedValue) return '[REDACTED]';
+        if (trimmedValue.toLowerCase().startsWith('bearer ')) return 'Bearer [REDACTED]';
+        if (trimmedValue.length <= 8) return '[REDACTED]';
+
+        return `${trimmedValue.slice(0, 4)}[REDACTED]`;
+    }
+
+    private sanitizeStringForLog(value: string): string {
+        let sanitizedValue = value;
+
+        sanitizedValue = sanitizedValue.replace(/"([^"\\]+)"(\s*:\s*)"((?:\\.|[^"\\])*)"/g, (match, key, separator, rawValue) => {
+            if (!this.isSensitiveKey(key)) return match;
+            return `"${key}"${separator}"${this.redactStringSecretValue(rawValue)}"`;
+        });
+
+        sanitizedValue = sanitizedValue.replace(/'([^'\\]+)'(\s*:\s*)'((?:\\.|[^'\\])*)'/g, (match, key, separator, rawValue) => {
+            if (!this.isSensitiveKey(key)) return match;
+            return `'${key}'${separator}'${this.redactStringSecretValue(rawValue)}'`;
+        });
+
+        sanitizedValue = sanitizedValue.replace(/\b([A-Za-z0-9_.-]+)(\s*=\s*)"((?:\\.|[^"\\])*)"/g, (match, key, separator, rawValue) => {
+            if (!this.isSensitiveKey(key)) return match;
+            return `${key}${separator}"${this.redactStringSecretValue(rawValue)}"`;
+        });
+
+        sanitizedValue = sanitizedValue.replace(/\b([A-Za-z0-9_.-]+)(\s*=\s*)'((?:\\.|[^'\\])*)'/g, (match, key, separator, rawValue) => {
+            if (!this.isSensitiveKey(key)) return match;
+            return `${key}${separator}'${this.redactStringSecretValue(rawValue)}'`;
+        });
+
+        sanitizedValue = sanitizedValue.replace(/\b([A-Za-z0-9_.-]+)(\s*=\s*)([^\s,}\]]+)/g, (match, key, separator, rawValue) => {
+            if (!this.isSensitiveKey(key)) return match;
+            return `${key}${separator}${this.redactStringSecretValue(rawValue)}`;
+        });
+
+        sanitizedValue = sanitizedValue.replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+\b/gi, 'Bearer [REDACTED]');
+
+        return sanitizedValue;
+    }
+
+    private sanitizeConsoleArg(arg: unknown): unknown {
+        if (typeof arg === 'string') {
+            return this.sanitizeStringForLog(arg);
+        }
+
+        if (arg instanceof Error) {
+            return this.normalizeForJson(arg);
+        }
+
+        const normalizedArg = this.normalizeForJson(arg);
+        return normalizedArg === undefined ? arg : normalizedArg;
+    }
+
+    private sanitizeConsoleArgs(args: unknown[]): unknown[] {
+        return args.map((arg) => this.sanitizeConsoleArg(arg));
+    }
+
     private normalizeForJson(value: unknown, seen: WeakSet<object> = new WeakSet<object>(), key = ''): JsonValue | undefined {
         if (key && this.isSensitiveKey(key)) {
             return '[REDACTED]';
@@ -270,8 +333,12 @@ export class Logger {
             return undefined;
         }
 
-        if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        if (value === null || typeof value === 'number' || typeof value === 'boolean') {
             return value;
+        }
+
+        if (typeof value === 'string') {
+            return this.sanitizeStringForLog(value);
         }
 
         if (typeof value === 'bigint') {
@@ -291,8 +358,8 @@ export class Logger {
 
             const normalizedError: { [key: string]: JsonValue } = {
                 name: value.name,
-                message: value.message,
-                ...(value.stack ? { stack: value.stack } : {})
+                message: this.sanitizeStringForLog(value.message),
+                ...(value.stack ? { stack: this.sanitizeStringForLog(value.stack) } : {})
             };
 
             if (value.cause !== undefined) {
@@ -812,8 +879,12 @@ export class Logger {
             // Enhanced error serialization - capture more error context
             let errorDetails: LoggerError | undefined;
 
-            const boundedMessage = this.truncateStringToMaxBytes(message ?? '', Logger.maxMessageBytes, 'message');
-            const boundedExtraDataOutput = this.truncateStringToMaxBytes(extraDataOutput, Logger.maxExtraDataBytes, 'extra_data');
+            const boundedMessage = this.truncateStringToMaxBytes(this.sanitizeStringForLog(message ?? ''), Logger.maxMessageBytes, 'message');
+            const boundedExtraDataOutput = this.truncateStringToMaxBytes(
+                this.sanitizeStringForLog(extraDataOutput),
+                Logger.maxExtraDataBytes,
+                'extra_data'
+            );
 
             const boundedWorkerData =
                 normalizedWorkerData === null ? null : this.boundJsonValue(normalizedWorkerData, Logger.maxWorkerDataBytes, 'worker.data');
@@ -829,8 +900,8 @@ export class Logger {
                 try {
                     const baseErrorDetails: LoggerError = {
                         name: error.name,
-                        message: error.message,
-                        stack: error.stack
+                        message: this.sanitizeStringForLog(error.message),
+                        stack: error.stack ? this.sanitizeStringForLog(error.stack) : undefined
                     };
 
                     // Only add cause if it exists
@@ -863,8 +934,8 @@ export class Logger {
                     // Fallback if error serialization fails
                     errorDetails = {
                         name: error.name || 'Unknown',
-                        message: error.message || 'Unknown error',
-                        stack: error.stack || 'No stack trace available'
+                        message: this.sanitizeStringForLog(error.message || 'Unknown error'),
+                        stack: this.sanitizeStringForLog(error.stack || 'No stack trace available')
                     };
                 }
             }
@@ -971,7 +1042,7 @@ export class Logger {
                 }
             } catch (err) {
                 // Use original console methods to prevent recursion
-                this.originalConsoleLog('Failed to write log file:', err);
+                this.originalConsoleLog(...this.sanitizeConsoleArgs(['Failed to write log file:', err]));
 
                 // Try to output a simplified version
                 try {
@@ -982,9 +1053,9 @@ export class Logger {
                         error: error ? { name: error.name, message: error.message } : undefined
                     };
 
-                    this.originalConsoleLog('Simplified log entry:', JSON.stringify(simplifiedEntry, null, 2));
+                    this.originalConsoleLog('Simplified log entry:', this.sanitizeStringForLog(JSON.stringify(simplifiedEntry, null, 2)));
                 } catch (_fallbackErr) {
-                    this.originalConsoleLog('Log entry (raw):', level, message);
+                    this.originalConsoleLog(...this.sanitizeConsoleArgs(['Log entry (raw):', level, message]));
                 }
             }
         } finally {
@@ -995,8 +1066,8 @@ export class Logger {
     private getConsoleErrorMessage(args: unknown[]): string {
         return args
             .map((arg) => {
-                if (typeof arg === 'string') return arg;
-                if (arg instanceof Error) return arg.stack || arg.message;
+                if (typeof arg === 'string') return this.sanitizeStringForLog(arg);
+                if (arg instanceof Error) return this.sanitizeStringForLog(arg.stack || arg.message);
 
                 try {
                     return this.serializeForLog(arg);
@@ -1051,7 +1122,7 @@ export class Logger {
             // Prevent recursion by checking if we're already logging
             if (this.isLogging) {
                 this.originalConsoleError('Logger: Recursive console.error call detected');
-                this.originalConsoleError(...args);
+                this.originalConsoleError(...this.sanitizeConsoleArgs(args));
                 return;
             }
 
@@ -1075,13 +1146,13 @@ export class Logger {
             });
 
             // Call the original console.error to maintain normal behavior
-            this.originalConsoleError.apply(console, args);
+            this.originalConsoleError.apply(console, this.sanitizeConsoleArgs(args));
         };
 
         process.once('uncaughtException', (err, origin) => {
             // Use original console methods to prevent recursion in critical scenarios
-            this.originalConsoleLog(err);
-            this.originalConsoleLog(origin);
+            this.originalConsoleLog(...this.sanitizeConsoleArgs([err]));
+            this.originalConsoleLog(...this.sanitizeConsoleArgs([origin]));
 
             // Safe JSON serialization for origin
             let originMessage = '';

@@ -35,6 +35,16 @@ interface RequestInitWithTimeout extends RequestInit {
     timeout?: number;
 }
 
+type ResolvedRedactionConfig = {
+    enabled: boolean;
+    level: 'full' | 'partial';
+    customPatterns: {
+        headers: string[];
+        urlParams: string[];
+        bodyFields: string[];
+    };
+};
+
 export type ErrorResponse = { isError: boolean; message: string; statusCode?: number };
 
 export const FETCH_DEFAULT_RETRY_MS = 10000;
@@ -51,6 +61,9 @@ const DEFAULT_SENSITIVE_HEADERS = [
     'x-access-token',
     'api-key',
     'apikey',
+    'secret',
+    'client-secret',
+    'private-key',
     'x-secret',
     'x-token',
     'proxy-authorization',
@@ -93,14 +106,22 @@ const DEFAULT_SENSITIVE_BODY_FIELDS = [
 
 let doFetchErrorsLogDirectory = '';
 
+const normalizeSensitivePattern = (value: string): string => value.toLowerCase().replaceAll(/[^a-z0-9]/g, '');
+
+const resolveRedactionConfig = (redactionConfig?: RedactionConfig): ResolvedRedactionConfig => ({
+    enabled: redactionConfig?.enabled ?? true,
+    level: redactionConfig?.level ?? 'partial',
+    customPatterns: {
+        headers: [...DEFAULT_SENSITIVE_HEADERS, ...(redactionConfig?.customPatterns?.headers ?? [])],
+        urlParams: [...DEFAULT_SENSITIVE_URL_PARAMS, ...(redactionConfig?.customPatterns?.urlParams ?? [])],
+        bodyFields: [...DEFAULT_SENSITIVE_BODY_FIELDS, ...(redactionConfig?.customPatterns?.bodyFields ?? [])]
+    }
+});
+
 // Helper function to check if a key matches sensitive patterns
 const isSensitiveKey = (key: string, patterns: string[]): boolean => {
-    const lowerKey = key.toLowerCase();
-    return patterns.some((pattern) => {
-        const lowerPattern = pattern.toLowerCase();
-        // Check for exact match or if the key contains the pattern
-        return lowerKey === lowerPattern || lowerKey.includes(lowerPattern);
-    });
+    const normalizedKey = normalizeSensitivePattern(key);
+    return patterns.some((pattern) => normalizedKey.includes(normalizeSensitivePattern(pattern)));
 };
 
 // Redact sensitive value based on redaction level
@@ -210,16 +231,7 @@ const sanitizeRequestDetails = (
     },
     redactionConfig?: RedactionConfig
 ): typeof details => {
-    // Default redaction config
-    const config = {
-        enabled: redactionConfig?.enabled ?? true,
-        level: redactionConfig?.level ?? 'partial',
-        customPatterns: {
-            headers: [...DEFAULT_SENSITIVE_HEADERS, ...(redactionConfig?.customPatterns?.headers ?? [])],
-            urlParams: [...DEFAULT_SENSITIVE_URL_PARAMS, ...(redactionConfig?.customPatterns?.urlParams ?? [])],
-            bodyFields: [...DEFAULT_SENSITIVE_BODY_FIELDS, ...(redactionConfig?.customPatterns?.bodyFields ?? [])]
-        }
-    };
+    const config = resolveRedactionConfig(redactionConfig);
 
     if (!config.enabled) {
         return details;
@@ -267,6 +279,37 @@ const sanitizeRequestDetails = (
     return sanitized;
 };
 
+const sanitizeUrlForLogging = (urlString: string, redactionConfig?: RedactionConfig): string => {
+    const config = resolveRedactionConfig(redactionConfig);
+    return config.enabled ? sanitizeUrl(urlString, config.customPatterns.urlParams) : urlString;
+};
+
+const sanitizeRequestConfigForLogging = (config?: RequestConfig): Record<string, unknown> | undefined => {
+    if (!config) return undefined;
+
+    const resolvedConfig = resolveRedactionConfig(config.redaction);
+
+    if (!resolvedConfig.enabled) {
+        return { ...config };
+    }
+
+    const sensitiveParamPatterns = Array.from(new Set([...resolvedConfig.customPatterns.urlParams, ...resolvedConfig.customPatterns.bodyFields]));
+
+    return {
+        ...config,
+        ...(config.headers
+            ? {
+                  headers: sanitizeHeaders(config.headers, resolvedConfig.customPatterns.headers, resolvedConfig.level)
+              }
+            : {}),
+        ...(config.params
+            ? {
+                  params: sanitizeBody(config.params, sensitiveParamPatterns, resolvedConfig.level)
+              }
+            : {})
+    };
+};
+
 // eslint-disable-next-line complexity
 export const doFetch = async <T>(requestUrl: string, config?: RequestConfig): Promise<T | ErrorResponse> => {
     if (config?.logDirectory) ({ logDirectory: doFetchErrorsLogDirectory } = config);
@@ -304,6 +347,7 @@ export const doFetch = async <T>(requestUrl: string, config?: RequestConfig): Pr
                 return returnError({
                     message,
                     url: urlString,
+                    response,
                     logDirectory: doFetchErrorsLogDirectory,
                     ...(config?.redaction && { redactionConfig: config.redaction })
                 });
@@ -337,6 +381,7 @@ const returnError = (config: {
     redactionConfig?: RedactionConfig;
 }): ErrorResponse => {
     const { message, url, response, logDirectory, redactionConfig } = config;
+    const sanitizedUrl = sanitizeUrlForLogging(url, redactionConfig);
 
     if (logDirectory) {
         // Sanitize the headers before logging
@@ -355,7 +400,7 @@ const returnError = (config: {
 
         appendToFile(
             `${logDirectory}doFetchErrors.log`,
-            `${getDate({ format: 'ymdhms' })} ${url} ${response?.status} ${JSON.stringify(sanitizedHeaders)} ${message} ${response?.status}`
+            `${getDate({ format: 'ymdhms' })} ${sanitizedUrl} ${response?.status} ${JSON.stringify(sanitizedHeaders)} ${message} ${response?.status}`
         );
     }
 
@@ -410,7 +455,10 @@ const configureFetchRequest = (requestUrl: string, config?: RequestConfig) => {
         return { fetchConfig, urlWithParams };
     } catch (error: unknown) {
         if (doFetchErrorsLogDirectory)
-            appendToFile(`${doFetchErrorsLogDirectory}doFetchErrors.log`, `doFetch: ${error?.toString()} ${JSON.stringify(requestUrl)}`);
+            appendToFile(
+                `${doFetchErrorsLogDirectory}doFetchErrors.log`,
+                `doFetch: ${error?.toString()} ${JSON.stringify(sanitizeUrlForLogging(requestUrl, config?.redaction))}`
+            );
 
         return { fetchConfig, urlWithParams: new URL(requestUrl) };
     }
@@ -447,6 +495,7 @@ const fetchWithTimeout = async (requestUrl: string | URL, options: RequestInitWi
             errorDetails: error2.message ?? '',
             errorStack: error2.stack ?? ''
         };
+        const errorLogJson = JSON.stringify(errorLog);
 
         if (doFetchErrorsLogDirectory)
             appendToFile(
@@ -454,9 +503,13 @@ const fetchWithTimeout = async (requestUrl: string | URL, options: RequestInitWi
                 `Do fetch timed out ${getDate({ format: 'ymdhms' })}
                  ${JSON.stringify(sanitizedDetails.url)} 
                  ${JSON.stringify(sanitizedDetails)}
-                 ${JSON.stringify(errorLog)}\n\n`
+                 ${errorLogJson}\n\n`
             );
-        return new Response('', { status: 408, statusText: JSON.stringify(errorLog) });
+        return new Response(errorLogJson, {
+            status: 408,
+            statusText: 'Request Timeout',
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 };
 
@@ -497,6 +550,8 @@ const handleRetry = async (details: {
     urlString: string;
 }): Promise<boolean> => {
     const { response, statusCodesToRetry, attempts, timesToAttempt, config, urlString, responseTimeMs } = details;
+    const sanitizedUrlString = sanitizeUrlForLogging(urlString, config?.redaction);
+    const sanitizedConfig = sanitizeRequestConfigForLogging(config);
     if (!statusCodesToRetry.includes(response.status) || attempts >= timesToAttempt - 1) return false;
 
     const retryAfter =
@@ -524,8 +579,8 @@ const handleRetry = async (details: {
         appendToFile(
             `${doFetchErrorsLogDirectory}doFetchErrors.log`,
             `doFetch Retrying ${getDate({ format: 'ymdhms' })}
-             ${urlString} ${response?.status} ${JSON.stringify(sanitizedHeaders)} 
-             Elasped Time: ${responseTimeMs} timeToSleep: ${timeToSleep} ${JSON.stringify(config)}\n\n`
+             ${sanitizedUrlString} ${response?.status} ${JSON.stringify(sanitizedHeaders)} 
+             Elasped Time: ${responseTimeMs} timeToSleep: ${timeToSleep} ${JSON.stringify(sanitizedConfig)}\n\n`
         );
     }
 
@@ -544,7 +599,7 @@ const handleRetry = async (details: {
 
         appendToFile(
             `${doFetchErrorsLogDirectory}doFetchErrors.log`,
-            `doFetch: ${urlString}  ${response?.status} ${JSON.stringify(sanitizedHeaders)} timeToSleep: ${timeToSleep}\n`
+            `doFetch: ${sanitizedUrlString}  ${response?.status} ${JSON.stringify(sanitizedHeaders)} timeToSleep: ${timeToSleep}\n`
         );
     }
 
