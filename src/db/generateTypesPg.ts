@@ -31,6 +31,16 @@ export interface GenerateTypesPgOptions {
     db: string;
     logFolder: string;
     outputPath: string;
+    /**
+     * Optional import path used to emit Bun DB schema helpers alongside the existing row/insert types.
+     * Example: '@einhaus/meteoric-helpers'
+     */
+    bunTypesImportPath?: string;
+    /**
+     * Optional name for the generated Bun schema interface.
+     * Defaults to 'DatabaseBunSchema'.
+     */
+    bunSchemaName?: string;
 }
 
 // Function to fetch all enum types and their values from PostgreSQL
@@ -346,6 +356,16 @@ export const generateTypesPg = async (options: GenerateTypesPgOptions) => {
  */
 `;
 
+        const shouldEmitBunSchema = typeof options.bunTypesImportPath === 'string' && options.bunTypesImportPath.length > 0;
+        const bunSchemaName = options.bunSchemaName || 'DatabaseBunSchema';
+        const bunSchemaMetadataName = `${bunSchemaName}Metadata`;
+        const bunSchemaEntries: string[] = [];
+        const bunSchemaMetadataEntries: string[] = [];
+
+        if (shouldEmitBunSchema) {
+            typesFileContent += `import type { BunDbRuntimeSchemaMetadata, BunDbSchemaTable, BunDbUpdateShape } from '${options.bunTypesImportPath}';\n\n`;
+        }
+
         // Add date type definitions and utility types
         typesFileContent += `
 /**
@@ -535,6 +555,7 @@ type WithOptional<T, K extends keyof T> =
             // Add indexes and foreign keys as comments below the interface
             const indexes = tableMetadata?.indexes || [];
             const foreignKeys = tableMetadata?.foreignKeys || [];
+            const primaryKeyColumns = indexes.find((index) => index.is_primary)?.column_names ?? [];
 
             if (indexes.length > 0 || foreignKeys.length > 0) {
                 typesFileContent += `/**\n * Database metadata for ${pascalCaseTableName}Row:\n`;
@@ -644,13 +665,40 @@ type WithOptional<T, K extends keyof T> =
                 typesFileContent += ` */\n\n`;
             }
 
-            // Generate the Insert interface (making columns with default values optional)
-            if (columnsWithDefaults.length > 0) {
-                typesFileContent += `/**
+            typesFileContent += `/**
  * Insert interface for ${pascalCaseTableName} - makes columns with default values optional
  */
-export type ${pascalCaseTableName}RowInsert = WithOptional<${pascalCaseTableName}Row, ${columnsWithDefaults.map((col) => `'${col}'`).join(' | ')}>\n\n`;
+export type ${pascalCaseTableName}RowInsert = ${
+                columnsWithDefaults.length > 0
+                    ? `WithOptional<${pascalCaseTableName}Row, ${columnsWithDefaults.map((col) => `'${col}'`).join(' | ')}>`
+                    : `${pascalCaseTableName}Row`
+            }\n\n`;
+
+            if (shouldEmitBunSchema) {
+                typesFileContent += `export type ${pascalCaseTableName}RowUpdate = BunDbUpdateShape<${pascalCaseTableName}RowInsert>\n\n`;
+
+                const primaryKeyTypeArgument =
+                    primaryKeyColumns.length > 0 ? `, ${primaryKeyColumns.map((column) => `'${column}'`).join(' | ')}` : '';
+
+                bunSchemaEntries.push(
+                    `    ${tableName}: BunDbSchemaTable<${pascalCaseTableName}Row, ${pascalCaseTableName}RowInsert, ${pascalCaseTableName}RowUpdate${primaryKeyTypeArgument}>;`
+                );
+
+                if (primaryKeyColumns.length === 1) {
+                    bunSchemaMetadataEntries.push(`    ${tableName}: { primaryKey: '${primaryKeyColumns[0]}' },`);
+                } else if (primaryKeyColumns.length > 1) {
+                    bunSchemaMetadataEntries.push(
+                        `    ${tableName}: { primaryKey: [${primaryKeyColumns.map((column) => `'${column}'`).join(', ')}] },`
+                    );
+                } else {
+                    bunSchemaMetadataEntries.push(`    ${tableName}: {},`);
+                }
             }
+        }
+
+        if (shouldEmitBunSchema) {
+            typesFileContent += `export interface ${bunSchemaName} {\n${bunSchemaEntries.join('\n')}\n}\n\n`;
+            typesFileContent += `export const ${bunSchemaMetadataName} = {\n${bunSchemaMetadataEntries.join('\n')}\n} as const satisfies BunDbRuntimeSchemaMetadata<${bunSchemaName}>;\n\n`;
         }
 
         // Write the generated types to file

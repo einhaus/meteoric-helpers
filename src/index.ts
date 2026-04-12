@@ -83,6 +83,7 @@ export * from './math/randomArrayValueNumber.js';
 export * from './math/standardDeviationNumberArray.js';
 export * from './math/getStandardDeviation.js';
 export * from './object/getNestedValue.js';
+export * from './db/bunDbTypes.js';
 export * from './db/dbUtilityTypes.js';
 export * from './string/getStringBetween.js';
 export * from './string/capitalizeFirstLetter.js';

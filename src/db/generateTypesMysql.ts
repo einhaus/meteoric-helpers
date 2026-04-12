@@ -51,6 +51,16 @@ export interface GenerateTypesMysqlOptions {
     db: string;
     logFolder: string;
     outputPath: string;
+    /**
+     * Optional import path used to emit Bun DB schema helpers alongside the existing row/insert types.
+     * Example: '@einhaus/meteoric-helpers'
+     */
+    bunTypesImportPath?: string;
+    /**
+     * Optional name for the generated Bun schema interface.
+     * Defaults to 'DatabaseBunSchema'.
+     */
+    bunSchemaName?: string;
 }
 
 // Helper function to check if a table is sharded (ends with _number)
@@ -423,6 +433,16 @@ export const generateTypesMysql = async (options: GenerateTypesMysqlOptions) => 
  */
 `;
 
+        const shouldEmitBunSchema = typeof options.bunTypesImportPath === 'string' && options.bunTypesImportPath.length > 0;
+        const bunSchemaName = options.bunSchemaName || 'DatabaseBunSchema';
+        const bunSchemaMetadataName = `${bunSchemaName}Metadata`;
+        const bunSchemaEntries: string[] = [];
+        const bunSchemaMetadataEntries: string[] = [];
+
+        if (shouldEmitBunSchema) {
+            typesFileContent += `import type { BunDbRuntimeSchemaMetadata, BunDbSchemaTable, BunDbUpdateShape } from '${options.bunTypesImportPath}';\n\n`;
+        }
+
         // Add date type definitions
         typesFileContent += `
 /**
@@ -626,6 +646,7 @@ type WithOptional<T, K extends keyof T> =
             // Get indexes and foreign keys from our pre-fetched metadata
             const indexes = tableMetadata?.indexes || [];
             const foreignKeys = tableMetadata?.foreignKeys || [];
+            const primaryKeyColumns = indexes.find((index) => index.is_primary)?.column_names ?? [];
 
             // Add indexes and foreign keys as comments below the interface
             if (indexes.length > 0 || foreignKeys.length > 0) {
@@ -702,23 +723,46 @@ type WithOptional<T, K extends keyof T> =
                 typesFileContent += ` */\n\n`;
             }
 
-            // Generate the Insert interface (making columns with default values optional)
-            if (columnsWithDefaults.length > 0) {
-                let insertComment = `/**\n * Insert interface for ${pascalCaseTableName} - makes columns with default values optional\n`;
+            let insertComment = `/**\n * Insert interface for ${pascalCaseTableName} - makes columns with default values optional\n`;
 
-                if (interfaceName !== tableName) {
-                    insertComment += ` * This represents all shards of ${interfaceName}\n`;
-                }
-
-                insertComment += ` */\n`;
-
-                // Format column names with quotes for the WithOptional type
-                // Always use quotes in the type to be safe
-                const formattedColumns = columnsWithDefaults.map((col) => `'${col}'`);
-
-                // Use the WithOptional utility type to make default columns optional
-                typesFileContent += `${insertComment}export type ${pascalCaseTableName}RowInsert = WithOptional<${pascalCaseTableName}Row, ${formattedColumns.join(' | ')}>\n\n`;
+            if (interfaceName !== tableName) {
+                insertComment += ` * This represents all shards of ${interfaceName}\n`;
             }
+
+            insertComment += ` */\n`;
+
+            if (columnsWithDefaults.length > 0) {
+                const formattedColumns = columnsWithDefaults.map((col) => `'${col}'`);
+                typesFileContent += `${insertComment}export type ${pascalCaseTableName}RowInsert = WithOptional<${pascalCaseTableName}Row, ${formattedColumns.join(' | ')}>\n\n`;
+            } else {
+                typesFileContent += `${insertComment}export type ${pascalCaseTableName}RowInsert = ${pascalCaseTableName}Row\n\n`;
+            }
+
+            if (shouldEmitBunSchema) {
+                typesFileContent += `export type ${pascalCaseTableName}RowUpdate = BunDbUpdateShape<${pascalCaseTableName}RowInsert>\n\n`;
+
+                const primaryKeyTypeArgument =
+                    primaryKeyColumns.length > 0 ? `, ${primaryKeyColumns.map((column) => `'${column}'`).join(' | ')}` : '';
+
+                bunSchemaEntries.push(
+                    `    ${interfaceName}: BunDbSchemaTable<${pascalCaseTableName}Row, ${pascalCaseTableName}RowInsert, ${pascalCaseTableName}RowUpdate${primaryKeyTypeArgument}>;`
+                );
+
+                if (primaryKeyColumns.length === 1) {
+                    bunSchemaMetadataEntries.push(`    ${interfaceName}: { primaryKey: '${primaryKeyColumns[0]}' },`);
+                } else if (primaryKeyColumns.length > 1) {
+                    bunSchemaMetadataEntries.push(
+                        `    ${interfaceName}: { primaryKey: [${primaryKeyColumns.map((column) => `'${column}'`).join(', ')}] },`
+                    );
+                } else {
+                    bunSchemaMetadataEntries.push(`    ${interfaceName}: {},`);
+                }
+            }
+        }
+
+        if (shouldEmitBunSchema) {
+            typesFileContent += `export interface ${bunSchemaName} {\n${bunSchemaEntries.join('\n')}\n}\n\n`;
+            typesFileContent += `export const ${bunSchemaMetadataName} = {\n${bunSchemaMetadataEntries.join('\n')}\n} as const satisfies BunDbRuntimeSchemaMetadata<${bunSchemaName}>;\n\n`;
         }
 
         // Write the generated types to file

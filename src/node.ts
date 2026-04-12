@@ -18,6 +18,7 @@ export * from './auth/passwords.js';
 export * from './path/getDirectoryFromUrl.js';
 export * from './path/getFileNameFromUrl.js';
 export * from './db/mysql.js';
+export * from './db/bun.js';
 export * from './db/postgres.js';
 export * from './db/generateTypesMysql.js';
 export * from './db/clickhouse.js';
