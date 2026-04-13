@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { bunDbExpr, type BunDbSchemaTable } from '../../src/db/bunDbTypes.js';
 import { DBBun } from '../../src/db/bun.js';
 
 type MockRuntimeSqlClient = {
@@ -22,6 +23,31 @@ type MockRuntimeReservedSqlClient = MockRuntimeSqlClient & {
 type MockBunGlobal = {
     SQL: new (options?: Record<string, unknown> | string | URL, optionsOverride?: Record<string, unknown>) => MockRuntimeSqlClient;
 };
+
+interface TestSchema {
+    users: BunDbSchemaTable<
+        {
+            id: number;
+            email: string;
+            login_count: number;
+            created_at: Date;
+            updated_at: Date | null;
+        },
+        {
+            id?: number;
+            email: string;
+            login_count?: number;
+            created_at?: Date;
+            updated_at?: Date | null;
+        },
+        {
+            email?: string;
+            login_count?: number;
+            updated_at?: Date | null;
+        },
+        'id'
+    >;
+}
 
 describe('DBBun raw SQL helpers', () => {
     const runtime = globalThis as typeof globalThis & { Bun?: MockBunGlobal };
@@ -166,5 +192,119 @@ describe('DBBun raw SQL helpers', () => {
         expect(reservedRelease).toHaveBeenCalledTimes(2);
         expect(transactionUnsafe).toHaveBeenNthCalledWith(1, 'SELECT $1 AS value', [3]);
         expect(transactionUnsafe).toHaveBeenNthCalledWith(2, 'SELECT $1 AS value', [33]);
+    });
+
+    it('supports computed expressions in typed updates', async () => {
+        const rootUnsafe = vi.fn(async (_queryString: string, _values?: readonly unknown[]) => [{ __affected: 1 }]);
+        const rootClient: MockRuntimeSqlClient = {
+            unsafe: rootUnsafe,
+            begin: async () => {
+                throw new Error('begin should not be called in this test');
+            },
+            close: vi.fn(async () => {}),
+            reserve: async () => {
+                throw new Error('reserve should not be called in this test');
+            },
+            options: { adapter: 'postgres' }
+        };
+
+        class MockSQL implements MockRuntimeSqlClient {
+            unsafe = rootUnsafe;
+            begin = rootClient.begin;
+            close = rootClient.close;
+            reserve = rootClient.reserve;
+            options = rootClient.options;
+
+            constructor(_options?: Record<string, unknown> | string | URL, _optionsOverride?: Record<string, unknown>) {}
+        }
+
+        if (!runtime.Bun) {
+            throw new Error('Expected Bun runtime to be available during DBBun tests.');
+        }
+
+        Object.defineProperty(runtime.Bun, 'SQL', {
+            value: MockSQL
+        });
+
+        const db = DBBun.create<TestSchema>({
+            adapter: 'postgres',
+            schemaMetadata: {
+                users: { primaryKey: 'id' }
+            }
+        });
+        openDbs.push(db);
+
+        await db.update('users', {
+            set: {
+                login_count: bunDbExpr('"users"."login_count" + 1'),
+                updated_at: new Date('2026-01-01T00:00:00.000Z')
+            },
+            where: {
+                column: 'id',
+                value: 42
+            }
+        });
+
+        expect(rootUnsafe).toHaveBeenCalledWith(
+            'UPDATE "users" SET "login_count" = "users"."login_count" + 1, "updated_at" = $1 WHERE "id" = $2 RETURNING 1 AS "__affected"',
+            [new Date('2026-01-01T00:00:00.000Z'), 42]
+        );
+    });
+
+    it('supports computed expressions in typed upserts', async () => {
+        const rootUnsafe = vi.fn(async (_queryString: string, _values?: readonly unknown[]) => [{ __insert_id: 7 }]);
+        const rootClient: MockRuntimeSqlClient = {
+            unsafe: rootUnsafe,
+            begin: async () => {
+                throw new Error('begin should not be called in this test');
+            },
+            close: vi.fn(async () => {}),
+            reserve: async () => {
+                throw new Error('reserve should not be called in this test');
+            },
+            options: { adapter: 'postgres' }
+        };
+
+        class MockSQL implements MockRuntimeSqlClient {
+            unsafe = rootUnsafe;
+            begin = rootClient.begin;
+            close = rootClient.close;
+            reserve = rootClient.reserve;
+            options = rootClient.options;
+
+            constructor(_options?: Record<string, unknown> | string | URL, _optionsOverride?: Record<string, unknown>) {}
+        }
+
+        if (!runtime.Bun) {
+            throw new Error('Expected Bun runtime to be available during DBBun tests.');
+        }
+
+        Object.defineProperty(runtime.Bun, 'SQL', {
+            value: MockSQL
+        });
+
+        const db = DBBun.create<TestSchema>({
+            adapter: 'postgres',
+            schemaMetadata: {
+                users: { primaryKey: 'id' }
+            }
+        });
+        openDbs.push(db);
+
+        await db.insert('users', {
+            email: 'test@example.com'
+        }, {
+            upsert: {
+                conflictTarget: ['email'],
+                update: {
+                    login_count: bunDbExpr('"users"."login_count" + 1')
+                }
+            }
+        });
+
+        expect(rootUnsafe).toHaveBeenCalledWith(
+            'INSERT INTO "users" ("email") VALUES ($1) ON CONFLICT ("email") DO UPDATE SET "login_count" = "users"."login_count" + 1 RETURNING "id" AS "__insert_id"',
+            ['test@example.com']
+        );
     });
 });

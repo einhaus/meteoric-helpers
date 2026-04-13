@@ -24,6 +24,8 @@ interface EnumType {
     values: string[] | string;
 }
 
+const isImmutableAutoManagedColumn = (columnName: string) => columnName === 'created_at' || columnName === 'createdAt';
+
 export interface GenerateTypesPgOptions {
     host: string;
     user: string;
@@ -556,6 +558,12 @@ type WithOptional<T, K extends keyof T> =
             const indexes = tableMetadata?.indexes || [];
             const foreignKeys = tableMetadata?.foreignKeys || [];
             const primaryKeyColumns = indexes.find((index) => index.is_primary)?.column_names ?? [];
+            const immutableUpdateColumns = Array.from(
+                new Set([
+                    ...primaryKeyColumns,
+                    ...columns.filter((column) => isImmutableAutoManagedColumn(column.column_name)).map((column) => column.column_name)
+                ])
+            );
 
             if (indexes.length > 0 || foreignKeys.length > 0) {
                 typesFileContent += `/**\n * Database metadata for ${pascalCaseTableName}Row:\n`;
@@ -675,7 +683,9 @@ export type ${pascalCaseTableName}RowInsert = ${
             }\n\n`;
 
             if (shouldEmitBunSchema) {
-                typesFileContent += `export type ${pascalCaseTableName}RowUpdate = BunDbUpdateShape<${pascalCaseTableName}RowInsert>\n\n`;
+                typesFileContent += `export type ${pascalCaseTableName}RowUpdate = BunDbUpdateShape<${pascalCaseTableName}RowInsert${
+                    immutableUpdateColumns.length > 0 ? `, ${immutableUpdateColumns.map((column) => `'${column}'`).join(' | ')}` : ''
+                }>\n\n`;
 
                 const primaryKeyTypeArgument =
                     primaryKeyColumns.length > 0 ? `, ${primaryKeyColumns.map((column) => `'${column}'`).join(' | ')}` : '';

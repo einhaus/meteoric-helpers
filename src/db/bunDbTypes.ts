@@ -18,9 +18,9 @@ export type BunDbDialect = 'mysql' | 'postgres';
  * - optional primary key metadata
  */
 export interface BunDbSchemaTable<
-    Row extends Record<string, unknown>,
-    Insert extends Record<string, unknown> = Insertable<Row>,
-    Update extends Record<string, unknown> = Partial<Insert>,
+    Row extends object,
+    Insert extends object = Insertable<Row>,
+    Update extends object = Partial<Insert>,
     PrimaryKey extends StringKeyOf<Row> = never
 > {
     row: Row;
@@ -37,14 +37,26 @@ export interface BunDbSchemaTable<
  *   orders: BunDbSchemaTable<OrdersRow, OrdersRowInsert, OrdersRowUpdate, 'id'>;
  * }
  */
-export type BunDbSchema = Record<
-    string,
-    BunDbSchemaTable<Record<string, unknown>, Record<string, unknown>, Record<string, unknown>, string>
+type BunDbSchemaTableDefinition = BunDbSchemaTable<
+    Record<string, unknown>,
+    Record<string, unknown>,
+    Record<string, unknown>,
+    string
 >;
 
-export type BunDbTableName<Schema extends BunDbSchema> = Extract<keyof Schema, string>;
+export type BunDbSchema = object;
 
-export type BunDbTableDefinition<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> = Schema[Table];
+export type BunDbTableName<Schema extends BunDbSchema> = Extract<
+    {
+        [Table in keyof Schema]: Schema[Table] extends BunDbSchemaTableDefinition ? Table : never;
+    }[keyof Schema],
+    string
+>;
+
+export type BunDbTableDefinition<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> = Extract<
+    Schema[Table],
+    BunDbSchemaTableDefinition
+>;
 
 export type BunDbRow<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> = BunDbTableDefinition<Schema, Table>['row'];
 
@@ -53,6 +65,11 @@ export type BunDbInsert<Schema extends BunDbSchema, Table extends BunDbTableName
 export type BunDbUpdate<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> = BunDbTableDefinition<Schema, Table>['update'];
 
 export type BunDbColumnName<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> = StringKeyOf<BunDbRow<Schema, Table>>;
+
+export type BunDbUpdateColumnName<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> = Extract<
+    keyof BunDbUpdate<Schema, Table>,
+    string
+>;
 
 export type BunDbColumnValue<
     Schema extends BunDbSchema,
@@ -83,6 +100,16 @@ export type BunDbInsertId<Schema extends BunDbSchema, Table extends BunDbTableNa
 ] extends [never]
     ? unknown
     : BunDbRow<Schema, Table>[BunDbSinglePrimaryKeyColumn<Schema, Table>];
+
+export interface BunDbSqlExpression {
+    kind: 'expression';
+    sql: string;
+}
+
+export const bunDbExpr = (sql: string): BunDbSqlExpression => ({
+    kind: 'expression',
+    sql
+});
 
 type BunDbStringOperators<Value> = NonNullish<Value> extends string ? 'LIKE' | 'NOT LIKE' : never;
 type BunDbComparableOperators<Value> = NonNullish<Value> extends ComparableValue ? '>' | '>=' | '<' | '<=' : never;
@@ -172,7 +199,8 @@ export interface BunDbSelectConfig<
 
 export interface BunDbUpsertConfig<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> {
     conflictTarget?: readonly BunDbColumnName<Schema, Table>[];
-    updateColumns?: readonly Extract<keyof BunDbUpdate<Schema, Table>, string>[];
+    updateColumns?: readonly BunDbUpdateColumnName<Schema, Table>[];
+    update?: BunDbAssignmentShape<Schema, Table>;
 }
 
 export interface BunDbInsertOptions<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> {
@@ -181,7 +209,7 @@ export interface BunDbInsertOptions<Schema extends BunDbSchema, Table extends Bu
 }
 
 export interface BunDbUpdateConfig<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> {
-    set: Partial<BunDbUpdate<Schema, Table>>;
+    set: BunDbAssignmentShape<Schema, Table>;
     where?: BunDbWhereCondition<Schema, Table> | readonly BunDbWhereCondition<Schema, Table>[];
     whereOperator?: 'AND' | 'OR';
     allowFullTableUpdate?: boolean;
@@ -261,4 +289,18 @@ export type BunDbReservedConnectionHandle<Schema extends BunDbSchema> = BunDbRes
  * Helper type for generated files that want to expose update payloads but avoid
  * deeply nested mapped/intersection output in editor hovers.
  */
-export type BunDbUpdateShape<T extends Record<string, unknown>> = Simplify<Partial<T>>;
+export type BunDbAssignmentValue<
+    Schema extends BunDbSchema,
+    Table extends BunDbTableName<Schema>,
+    Column extends BunDbUpdateColumnName<Schema, Table>
+> = BunDbUpdate<Schema, Table>[Column] | BunDbSqlExpression;
+
+export type BunDbAssignmentShape<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> = Simplify<
+    Partial<{
+        [Column in BunDbUpdateColumnName<Schema, Table>]: BunDbAssignmentValue<Schema, Table, Column>;
+    }>
+>;
+
+export type BunDbUpdateShape<T extends object, ImmutableKeys extends keyof T = never> = Simplify<
+    Partial<Omit<T, ImmutableKeys>>
+>;
