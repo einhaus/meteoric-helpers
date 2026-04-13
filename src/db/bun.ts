@@ -92,7 +92,12 @@ const pushValue = (values: unknown[], value: unknown): string => {
 };
 
 const isSqlExpression = (value: unknown): value is BunDbSqlExpression =>
-    typeof value === 'object' && value !== null && 'kind' in value && value.kind === 'expression' && 'sql' in value && typeof value.sql === 'string';
+    typeof value === 'object' &&
+    value !== null &&
+    'kind' in value &&
+    value.kind === 'expression' &&
+    'sql' in value &&
+    typeof value.sql === 'string';
 
 const renderAssignmentValue = (values: unknown[], value: unknown): string => {
     if (isSqlExpression(value)) {
@@ -224,10 +229,10 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
         return this.unsafe<TResult>(queryString, values);
     }
 
-    async select<
-        Table extends BunDbTableName<Schema>,
-        Columns extends readonly BunDbColumnName<Schema, Table>[] | undefined = undefined
-    >(table: Table, config?: BunDbSelectConfig<Schema, Table, Columns>): Promise<BunDbSelectResult<Schema, Table, Columns>> {
+    async select<Table extends BunDbTableName<Schema>, Columns extends readonly BunDbColumnName<Schema, Table>[] | undefined = undefined>(
+        table: Table,
+        config?: BunDbSelectConfig<Schema, Table, Columns>
+    ): Promise<BunDbSelectResult<Schema, Table, Columns>> {
         const context = this.getRootContext();
         return this.selectWithContext<Table, Columns>(context, table, config);
     }
@@ -469,9 +474,7 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
             return { affectedRows: 0 };
         }
 
-        const columns = Array.from(
-            new Set(values.flatMap((row) => Object.keys(row).filter((column) => hasOwn(row, column))))
-        );
+        const columns = Array.from(new Set(values.flatMap((row) => Object.keys(row).filter((column) => hasOwn(row, column)))));
 
         if (columns.length === 0) {
             throw new Error(`Cannot insert into "${String(table)}" with an empty values object.`);
@@ -501,6 +504,7 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
             if (options?.upsert) {
                 const conflictColumns = this.getPostgresConflictColumns(table, options);
                 const updateColumns = this.getPostgresUpsertColumns(table, columns, options);
+
                 const updateEntries = new Map<string, string>(
                     updateColumns.map((column) => [column, `${this.quoteIdentifier(column)} = EXCLUDED.${this.quoteIdentifier(column)}`])
                 );
@@ -551,6 +555,7 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
 
         if (options?.upsert) {
             const updateColumns = this.getMysqlUpsertColumns(table, columns, options);
+
             const updateEntries = new Map<string, string>(
                 updateColumns.map((column) => [column, `${this.quoteIdentifier(column)} = VALUES(${this.quoteIdentifier(column)})`])
             );
@@ -661,10 +666,7 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
         return { affectedRows: result.affectedRows ?? 0 };
     }
 
-    private buildSelectQuery<
-        Table extends BunDbTableName<Schema>,
-        Columns extends readonly BunDbColumnName<Schema, Table>[] | undefined
-    >(
+    private buildSelectQuery<Table extends BunDbTableName<Schema>, Columns extends readonly BunDbColumnName<Schema, Table>[] | undefined>(
         table: Table,
         config?: BunDbSelectConfig<Schema, Table, Columns>
     ): {
