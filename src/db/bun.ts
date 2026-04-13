@@ -11,6 +11,7 @@ import type {
     BunDbInsert,
     BunDbInsertId,
     BunDbInsertOptions,
+    BunDbReservedConnectionHandle,
     BunDbReservedConnectionClient,
     BunDbRuntimeSchemaMetadata,
     BunDbSchema,
@@ -49,21 +50,21 @@ type BunRuntimeSqlClient = {
         ...columns: readonly Keys[]
     ): BunRuntimeSqlHelper<Pick<T, Keys>>;
     <T>(value: T): BunRuntimeSqlHelper<T>;
-    begin<T>(fn: (sql: BunRuntimeTransactionSqlClient) => Promise<T> | T): Promise<T>;
-    close(options?: { timeout?: number }): Promise<void>;
-    reserve(): Promise<BunRuntimeReservedSqlClient>;
-    unsafe<T = unknown>(queryString: string, values?: readonly unknown[]): BunRuntimeSqlQuery<T>;
+    begin: <T>(fn: (sql: BunRuntimeTransactionSqlClient) => Promise<T> | T) => Promise<T>;
+    close: (options?: { timeout?: number }) => Promise<void>;
+    reserve: () => Promise<BunRuntimeReservedSqlClient>;
+    unsafe: <T = unknown>(queryString: string, values?: readonly unknown[]) => BunRuntimeSqlQuery<T>;
     options?: {
         adapter?: 'postgres' | 'mysql' | 'mariadb' | 'sqlite';
     };
 };
 
 type BunRuntimeTransactionSqlClient = BunRuntimeSqlClient & {
-    savepoint<T>(fn: (sql: BunRuntimeTransactionSqlClient) => Promise<T> | T): Promise<T>;
+    savepoint: <T>(fn: (sql: BunRuntimeTransactionSqlClient) => Promise<T> | T) => Promise<T>;
 };
 
 type BunRuntimeReservedSqlClient = BunRuntimeSqlClient & {
-    release(): void | Promise<void>;
+    release: () => void | Promise<void>;
 };
 
 type BunGlobalRuntime = {
@@ -189,6 +190,15 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
         return this.executeTagged<TResult>(context, strings, values);
     }
 
+    async unsafe<TResult = unknown>(queryString: string, values: readonly unknown[] = []): Promise<TResult> {
+        const context = this.getRootContext();
+        return this.executeUnsafe<TResult>(context, queryString, values);
+    }
+
+    async query<TResult = unknown>(queryString: string, values: readonly unknown[] = []): Promise<TResult> {
+        return this.unsafe<TResult>(queryString, values);
+    }
+
     async select<
         Table extends BunDbTableName<Schema>,
         Columns extends readonly Extract<keyof Schema[Table]['row'], string>[] | undefined = undefined
@@ -200,7 +210,10 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
     async selectOne<
         Table extends BunDbTableName<Schema>,
         Columns extends readonly Extract<keyof Schema[Table]['row'], string>[] | undefined = undefined
-    >(table: Table, config?: BunDbSelectConfig<Schema, Table, Columns>): Promise<BunDbSelectResult<Schema, Table, Columns>[number] | undefined> {
+    >(
+        table: Table,
+        config?: BunDbSelectConfig<Schema, Table, Columns>
+    ): Promise<BunDbSelectResult<Schema, Table, Columns>[number] | undefined> {
         const result = await this.select(table, {
             ...(config ?? {}),
             limit: config?.limit ?? 1
@@ -240,18 +253,23 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
     async transaction<TResult>(callback: (tx: BunDbTransactionClient<Schema>) => Promise<TResult>): Promise<TResult> {
         const rootClient = this.getOrCreateClient();
 
-        return rootClient.begin((sql) => callback(this.createTransactionClient(sql)));
+        return rootClient.begin(async (sql) => callback(this.createTransactionClient(sql)));
     }
 
     async reserve<TResult>(callback: (connection: BunDbReservedConnectionClient<Schema>) => Promise<TResult>): Promise<TResult> {
-        const rootClient = this.getOrCreateClient();
-        const reserved = await rootClient.reserve();
+        const reserved = await this.connectReserved();
 
         try {
-            return await callback(this.createReservedClient(reserved));
+            return await callback(reserved);
         } finally {
-            await Promise.resolve(reserved.release());
+            await reserved.release();
         }
+    }
+
+    async connectReserved(): Promise<BunDbReservedConnectionHandle<Schema>> {
+        const rootClient = this.getOrCreateClient();
+        const reserved = await rootClient.reserve();
+        return this.createReservedClient(reserved);
     }
 
     async close(): Promise<void> {
@@ -261,9 +279,10 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
         this.client = undefined;
     }
 
-    private createReservedClient(sql: BunRuntimeReservedSqlClient): BunDbReservedConnectionClient<Schema> {
+    private createReservedClient(sql: BunRuntimeReservedSqlClient): BunDbReservedConnectionHandle<Schema> {
         const self = this;
         const context: BunQueryContext = { sql, allowRetries: false };
+        let released = false;
 
         return {
             get dialect() {
@@ -272,10 +291,16 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
             async raw<TResult = unknown[]>(strings: TemplateStringsArray, ...values: readonly unknown[]) {
                 return self.executeTagged<TResult>(context, strings, values);
             },
-            async select<Table extends BunDbTableName<Schema>, Columns extends readonly Extract<keyof Schema[Table]['row'], string>[] | undefined = undefined>(
-                table: Table,
-                config?: BunDbSelectConfig<Schema, Table, Columns>
-            ) {
+            async unsafe<TResult = unknown>(queryString: string, values: readonly unknown[] = []) {
+                return self.executeUnsafe<TResult>(context, queryString, values);
+            },
+            async query<TResult = unknown>(queryString: string, values: readonly unknown[] = []) {
+                return self.executeUnsafe<TResult>(context, queryString, values);
+            },
+            async select<
+                Table extends BunDbTableName<Schema>,
+                Columns extends readonly Extract<keyof Schema[Table]['row'], string>[] | undefined = undefined
+            >(table: Table, config?: BunDbSelectConfig<Schema, Table, Columns>) {
                 return self.selectWithContext<Table, Columns>(context, table, config);
             },
             async selectOne<
@@ -310,16 +335,25 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
                 return self.deleteWithContext<Table>(context, table, config);
             },
             async transaction<TResult>(callback: (tx: BunDbTransactionClient<Schema>) => Promise<TResult>) {
-                return sql.begin((tx) => callback(self.createTransactionClient(tx)));
+                return sql.begin(async (tx) => callback(self.createTransactionClient(tx)));
             },
             async reserve<TResult>(callback: (connection: BunDbReservedConnectionClient<Schema>) => Promise<TResult>) {
                 const nestedReserved = await sql.reserve();
+                const reservedClient = self.createReservedClient(nestedReserved);
 
                 try {
-                    return await callback(self.createReservedClient(nestedReserved));
+                    return await callback(reservedClient);
                 } finally {
-                    await Promise.resolve(nestedReserved.release());
+                    await reservedClient.release();
                 }
+            },
+            async release() {
+                if (released) {
+                    return;
+                }
+
+                released = true;
+                await Promise.resolve(sql.release());
             }
         };
     }
@@ -335,10 +369,16 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
             async raw<TResult = unknown[]>(strings: TemplateStringsArray, ...values: readonly unknown[]) {
                 return self.executeTagged<TResult>(context, strings, values);
             },
-            async select<Table extends BunDbTableName<Schema>, Columns extends readonly Extract<keyof Schema[Table]['row'], string>[] | undefined = undefined>(
-                table: Table,
-                config?: BunDbSelectConfig<Schema, Table, Columns>
-            ) {
+            async unsafe<TResult = unknown>(queryString: string, values: readonly unknown[] = []) {
+                return self.executeUnsafe<TResult>(context, queryString, values);
+            },
+            async query<TResult = unknown>(queryString: string, values: readonly unknown[] = []) {
+                return self.executeUnsafe<TResult>(context, queryString, values);
+            },
+            async select<
+                Table extends BunDbTableName<Schema>,
+                Columns extends readonly Extract<keyof Schema[Table]['row'], string>[] | undefined = undefined
+            >(table: Table, config?: BunDbSelectConfig<Schema, Table, Columns>) {
                 return self.selectWithContext<Table, Columns>(context, table, config);
             },
             async selectOne<
@@ -373,10 +413,10 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
                 return self.deleteWithContext<Table>(context, table, config);
             },
             async transaction<TResult>(callback: (tx: BunDbTransactionClient<Schema>) => Promise<TResult>) {
-                return sql.begin((tx) => callback(self.createTransactionClient(tx)));
+                return sql.begin(async (tx) => callback(self.createTransactionClient(tx)));
             },
             async savepoint<TResult>(callback: (tx: BunDbTransactionClient<Schema>) => Promise<TResult>) {
-                return sql.savepoint((savepointSql) => callback(self.createTransactionClient(savepointSql)));
+                return sql.savepoint(async (savepointSql) => callback(self.createTransactionClient(savepointSql)));
             }
         };
     }
@@ -384,7 +424,11 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
     private async selectWithContext<
         Table extends BunDbTableName<Schema>,
         Columns extends readonly Extract<keyof Schema[Table]['row'], string>[] | undefined = undefined
-    >(context: BunQueryContext, table: Table, config?: BunDbSelectConfig<Schema, Table, Columns>): Promise<BunDbSelectResult<Schema, Table, Columns>> {
+    >(
+        context: BunQueryContext,
+        table: Table,
+        config?: BunDbSelectConfig<Schema, Table, Columns>
+    ): Promise<BunDbSelectResult<Schema, Table, Columns>> {
         const { queryString, parameters } = this.buildSelectQuery(table, config);
         const rows = await this.executeUnsafe<BunDbSelectResult<Schema, Table, Columns>>(context, queryString, parameters);
         return rows;
@@ -401,6 +445,7 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
         }
 
         const columns = Object.keys(values[0] as Record<string, unknown>);
+
         if (columns.length === 0) {
             throw new Error(`Cannot insert into "${String(table)}" with an empty values object.`);
         }
@@ -449,7 +494,9 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
 
             if (singlePrimaryKey) {
                 queryString += ` RETURNING ${this.quoteIdentifier(singlePrimaryKey)} AS "__insert_id"`;
-                const rows = await this.executeUnsafe<Array<{ __insert_id: BunDbInsertId<Schema, Table> }>>(context, queryString, parameters);
+
+                const rows = await this.executeUnsafe<{ __insert_id: BunDbInsertId<Schema, Table> }[]>(context, queryString, parameters);
+
                 const insertId = rows.length > 0 ? rows[rows.length - 1]?.__insert_id : undefined;
 
                 return {
@@ -459,7 +506,7 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
             }
 
             queryString += ` RETURNING 1 AS "__affected"`;
-            const rows = await this.executeUnsafe<Array<{ __affected: 1 }>>(context, queryString, parameters);
+            const rows = await this.executeUnsafe<{ __affected: 1 }[]>(context, queryString, parameters);
 
             return {
                 affectedRows: rows.length
@@ -503,6 +550,7 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
 
         const parameters: unknown[] = [];
         let parameterIndex = 1;
+
         const setClause = setColumns
             .map((column) => {
                 parameters.push((config.set as Record<string, unknown>)[column]);
@@ -515,8 +563,15 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
 
         if (config.where) {
             const whereConditions = Array.isArray(config.where) ? config.where : [config.where];
+
             if (whereConditions.length > 0) {
-                const { clause, values, nextParamIndex } = this.buildWhereClause(table, whereConditions, config.whereOperator ?? 'AND', parameterIndex);
+                const { clause, values, nextParamIndex } = this.buildWhereClause(
+                    table,
+                    whereConditions,
+                    config.whereOperator ?? 'AND',
+                    parameterIndex
+                );
+
                 queryString += ` WHERE ${clause}`;
                 parameters.push(...values);
                 parameterIndex = nextParamIndex;
@@ -529,7 +584,7 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
 
         if (this.dialect === 'postgres') {
             queryString += ` RETURNING 1 AS "__affected"`;
-            const rows = await this.executeUnsafe<Array<{ __affected: 1 }>>(context, queryString, parameters);
+            const rows = await this.executeUnsafe<{ __affected: 1 }[]>(context, queryString, parameters);
             return { affectedRows: rows.length };
         }
 
@@ -548,6 +603,7 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
 
         if (config.where) {
             const whereConditions = Array.isArray(config.where) ? config.where : [config.where];
+
             if (whereConditions.length > 0) {
                 const { clause, values } = this.buildWhereClause(table, whereConditions, config.whereOperator ?? 'AND');
                 queryString += ` WHERE ${clause}`;
@@ -561,7 +617,7 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
 
         if (this.dialect === 'postgres') {
             queryString += ` RETURNING 1 AS "__affected"`;
-            const rows = await this.executeUnsafe<Array<{ __affected: 1 }>>(context, queryString, parameters);
+            const rows = await this.executeUnsafe<{ __affected: 1 }[]>(context, queryString, parameters);
             return { affectedRows: rows.length };
         }
 
@@ -569,7 +625,10 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
         return { affectedRows: result.affectedRows ?? 0 };
     }
 
-    private buildSelectQuery<Table extends BunDbTableName<Schema>, Columns extends readonly Extract<keyof Schema[Table]['row'], string>[] | undefined>(
+    private buildSelectQuery<
+        Table extends BunDbTableName<Schema>,
+        Columns extends readonly Extract<keyof Schema[Table]['row'], string>[] | undefined
+    >(
         table: Table,
         config?: BunDbSelectConfig<Schema, Table, Columns>
     ): {
@@ -590,7 +649,13 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
             const whereConditions = Array.isArray(config.where) ? config.where : [config.where];
 
             if (whereConditions.length > 0) {
-                const { clause, values, nextParamIndex } = this.buildWhereClause(table, whereConditions, config.whereOperator ?? 'AND', parameterIndex);
+                const { clause, values, nextParamIndex } = this.buildWhereClause(
+                    table,
+                    whereConditions,
+                    config.whereOperator ?? 'AND',
+                    parameterIndex
+                );
+
                 queryString += ` WHERE ${clause}`;
                 parameters.push(...values);
                 parameterIndex = nextParamIndex;
@@ -671,7 +736,9 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
 
             if (upperOperator === 'BETWEEN' || upperOperator === 'NOT BETWEEN') {
                 if (!Array.isArray(value) || value.length !== 2) {
-                    throw new Error(`Operator ${operator} requires an array of exactly two values for column "${String(condition.column)}".`);
+                    throw new Error(
+                        `Operator ${operator} requires an array of exactly two values for column "${String(condition.column)}".`
+                    );
                 }
 
                 parts.push(`${column} ${upperOperator} $${parameterIndex} AND $${parameterIndex + 1}`);
@@ -694,6 +761,7 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
 
     private quoteIdentifier(identifier: string): string {
         const quote = this.dialect === 'mysql' ? '`' : '"';
+
         const escapedIdentifier = identifier
             .split('.')
             .map((part) => `${quote}${part.replaceAll(quote, quote + quote)}${quote}`)
@@ -754,14 +822,17 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
         strings: TemplateStringsArray,
         values: readonly unknown[]
     ): Promise<TResult> {
-        return this.executeWithRetry(context, (activeContext) => activeContext.sql<TResult>(strings, ...values));
+        return this.executeWithRetry(context, async (activeContext) => activeContext.sql<TResult>(strings, ...values));
     }
 
     private async executeUnsafe<TResult>(context: BunQueryContext, queryString: string, values: readonly unknown[]): Promise<TResult> {
-        return this.executeWithRetry(context, (activeContext) => activeContext.sql.unsafe<TResult>(queryString, [...values]));
+        return this.executeWithRetry(context, async (activeContext) => activeContext.sql.unsafe<TResult>(queryString, [...values]));
     }
 
-    private async executeWithRetry<TResult>(context: BunQueryContext, operation: (context: BunQueryContext) => Promise<TResult>): Promise<TResult> {
+    private async executeWithRetry<TResult>(
+        context: BunQueryContext,
+        operation: (context: BunQueryContext) => Promise<TResult>
+    ): Promise<TResult> {
         let retryAttempts = 0;
         let activeContext = context;
 
@@ -890,6 +961,7 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
         if (adapter === 'postgres') return 'postgres';
 
         const url = config.url?.toLowerCase();
+
         if (url?.startsWith('mysql://') || url?.startsWith('mysql2://') || url?.startsWith('mariadb://')) {
             return 'mysql';
         }
@@ -910,7 +982,7 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
 
     private isTransientError(error: unknown): boolean {
         const dbError = error as { code?: string; message?: string };
-        const code = dbError.code;
+        const { code } = dbError;
 
         if (!code) return false;
 
@@ -946,6 +1018,7 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
             try {
                 if (error instanceof Error) {
                     const argString = process.argv.slice(1).join(' ');
+
                     const logEntry = `${argString}\nError Stack: ${error.stack ?? ''}\n Datetime: ${getDate({ format: 'ymdhms' })}\n${JSON.stringify(
                         error,
                         null,

@@ -60,10 +60,10 @@ export type BunDbColumnValue<
     Column extends BunDbColumnName<Schema, Table>
 > = BunDbRow<Schema, Table>[Column];
 
-export type BunDbPrimaryKey<
-    Schema extends BunDbSchema,
-    Table extends BunDbTableName<Schema>
-> = BunDbTableDefinition<Schema, Table>['primaryKey'];
+export type BunDbPrimaryKey<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> = BunDbTableDefinition<
+    Schema,
+    Table
+>['primaryKey'];
 
 export interface BunDbRuntimeTableMetadata<PrimaryKey extends string = string> {
     primaryKey?: PrimaryKey | readonly PrimaryKey[];
@@ -73,17 +73,14 @@ export type BunDbRuntimeSchemaMetadata<Schema extends BunDbSchema> = {
     [Table in BunDbTableName<Schema>]?: BunDbRuntimeTableMetadata<BunDbColumnName<Schema, Table>>;
 };
 
-type BunDbSinglePrimaryKeyColumn<
-    Schema extends BunDbSchema,
-    Table extends BunDbTableName<Schema>
-> = BunDbPrimaryKey<Schema, Table> extends readonly unknown[]
-    ? never
-    : Extract<BunDbPrimaryKey<Schema, Table>, BunDbColumnName<Schema, Table>>;
+type BunDbSinglePrimaryKeyColumn<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> =
+    BunDbPrimaryKey<Schema, Table> extends readonly unknown[]
+        ? never
+        : Extract<BunDbPrimaryKey<Schema, Table>, BunDbColumnName<Schema, Table>>;
 
-export type BunDbInsertId<
-    Schema extends BunDbSchema,
-    Table extends BunDbTableName<Schema>
-> = [BunDbSinglePrimaryKeyColumn<Schema, Table>] extends [never]
+export type BunDbInsertId<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> = [
+    BunDbSinglePrimaryKeyColumn<Schema, Table>
+] extends [never]
     ? unknown
     : BunDbRow<Schema, Table>[BunDbSinglePrimaryKeyColumn<Schema, Table>];
 
@@ -91,7 +88,13 @@ type BunDbStringOperators<Value> = NonNullish<Value> extends string ? 'LIKE' | '
 type BunDbComparableOperators<Value> = NonNullish<Value> extends ComparableValue ? '>' | '>=' | '<' | '<=' : never;
 type BunDbNullOperators<Value> = null extends NonUndefined<Value> ? 'IS' | 'IS NOT' : never;
 
-type BunDbScalarWhereOperator<Value> = '=' | '!=' | '<>' | BunDbStringOperators<Value> | BunDbComparableOperators<Value> | BunDbNullOperators<Value>;
+type BunDbScalarWhereOperator<Value> =
+    | '='
+    | '!='
+    | '<>'
+    | BunDbStringOperators<Value>
+    | BunDbComparableOperators<Value>
+    | BunDbNullOperators<Value>;
 
 type BunDbScalarWhereConditionForColumn<
     Schema extends BunDbSchema,
@@ -117,16 +120,14 @@ type BunDbRangeWhereConditionForColumn<
     Schema extends BunDbSchema,
     Table extends BunDbTableName<Schema>,
     Column extends BunDbColumnName<Schema, Table>
-> = NonNullish<BunDbColumnValue<Schema, Table, Column>> extends ComparableValue
-    ? {
-          column: Column;
-          operator: 'BETWEEN' | 'NOT BETWEEN';
-          value: readonly [
-              NonNullish<BunDbColumnValue<Schema, Table, Column>>,
-              NonNullish<BunDbColumnValue<Schema, Table, Column>>
-          ];
-      }
-    : never;
+> =
+    NonNullish<BunDbColumnValue<Schema, Table, Column>> extends ComparableValue
+        ? {
+              column: Column;
+              operator: 'BETWEEN' | 'NOT BETWEEN';
+              value: readonly [NonNullish<BunDbColumnValue<Schema, Table, Column>>, NonNullish<BunDbColumnValue<Schema, Table, Column>>];
+          }
+        : never;
 
 type BunDbLeafWhereCondition<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> = {
     [Column in BunDbColumnName<Schema, Table>]:
@@ -153,7 +154,7 @@ export type BunDbSelectResult<
     Schema extends BunDbSchema,
     Table extends BunDbTableName<Schema>,
     Columns extends ColumnArray<Schema, Table> | undefined
-> = Columns extends ColumnArray<Schema, Table> ? Array<Pick<BunDbRow<Schema, Table>, Columns[number]>> : Array<BunDbRow<Schema, Table>>;
+> = Columns extends ColumnArray<Schema, Table> ? Pick<BunDbRow<Schema, Table>, Columns[number]>[] : BunDbRow<Schema, Table>[];
 
 export interface BunDbSelectConfig<
     Schema extends BunDbSchema,
@@ -207,52 +208,54 @@ export interface BunDbWriteResult<InsertId = unknown> {
 export interface BunDbClient<Schema extends BunDbSchema> {
     readonly dialect: BunDbDialect;
 
-    raw<TResult = unknown[]>(strings: TemplateStringsArray, ...values: readonly unknown[]): Promise<TResult>;
+    raw: <TResult = unknown[]>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<TResult>;
 
-    select<
-        Table extends BunDbTableName<Schema>,
-        Columns extends ColumnArray<Schema, Table> | undefined = undefined
-    >(table: Table, config?: BunDbSelectConfig<Schema, Table, Columns>): Promise<BunDbSelectResult<Schema, Table, Columns>>;
+    unsafe: <TResult = unknown>(queryString: string, values?: readonly unknown[]) => Promise<TResult>;
 
-    selectOne<
-        Table extends BunDbTableName<Schema>,
-        Columns extends ColumnArray<Schema, Table> | undefined = undefined
-    >(table: Table, config?: BunDbSelectConfig<Schema, Table, Columns>): Promise<BunDbSelectResult<Schema, Table, Columns>[number] | undefined>;
+    query: <TResult = unknown>(queryString: string, values?: readonly unknown[]) => Promise<TResult>;
 
-    insert<Table extends BunDbTableName<Schema>>(
+    select: <Table extends BunDbTableName<Schema>, Columns extends ColumnArray<Schema, Table> | undefined = undefined>(
+        table: Table,
+        config?: BunDbSelectConfig<Schema, Table, Columns>
+    ) => Promise<BunDbSelectResult<Schema, Table, Columns>>;
+
+    selectOne: <Table extends BunDbTableName<Schema>, Columns extends ColumnArray<Schema, Table> | undefined = undefined>(
+        table: Table,
+        config?: BunDbSelectConfig<Schema, Table, Columns>
+    ) => Promise<BunDbSelectResult<Schema, Table, Columns>[number] | undefined>;
+
+    insert: <Table extends BunDbTableName<Schema>>(
         table: Table,
         values: BunDbInsert<Schema, Table>,
         options?: BunDbInsertOptions<Schema, Table>
-    ): Promise<BunDbWriteResult<BunDbInsertId<Schema, Table>>>;
+    ) => Promise<BunDbWriteResult<BunDbInsertId<Schema, Table>>>;
 
-    insertMany<Table extends BunDbTableName<Schema>>(
+    insertMany: <Table extends BunDbTableName<Schema>>(
         table: Table,
         values: readonly BunDbInsert<Schema, Table>[],
         options?: BunDbInsertOptions<Schema, Table>
-    ): Promise<BunDbWriteResult<BunDbInsertId<Schema, Table>>>;
+    ) => Promise<BunDbWriteResult<BunDbInsertId<Schema, Table>>>;
 
-    update<Table extends BunDbTableName<Schema>>(
-        table: Table,
-        config: BunDbUpdateConfig<Schema, Table>
-    ): Promise<BunDbWriteResult>;
+    update: <Table extends BunDbTableName<Schema>>(table: Table, config: BunDbUpdateConfig<Schema, Table>) => Promise<BunDbWriteResult>;
 
-    delete<Table extends BunDbTableName<Schema>>(
-        table: Table,
-        config: BunDbDeleteConfig<Schema, Table>
-    ): Promise<BunDbWriteResult>;
+    delete: <Table extends BunDbTableName<Schema>>(table: Table, config: BunDbDeleteConfig<Schema, Table>) => Promise<BunDbWriteResult>;
 
-    transaction<TResult>(callback: (tx: BunDbTransactionClient<Schema>) => Promise<TResult>): Promise<TResult>;
+    transaction: <TResult>(callback: (tx: BunDbTransactionClient<Schema>) => Promise<TResult>) => Promise<TResult>;
 
-    reserve<TResult>(callback: (connection: BunDbReservedConnectionClient<Schema>) => Promise<TResult>): Promise<TResult>;
+    reserve: <TResult>(callback: (connection: BunDbReservedConnectionClient<Schema>) => Promise<TResult>) => Promise<TResult>;
 
-    close(): Promise<void>;
+    close: () => Promise<void>;
 }
 
 export interface BunDbTransactionClient<Schema extends BunDbSchema> extends Omit<BunDbClient<Schema>, 'close' | 'reserve'> {
-    savepoint<TResult>(callback: (tx: BunDbTransactionClient<Schema>) => Promise<TResult>): Promise<TResult>;
+    savepoint: <TResult>(callback: (tx: BunDbTransactionClient<Schema>) => Promise<TResult>) => Promise<TResult>;
 }
 
-export interface BunDbReservedConnectionClient<Schema extends BunDbSchema> extends Omit<BunDbClient<Schema>, 'close'> {}
+export type BunDbReservedConnectionClient<Schema extends BunDbSchema> = Omit<BunDbClient<Schema>, 'close'>;
+
+export type BunDbReservedConnectionHandle<Schema extends BunDbSchema> = BunDbReservedConnectionClient<Schema> & {
+    release: () => Promise<void>;
+};
 
 /**
  * Helper type for generated files that want to expose update payloads but avoid
