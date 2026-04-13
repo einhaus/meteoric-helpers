@@ -36,27 +36,30 @@ export interface BunDbSchemaTable<
  *   users: BunDbSchemaTable<UsersRow, UsersRowInsert, UsersRowUpdate, 'id'>;
  *   orders: BunDbSchemaTable<OrdersRow, OrdersRowInsert, OrdersRowUpdate, 'id'>;
  * }
+ *
+ * The wrapper intentionally matches schema tables structurally rather than requiring
+ * callers to reuse this exact exported alias. Generated projects sometimes inline an
+ * equivalent local type during codegen, and those schemas should remain compatible.
  */
-type BunDbSchemaTableDefinition = BunDbSchemaTable<
-    Record<string, unknown>,
-    Record<string, unknown>,
-    Record<string, unknown>,
-    string
->;
+type BunDbSchemaTableContract = {
+    row: object;
+    insert: object;
+    update: object;
+    primaryKey?: string | readonly string[];
+};
 
 export type BunDbSchema = object;
 
 export type BunDbTableName<Schema extends BunDbSchema> = Extract<
     {
-        [Table in keyof Schema]: Schema[Table] extends BunDbSchemaTableDefinition ? Table : never;
+        [Table in keyof Schema]: Schema[Table] extends BunDbSchemaTableContract ? Table : never;
     }[keyof Schema],
     string
 >;
 
-export type BunDbTableDefinition<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> = Extract<
-    Schema[Table],
-    BunDbSchemaTableDefinition
->;
+export type BunDbTableDefinition<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> = Schema[Table] extends BunDbSchemaTableContract
+    ? Schema[Table]
+    : never;
 
 export type BunDbRow<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> = BunDbTableDefinition<Schema, Table>['row'];
 
@@ -100,6 +103,17 @@ export type BunDbInsertId<Schema extends BunDbSchema, Table extends BunDbTableNa
 ] extends [never]
     ? unknown
     : BunDbRow<Schema, Table>[BunDbSinglePrimaryKeyColumn<Schema, Table>];
+
+type __BunDbInlineGeneratedSchema = {
+    users: {
+        row: { id: number; email: string };
+        insert: { email: string };
+        update: { email?: string };
+        primaryKey?: 'id';
+    };
+};
+type __BunDbAssert<T extends true> = T;
+type __BunDbInlineGeneratedSchemaTableNameGuard = __BunDbAssert<'users' extends BunDbTableName<__BunDbInlineGeneratedSchema> ? true : false>;
 
 export interface BunDbSqlExpression {
     kind: 'expression';
