@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import { getDate } from '../date/getDate.js';
-import { appendToFile } from '../file/appendToFile.js';
+import { Logger } from './Logger.js';
 import { sleep } from './sleep.js';
 import url from 'url';
 
@@ -103,8 +102,6 @@ const DEFAULT_SENSITIVE_BODY_FIELDS = [
     'private_key',
     'privateKey'
 ];
-
-let doFetchErrorsLogDirectory = '';
 
 const normalizeSensitivePattern = (value: string): string => value.toLowerCase().replaceAll(/[^a-z0-9]/g, '');
 
@@ -221,7 +218,7 @@ const sanitizeBody = (body: unknown, patterns: string[], level: 'full' | 'partia
 };
 
 // Main sanitization function
-// eslint-disable-next-line complexity
+
 const sanitizeRequestDetails = (
     details: {
         url?: string;
@@ -290,13 +287,33 @@ const sanitizeRequestConfigForLogging = (config?: RequestConfig): Record<string,
     const resolvedConfig = resolveRedactionConfig(config.redaction);
 
     if (!resolvedConfig.enabled) {
-        return { ...config };
+        return {
+            method: config.method,
+            paramsFieldName: config.paramsFieldName,
+            type: config.type,
+            timesToRetry: config.timesToRetry,
+            retryWaitType: config.retryWaitType,
+            retryDelayMilliseconds: config.retryDelayMilliseconds,
+            statusCodesToRetry: config.statusCodesToRetry,
+            timeoutMilliseconds: config.timeoutMilliseconds,
+            headers: config.headers,
+            params: config.params
+        };
     }
 
-    const sensitiveParamPatterns = Array.from(new Set([...resolvedConfig.customPatterns.urlParams, ...resolvedConfig.customPatterns.bodyFields]));
+    const sensitiveParamPatterns = Array.from(
+        new Set([...resolvedConfig.customPatterns.urlParams, ...resolvedConfig.customPatterns.bodyFields])
+    );
 
     return {
-        ...config,
+        method: config.method,
+        paramsFieldName: config.paramsFieldName,
+        type: config.type,
+        timesToRetry: config.timesToRetry,
+        retryWaitType: config.retryWaitType,
+        retryDelayMilliseconds: config.retryDelayMilliseconds,
+        statusCodesToRetry: config.statusCodesToRetry,
+        timeoutMilliseconds: config.timeoutMilliseconds,
         ...(config.headers
             ? {
                   headers: sanitizeHeaders(config.headers, resolvedConfig.customPatterns.headers, resolvedConfig.level)
@@ -310,26 +327,69 @@ const sanitizeRequestConfigForLogging = (config?: RequestConfig): Record<string,
     };
 };
 
+const emitStructuredFetchError = (config: {
+    message: string;
+    requestConfig?: RequestConfig | undefined;
+    requestUrl: string;
+    response?: Response | undefined;
+    redactionConfig?: RedactionConfig | undefined;
+}) => {
+    const { message, requestConfig, requestUrl, response, redactionConfig } = config;
+
+    const sanitizedUrl = sanitizeUrlForLogging(requestUrl, redactionConfig);
+    const sanitizedRequestConfig = sanitizeRequestConfigForLogging(requestConfig);
+    let sanitizedResponseHeaders: Record<string, string> = {};
+
+    if (response?.headers) {
+        const responseHeaders: Record<string, string> = {};
+
+        response.headers.forEach((value, key) => {
+            responseHeaders[key] = value;
+        });
+
+        const sanitizedDetails = sanitizeRequestDetails({ headers: responseHeaders }, redactionConfig);
+        sanitizedResponseHeaders = sanitizedDetails.headers as Record<string, string>;
+    }
+
+    const logPayload = {
+        requestUrl: sanitizedUrl,
+        requestConfig: sanitizedRequestConfig,
+        responseStatus: response?.status ?? null,
+        responseStatusText: response?.statusText ?? null,
+        responseHeaders: sanitizedResponseHeaders
+    };
+
+    const logger = Logger.peekInstance();
+
+    if (logger) {
+        logger.log({
+            level: 'error',
+            severity: 7,
+            service: 'doFetch',
+            category: 'request',
+            message,
+            extraData: logPayload
+        });
+
+        return;
+    }
+
+    console.error('[doFetch] request failed', {
+        message,
+        ...logPayload
+    });
+};
+
 // eslint-disable-next-line complexity
 export const doFetch = async <T>(requestUrl: string, config?: RequestConfig): Promise<T | ErrorResponse> => {
-    if (config?.logDirectory) ({ logDirectory: doFetchErrorsLogDirectory } = config);
     const { fetchConfig, urlWithParams } = configureFetchRequest(requestUrl, config);
     const timesToAttempt = (config?.timesToRetry ?? 2) + 1;
     const statusCodesToRetry = config?.statusCodesToRetry ?? FETCH_RETRY_STATUS_CODES;
 
-    const ATTEMPTS_LOGGING_THRESHOLD = 10;
-
     for (let attempts = 0; attempts < timesToAttempt; attempts++) {
-        if ((attempts > ATTEMPTS_LOGGING_THRESHOLD || timesToAttempt > ATTEMPTS_LOGGING_THRESHOLD) && doFetchErrorsLogDirectory)
-            appendToFile(`${doFetchErrorsLogDirectory}doFetchErrors.log`, `doFetch: ${attempts} ${timesToAttempt}`);
-
         try {
-            const requestStartTime = performance.now();
             const response = await fetchWithTimeout(urlWithParams, fetchConfig, config?.redaction);
-            if (response.ok) return await parseResponse<T>(response, config?.redaction);
-            const responseEndTime = performance.now();
-            const responseTimeMs = responseEndTime - requestStartTime;
-
+            if (response.ok) return await parseResponse<T>(response, config?.redaction, config);
             const urlString = urlWithParams.toString();
 
             const shouldRetryFailure = await handleRetry({
@@ -337,9 +397,7 @@ export const doFetch = async <T>(requestUrl: string, config?: RequestConfig): Pr
                 statusCodesToRetry,
                 attempts,
                 timesToAttempt,
-                config,
-                urlString,
-                responseTimeMs
+                config
             });
 
             if (!shouldRetryFailure) {
@@ -348,7 +406,8 @@ export const doFetch = async <T>(requestUrl: string, config?: RequestConfig): Pr
                     message,
                     url: urlString,
                     response,
-                    logDirectory: doFetchErrorsLogDirectory,
+                    logDirectory: config?.logDirectory,
+                    requestConfig: config,
                     ...(config?.redaction && { redactionConfig: config.redaction })
                 });
             }
@@ -357,6 +416,8 @@ export const doFetch = async <T>(requestUrl: string, config?: RequestConfig): Pr
                 return returnError({
                     message: (error as Error).message,
                     url: urlWithParams.toString(),
+                    logDirectory: config?.logDirectory,
+                    requestConfig: config,
                     ...(config?.redaction && { redactionConfig: config.redaction })
                 });
             }
@@ -369,6 +430,8 @@ export const doFetch = async <T>(requestUrl: string, config?: RequestConfig): Pr
         message: 'Request failed after loop',
         url: urlWithParams.toString(),
         response: new Response(),
+        logDirectory: config?.logDirectory,
+        requestConfig: config,
         ...(config?.redaction && { redactionConfig: config.redaction })
     });
 };
@@ -376,32 +439,21 @@ export const doFetch = async <T>(requestUrl: string, config?: RequestConfig): Pr
 const returnError = (config: {
     message: string;
     url: string;
-    response?: Response;
-    logDirectory?: string;
-    redactionConfig?: RedactionConfig;
+    response?: Response | undefined;
+    logDirectory?: string | undefined;
+    requestConfig?: RequestConfig | undefined;
+    redactionConfig?: RedactionConfig | undefined;
 }): ErrorResponse => {
-    const { message, url, response, logDirectory, redactionConfig } = config;
-    const sanitizedUrl = sanitizeUrlForLogging(url, redactionConfig);
+    const { message, url, response, logDirectory, requestConfig, redactionConfig } = config;
 
     if (logDirectory) {
-        // Sanitize the headers before logging
-        let sanitizedHeaders = {};
-
-        if (response?.headers) {
-            const headersObj: Record<string, string> = {};
-
-            response.headers.forEach((value, key) => {
-                headersObj[key] = value;
-            });
-
-            const sanitized = sanitizeRequestDetails({ headers: headersObj }, redactionConfig);
-            sanitizedHeaders = sanitized.headers || {};
-        }
-
-        appendToFile(
-            `${logDirectory}doFetchErrors.log`,
-            `${getDate({ format: 'ymdhms' })} ${sanitizedUrl} ${response?.status} ${JSON.stringify(sanitizedHeaders)} ${message} ${response?.status}`
-        );
+        emitStructuredFetchError({
+            message,
+            requestUrl: url,
+            requestConfig,
+            response,
+            redactionConfig
+        });
     }
 
     return response?.status ? { isError: true, message, statusCode: response.status } : { isError: true, message };
@@ -454,11 +506,28 @@ const configureFetchRequest = (requestUrl: string, config?: RequestConfig) => {
 
         return { fetchConfig, urlWithParams };
     } catch (error: unknown) {
-        if (doFetchErrorsLogDirectory)
-            appendToFile(
-                `${doFetchErrorsLogDirectory}doFetchErrors.log`,
-                `doFetch: ${error?.toString()} ${JSON.stringify(sanitizeUrlForLogging(requestUrl, config?.redaction))}`
-            );
+        if (config?.logDirectory) {
+            const logger = Logger.peekInstance();
+
+            const logPayload = {
+                errorMessage: error instanceof Error ? error.message : String(error),
+                requestUrl: sanitizeUrlForLogging(requestUrl, config?.redaction),
+                requestConfig: sanitizeRequestConfigForLogging(config)
+            };
+
+            if (logger) {
+                logger.log({
+                    level: 'error',
+                    severity: 7,
+                    service: 'doFetch',
+                    category: 'request-config',
+                    message: 'Failed to configure request',
+                    extraData: logPayload
+                });
+            } else {
+                console.error('[doFetch] failed to configure request', logPayload);
+            }
+        }
 
         return { fetchConfig, urlWithParams: new URL(requestUrl) };
     }
@@ -495,16 +564,8 @@ const fetchWithTimeout = async (requestUrl: string | URL, options: RequestInitWi
             errorDetails: error2.message ?? '',
             errorStack: error2.stack ?? ''
         };
-        const errorLogJson = JSON.stringify(errorLog);
 
-        if (doFetchErrorsLogDirectory)
-            appendToFile(
-                `${doFetchErrorsLogDirectory}doFetchErrors.log`,
-                `Do fetch timed out ${getDate({ format: 'ymdhms' })}
-                 ${JSON.stringify(sanitizedDetails.url)} 
-                 ${JSON.stringify(sanitizedDetails)}
-                 ${errorLogJson}\n\n`
-            );
+        const errorLogJson = JSON.stringify(errorLog);
         return new Response(errorLogJson, {
             status: 408,
             statusText: 'Request Timeout',
@@ -513,7 +574,11 @@ const fetchWithTimeout = async (requestUrl: string | URL, options: RequestInitWi
     }
 };
 
-const parseResponse = async <T>(response: Response, redactionConfig?: RedactionConfig): Promise<T | ErrorResponse> => {
+const parseResponse = async <T>(
+    response: Response,
+    redactionConfig?: RedactionConfig,
+    requestConfig?: RequestConfig
+): Promise<T | ErrorResponse> => {
     const contentType = response.headers.get('content-type');
 
     if (contentType?.includes('application/json')) {
@@ -524,6 +589,8 @@ const parseResponse = async <T>(response: Response, redactionConfig?: RedactionC
                 message: 'JSON parsing error',
                 url: response.url,
                 response,
+                logDirectory: requestConfig?.logDirectory,
+                requestConfig,
                 ...(redactionConfig && { redactionConfig })
             });
         }
@@ -539,19 +606,14 @@ const parseResponse = async <T>(response: Response, redactionConfig?: RedactionC
     }
 };
 
-// eslint-disable-next-line complexity
 const handleRetry = async (details: {
     response: Response;
     statusCodesToRetry: number[];
     attempts: number;
     timesToAttempt: number;
-    responseTimeMs: number;
     config: RequestConfig | undefined;
-    urlString: string;
 }): Promise<boolean> => {
-    const { response, statusCodesToRetry, attempts, timesToAttempt, config, urlString, responseTimeMs } = details;
-    const sanitizedUrlString = sanitizeUrlForLogging(urlString, config?.redaction);
-    const sanitizedConfig = sanitizeRequestConfigForLogging(config);
+    const { response, statusCodesToRetry, attempts, timesToAttempt, config } = details;
     if (!statusCodesToRetry.includes(response.status) || attempts >= timesToAttempt - 1) return false;
 
     const retryAfter =
@@ -564,44 +626,6 @@ const handleRetry = async (details: {
         retryAfter && parseInt(retryAfter) > 0 && parseInt(retryAfter) < 500 ? parseInt(retryAfter) * 1000 : FETCH_DEFAULT_RETRY_MS;
 
     timeToSleep = !retryAfter && config?.retryDelayMilliseconds ? config.retryDelayMilliseconds : timeToSleep;
-
-    if (doFetchErrorsLogDirectory) {
-        // Sanitize headers before logging
-        const headersObj: Record<string, string> = {};
-
-        response.headers.forEach((value, key) => {
-            headersObj[key] = value;
-        });
-
-        const sanitized = sanitizeRequestDetails({ headers: headersObj }, config?.redaction);
-        const sanitizedHeaders = sanitized.headers || {};
-
-        appendToFile(
-            `${doFetchErrorsLogDirectory}doFetchErrors.log`,
-            `doFetch Retrying ${getDate({ format: 'ymdhms' })}
-             ${sanitizedUrlString} ${response?.status} ${JSON.stringify(sanitizedHeaders)} 
-             Elasped Time: ${responseTimeMs} timeToSleep: ${timeToSleep} ${JSON.stringify(sanitizedConfig)}\n\n`
-        );
-    }
-
-    const SLEEP_TIME_LOGGING_THRESHOLD = 100000;
-
-    if (timeToSleep > SLEEP_TIME_LOGGING_THRESHOLD && doFetchErrorsLogDirectory) {
-        // Sanitize headers before logging
-        const headersObj: Record<string, string> = {};
-
-        response.headers.forEach((value, key) => {
-            headersObj[key] = value;
-        });
-
-        const sanitized = sanitizeRequestDetails({ headers: headersObj }, config?.redaction);
-        const sanitizedHeaders = sanitized.headers || {};
-
-        appendToFile(
-            `${doFetchErrorsLogDirectory}doFetchErrors.log`,
-            `doFetch: ${sanitizedUrlString}  ${response?.status} ${JSON.stringify(sanitizedHeaders)} timeToSleep: ${timeToSleep}\n`
-        );
-    }
 
     await sleep(timeToSleep);
     return true;

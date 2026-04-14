@@ -230,6 +230,10 @@ export class Logger {
         return Logger.instance;
     }
 
+    public static peekInstance(): Logger | null {
+        return Logger.instance;
+    }
+
     static resetInstanceForTests(): void {
         Logger.instance = null;
     }
@@ -879,7 +883,12 @@ export class Logger {
             // Enhanced error serialization - capture more error context
             let errorDetails: LoggerError | undefined;
 
-            const boundedMessage = this.truncateStringToMaxBytes(this.sanitizeStringForLog(message ?? ''), Logger.maxMessageBytes, 'message');
+            const boundedMessage = this.truncateStringToMaxBytes(
+                this.sanitizeStringForLog(message ?? ''),
+                Logger.maxMessageBytes,
+                'message'
+            );
+
             const boundedExtraDataOutput = this.truncateStringToMaxBytes(
                 this.sanitizeStringForLog(extraDataOutput),
                 Logger.maxExtraDataBytes,
