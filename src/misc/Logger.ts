@@ -234,6 +234,10 @@ export class Logger {
         return Logger.instance;
     }
 
+    public getLogDir(): string {
+        return this.logDir;
+    }
+
     static resetInstanceForTests(): void {
         Logger.instance = null;
     }

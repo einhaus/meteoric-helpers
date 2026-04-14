@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/naming-convention */
+import { getDate } from '../date/getDate.js';
+import { appendToFile } from '../file/appendToFile.js';
 import { Logger } from './Logger.js';
 import { sleep } from './sleep.js';
+import path from 'path';
 import url from 'url';
 
 export type RequestMethod = 'GET' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT' | 'PATCH';
@@ -327,14 +330,42 @@ const sanitizeRequestConfigForLogging = (config?: RequestConfig): Record<string,
     };
 };
 
+const normalizeLogDirectory = (logDirectory: string): string => `${path.resolve(logDirectory)}/`;
+
+const appendStructuredFetchError = (config: {
+    logDirectory: string;
+    message: string;
+    requestUrl: string;
+    requestConfig?: Record<string, unknown> | undefined;
+    responseStatus: number | null;
+    responseStatusText: string | null;
+    responseHeaders: Record<string, string>;
+}) => {
+    const { logDirectory, message, requestUrl, requestConfig, responseStatus, responseStatusText, responseHeaders } = config;
+
+    appendToFile(
+        `${normalizeLogDirectory(logDirectory)}doFetchErrors.log`,
+        JSON.stringify({
+            timestamp: getDate({ format: 'ymdhms' }),
+            message,
+            requestUrl,
+            requestConfig,
+            responseStatus,
+            responseStatusText,
+            responseHeaders
+        })
+    );
+};
+
 const emitStructuredFetchError = (config: {
+    logDirectory?: string | undefined;
     message: string;
     requestConfig?: RequestConfig | undefined;
     requestUrl: string;
     response?: Response | undefined;
     redactionConfig?: RedactionConfig | undefined;
 }) => {
-    const { message, requestConfig, requestUrl, response, redactionConfig } = config;
+    const { logDirectory, message, requestConfig, requestUrl, response, redactionConfig } = config;
 
     const sanitizedUrl = sanitizeUrlForLogging(requestUrl, redactionConfig);
     const sanitizedRequestConfig = sanitizeRequestConfigForLogging(requestConfig);
@@ -361,7 +392,7 @@ const emitStructuredFetchError = (config: {
 
     const logger = Logger.peekInstance();
 
-    if (logger) {
+    if (logger && logDirectory && logger.getLogDir() === normalizeLogDirectory(logDirectory)) {
         logger.log({
             level: 'error',
             severity: 7,
@@ -369,6 +400,20 @@ const emitStructuredFetchError = (config: {
             category: 'request',
             message,
             extraData: logPayload
+        });
+
+        return;
+    }
+
+    if (logDirectory) {
+        appendStructuredFetchError({
+            logDirectory,
+            message,
+            requestUrl: sanitizedUrl,
+            requestConfig: sanitizedRequestConfig,
+            responseStatus: response?.status ?? null,
+            responseStatusText: response?.statusText ?? null,
+            responseHeaders: sanitizedResponseHeaders
         });
 
         return;
@@ -448,6 +493,7 @@ const returnError = (config: {
 
     if (logDirectory) {
         emitStructuredFetchError({
+            logDirectory,
             message,
             requestUrl: url,
             requestConfig,
@@ -515,7 +561,7 @@ const configureFetchRequest = (requestUrl: string, config?: RequestConfig) => {
                 requestConfig: sanitizeRequestConfigForLogging(config)
             };
 
-            if (logger) {
+            if (logger?.getLogDir() === normalizeLogDirectory(config.logDirectory)) {
                 logger.log({
                     level: 'error',
                     severity: 7,
@@ -525,7 +571,15 @@ const configureFetchRequest = (requestUrl: string, config?: RequestConfig) => {
                     extraData: logPayload
                 });
             } else {
-                console.error('[doFetch] failed to configure request', logPayload);
+                appendStructuredFetchError({
+                    logDirectory: config.logDirectory,
+                    message: 'Failed to configure request',
+                    requestUrl: logPayload.requestUrl,
+                    requestConfig: logPayload.requestConfig,
+                    responseStatus: null,
+                    responseStatusText: null,
+                    responseHeaders: {}
+                });
             }
         }
 
