@@ -24,7 +24,7 @@ export type AiCatalogAuditResult = Readonly<{
 
 function getKnownCatalogModelIds(provider: AiProvider, includeLegacyCatalogEntries: boolean): string[] {
     const statusesToInclude = includeLegacyCatalogEntries
-        ? new Set<AiModelStatus>(['active', 'specialized', 'legacy', 'deprecated'])
+        ? new Set<AiModelStatus>(['active', 'specialized', 'legacy', 'deprecated', 'retired'])
         : new Set<AiModelStatus>(['active', 'specialized']);
 
     const knownIds = new Set<string>();

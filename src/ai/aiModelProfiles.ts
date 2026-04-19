@@ -10,7 +10,7 @@ export const AI_PROVIDER_MODEL_PROFILES: Readonly<Record<AiProvider, AiProviderP
         cheap: 'openai:gpt-5.4-nano',
         title: 'openai:gpt-5.4-nano',
         webSearch: 'openai:gpt-5.4',
-        deepResearch: 'openai:o3-deep-research-2025-06-26'
+        deepResearch: 'openai:o3-deep-research'
     },
     anthropic: {
         reasoning: 'anthropic:claude-opus-4-7',
@@ -32,4 +32,3 @@ export const AI_GLOBAL_MODEL_PROFILES: Readonly<Record<AiModelProfile, string | 
     webSearch: AI_PROVIDER_MODEL_PROFILES.openai.webSearch,
     deepResearch: AI_PROVIDER_MODEL_PROFILES.openai.deepResearch
 } as const;
-

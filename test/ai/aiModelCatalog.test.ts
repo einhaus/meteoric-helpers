@@ -28,6 +28,9 @@ describe('AI model catalog helpers', () => {
 
         const openAiModelsWithLegacy = listAiModels({ provider: 'openai', includeLegacy: true });
         expect(openAiModelsWithLegacy.some((model) => model.modelKey === 'openai:gpt-5')).toBe(true);
+
+        const defaultAnthropicModels = listAiModels({ provider: 'anthropic' });
+        expect(defaultAnthropicModels.some((model) => model.modelKey === 'anthropic:claude-3-7-sonnet-20250219')).toBe(false);
     });
 
     it('estimates model cost using curated pricing metadata', () => {

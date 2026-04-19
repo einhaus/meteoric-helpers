@@ -1,6 +1,6 @@
 export type AiProvider = 'openai' | 'anthropic';
 
-export type AiModelStatus = 'active' | 'specialized' | 'legacy' | 'deprecated';
+export type AiModelStatus = 'active' | 'specialized' | 'legacy' | 'deprecated' | 'retired';
 
 export type AiModelProfile = 'reasoning' | 'balanced' | 'fast' | 'cheap' | 'title' | 'webSearch' | 'deepResearch';
 
@@ -88,4 +88,3 @@ export type AiModelCostEstimate = Readonly<{
     totalPromptTokens: number;
     cacheWriteMode: AiCacheWriteMode;
 }>;
-

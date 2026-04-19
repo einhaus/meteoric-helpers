@@ -50,7 +50,7 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.provider).toBe('openai');
-        expect(config.modelKey).toBe('openai:o3-deep-research-2025-06-26');
+        expect(config.modelKey).toBe('openai:o3-deep-research');
         expect(config.useBuiltInWebSearch).toBe(true);
         expect(config.builtInWebSearchContextSize).toBe('high');
     });

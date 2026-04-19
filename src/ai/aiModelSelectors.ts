@@ -74,8 +74,11 @@ export function listAiModels(params?: {
 
     return AI_MODEL_CATALOG.filter((model) => {
         if (params?.provider && model.provider !== params.provider) return false;
-        if (!includeLegacy && model.status === 'legacy') return false;
-        if (requestedStatuses && !requestedStatuses.has(model.status)) return false;
+        if (requestedStatuses) {
+            if (!requestedStatuses.has(model.status)) return false;
+        } else if (!includeLegacy && (model.status === 'legacy' || model.status === 'deprecated' || model.status === 'retired')) {
+            return false;
+        }
 
         if (normalizedTags.length > 0) {
             const tags = new Set(model.tags.map((tag) => tag.toLowerCase()));
