@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { getDate } from '../date/getDate.js';
+import { checkTimezoneIsEst } from '../date/checkTimezoneIsEst.js';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
-import { checkTimezoneIsEst } from '../index.js';
 import { nanoid } from 'nanoid';
 import os from 'os';
 import {

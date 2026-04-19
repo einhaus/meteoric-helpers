@@ -17,6 +17,7 @@ export * from './file/downloadFile.js';
 export * from './auth/passwords.js';
 export * from './path/getDirectoryFromUrl.js';
 export * from './path/getFileNameFromUrl.js';
+export * from './ai/aiModelCatalogSync.js';
 export * from './db/mysql.js';
 export * from './db/bun.js';
 export * from './db/postgres.js';
