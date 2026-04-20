@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+    aiModelSupportsVision,
     estimateAiModelCostUsd,
     getAiModelById,
     getPreferredAiModelId,
     inferAiProviderFromModel,
+    isAiAgentChatCandidate,
     listAiModels,
     normalizeAiModelKey
 } from '../../src/ai/aiModelSelectors.js';
@@ -58,7 +60,24 @@ describe('AI model catalog helpers', () => {
 
     it('can still resolve legacy models used by current apps', () => {
         expect(getAiModelById('gpt-4o-mini')?.modelKey).toBe('openai:gpt-4o-mini');
+        expect(getAiModelById('gpt-5.4-pro')?.modelKey).toBe('openai:gpt-5.4-pro');
+        expect(getAiModelById('gpt-5.2-pro')?.modelKey).toBe('openai:gpt-5.2-pro');
         expect(getAiModelById('claude-3-5-haiku-20241022')?.modelKey).toBe('anthropic:claude-3-5-haiku-20241022');
         expect(inferAiProviderFromModel('claude-sonnet-4-6')).toBe('anthropic');
+    });
+
+    it('derives shared vision support from the catalog with conservative fallbacks', () => {
+        expect(aiModelSupportsVision('gpt-5.4')).toBe(true);
+        expect(aiModelSupportsVision('gpt-4.1')).toBe(true);
+        expect(aiModelSupportsVision('claude-sonnet-4-6')).toBe(true);
+        expect(aiModelSupportsVision('whisper-1')).toBe(false);
+    });
+
+    it('filters shared agent-chat candidates using catalog capabilities and status', () => {
+        expect(isAiAgentChatCandidate('gpt-5.4')).toBe(true);
+        expect(isAiAgentChatCandidate('o3-deep-research')).toBe(false);
+        expect(isAiAgentChatCandidate('gpt-5.4-pro')).toBe(false);
+        expect(isAiAgentChatCandidate('claude-sonnet-4-6')).toBe(true);
+        expect(isAiAgentChatCandidate('claude-3-7-sonnet-20250219')).toBe(false);
     });
 });

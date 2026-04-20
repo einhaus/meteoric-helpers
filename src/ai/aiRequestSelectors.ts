@@ -225,6 +225,40 @@ function resolveAnthropicThinkingBudgetTokens(params: {
     return params.requestedBudgetTokens;
 }
 
+function resolveTemperature(params: {
+    requestedTemperature: number | null;
+    provider: AiProvider;
+    catalogEntry: AiModelCatalogEntry | null;
+    reasoningEffort: AiResolvedRequestConfig['reasoningEffort'];
+    anthropicThinkingBudgetTokens: number | null;
+    warnings: string[];
+}): number | null {
+    if (params.requestedTemperature === null || params.requestedTemperature === undefined) return null;
+
+    if (params.provider === 'anthropic' && params.anthropicThinkingBudgetTokens !== null) {
+        params.warnings.push('Temperature was cleared because Anthropic thinking budgets are incompatible with temperature overrides.');
+        return null;
+    }
+
+    if (!params.catalogEntry) return params.requestedTemperature;
+
+    const temperaturePolicy = params.catalogEntry.parameterPolicies?.temperature ?? 'supported';
+
+    if (temperaturePolicy === 'unsupported') {
+        params.warnings.push(`Temperature was cleared because ${params.catalogEntry.modelKey} does not support the temperature parameter.`);
+        return null;
+    }
+
+    if (temperaturePolicy === 'requiresReasoningEffortNone' && params.reasoningEffort !== 'none') {
+        params.warnings.push(
+            `Temperature was cleared because ${params.catalogEntry.modelKey} only supports temperature when reasoning effort is set to "none".`
+        );
+        return null;
+    }
+
+    return params.requestedTemperature;
+}
+
 export function getAiRequestPreset(preset: AiRequestPreset): AiRequestPresetDefinition {
     const matchingPreset = AI_REQUEST_PRESETS_BY_KEY.get(preset);
     if (!matchingPreset) throw new Error(`Unknown AI request preset: ${preset}`);
@@ -292,7 +326,7 @@ export function resolveAiRequestConfig(
         overridesApplied
     });
 
-    const temperature = resolveOverride({
+    const requestedTemperature = resolveOverride({
         overrideValue: params.temperature,
         presetValue: preset.temperature,
         fieldName: 'temperature',
@@ -376,6 +410,15 @@ export function resolveAiRequestConfig(
         provider,
         requestedBudgetTokens: requestedAnthropicThinkingBudgetTokens,
         catalogEntry: resolvedModel.catalogEntry,
+        warnings
+    });
+
+    const temperature = resolveTemperature({
+        requestedTemperature,
+        provider,
+        catalogEntry: resolvedModel.catalogEntry,
+        reasoningEffort,
+        anthropicThinkingBudgetTokens,
         warnings
     });
 

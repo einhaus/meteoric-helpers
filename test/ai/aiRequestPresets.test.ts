@@ -44,6 +44,19 @@ describe('AI request preset helpers', () => {
         expect(config.warnings.some((warning) => warning.includes('Reasoning effort was cleared'))).toBe(true);
     });
 
+    it('clears anthropic temperature automatically when a thinking budget is active', () => {
+        const config = resolveAiRequestConfig({
+            preset: 'analysis',
+            model: 'anthropic:claude-sonnet-4-6',
+            temperature: 0.2
+        });
+
+        expect(config.provider).toBe('anthropic');
+        expect(config.anthropicThinkingBudgetTokens).toBe(2_048);
+        expect(config.temperature).toBeNull();
+        expect(config.warnings.some((warning) => warning.includes('Anthropic thinking budgets are incompatible'))).toBe(true);
+    });
+
     it('prefers openai automatically for deep-research presets', () => {
         const config = resolveAiRequestConfig({
             preset: 'deepResearch'
@@ -66,6 +79,40 @@ describe('AI request preset helpers', () => {
         expect(config.reasoningEffort).toBe('low');
         expect(config.temperature).toBeNull();
         expect(config.maxOutputTokens).toBe(6_000);
+    });
+
+    it('clears temperature automatically for GPT-5-family models that do not support it', () => {
+        const config = resolveAiRequestConfig({
+            preset: 'creativeWriting',
+            provider: 'openai',
+            temperature: 0.35
+        });
+
+        expect(config.modelKey).toBe('openai:gpt-5.4');
+        expect(config.temperature).toBeNull();
+        expect(config.warnings.some((warning) => warning.includes('does not support the temperature parameter'))).toBe(true);
+    });
+
+    it('keeps temperature on GPT-5.1 only when reasoning effort resolves to none', () => {
+        const supportedConfig = resolveAiRequestConfig({
+            preset: 'titleGeneration',
+            model: 'openai:gpt-5.1',
+            temperature: 0.35
+        });
+
+        const unsupportedConfig = resolveAiRequestConfig({
+            preset: 'creativeWriting',
+            model: 'openai:gpt-5.1',
+            temperature: 0.35
+        });
+
+        expect(supportedConfig.reasoningEffort).toBe('none');
+        expect(supportedConfig.temperature).toBe(0.35);
+        expect(unsupportedConfig.reasoningEffort).toBe('low');
+        expect(unsupportedConfig.temperature).toBeNull();
+        expect(
+            unsupportedConfig.warnings.some((warning) => warning.includes('only supports temperature when reasoning effort is set to "none"'))
+        ).toBe(true);
     });
 
     it('supports explicit model overrides that are not yet in the shared catalog', () => {

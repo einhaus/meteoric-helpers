@@ -14,10 +14,16 @@ export type AiCapabilitySupport = boolean | null;
 
 export type AiCacheWriteMode = '5m' | '1h';
 
+export type AiTemperaturePolicy = 'supported' | 'unsupported' | 'requiresReasoningEffortNone';
+
 export type AiModelSource = Readonly<{
     label: string;
     url: string;
     verifiedAt: string;
+}>;
+
+export type AiModelParameterPolicies = Readonly<{
+    temperature: AiTemperaturePolicy;
 }>;
 
 export type AiModelCapabilities = Readonly<{
@@ -74,6 +80,7 @@ export type AiModelCatalogEntry = Readonly<{
     pricing: AiModelPricing;
     sources: readonly AiModelSource[];
     tags: readonly string[];
+    parameterPolicies?: AiModelParameterPolicies;
 }>;
 
 export type AiModelCostEstimate = Readonly<{

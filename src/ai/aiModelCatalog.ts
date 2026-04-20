@@ -1,6 +1,6 @@
-import type { AiModelCatalogEntry, AiModelCapabilities, AiModelPricing, AiModelSource } from './aiModelTypes.js';
+import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-04-19';
+const VERIFIED_AT = '2026-04-20';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -47,6 +47,13 @@ const ANTHROPIC_MODEL_DEPRECATIONS_SOURCE: AiModelSource = {
 const OPENAI_GPT_5_4_REASONING_LEVELS = ['none', 'low', 'medium', 'high', 'xhigh'] as const;
 const OPENAI_GPT_5_1_REASONING_LEVELS = ['none', 'low', 'medium', 'high'] as const;
 const OPENAI_GPT_5_REASONING_LEVELS = ['minimal', 'low', 'medium', 'high'] as const;
+const OPENAI_GPT_PRO_REASONING_LEVELS = ['medium', 'high', 'xhigh'] as const;
+const OPENAI_GPT_5_PARAMETER_POLICIES: AiModelParameterPolicies = {
+    temperature: 'unsupported'
+};
+const OPENAI_GPT_5_1_PARAMETER_POLICIES: AiModelParameterPolicies = {
+    temperature: 'requiresReasoningEffortNone'
+};
 
 const createPricing = (pricing: AiModelPricing): AiModelPricing => pricing;
 
@@ -108,7 +115,61 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: 'Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full session.'
         }),
         sources: [createOpenAiModelSource('gpt-5.4'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['recommended', 'reasoning', 'coding', 'agent']
+        tags: ['recommended', 'reasoning', 'coding', 'agent'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
+    },
+    {
+        modelKey: 'openai:gpt-5.4-pro',
+        provider: 'openai',
+        modelId: 'gpt-5.4-pro',
+        snapshotModelId: 'gpt-5.4-pro-2026-03-05',
+        aliases: ['gpt-5.4-pro-2026-03-05'],
+        displayName: 'GPT-5.4 pro',
+        family: 'gpt-5.4',
+        description:
+            'More precise GPT-5.4 variant for tough problems. Responses API only; may take minutes to finish (consider background mode).',
+        status: 'specialized',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: false,
+            supportsPromptCaching: false,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: true,
+            supportsMcp: true,
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: OPENAI_GPT_PRO_REASONING_LEVELS,
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 1_050_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2025-08-31',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 30,
+            cachedInputUsdPerMillionTokens: null,
+            outputUsdPerMillionTokens: 180,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 272_000,
+            longContextInputUsdPerMillionTokens: 60,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: 270,
+            notes: 'Pricing page does not list cached-input token rates for GPT-5.4 pro. Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full session.'
+        }),
+        sources: [createOpenAiModelSource('gpt-5.4-pro'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
+        tags: ['specialized', 'reasoning', 'slow', 'expensive', 'responses-only'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
         modelKey: 'openai:gpt-5.4-mini',
@@ -159,7 +220,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: null
         }),
         sources: [createOpenAiModelSource('gpt-5.4-mini'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['recommended', 'fast', 'balanced', 'coding', 'agent']
+        tags: ['recommended', 'fast', 'balanced', 'coding', 'agent'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
         modelKey: 'openai:gpt-5.4-nano',
@@ -210,7 +272,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: null
         }),
         sources: [createOpenAiModelSource('gpt-5.4-nano'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['recommended', 'cheap', 'classifier', 'subagent']
+        tags: ['recommended', 'cheap', 'classifier', 'subagent'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
         modelKey: 'openai:gpt-5.2',
@@ -261,7 +324,61 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: null
         }),
         sources: [createOpenAiModelSource('gpt-5.2'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['legacy', 'reasoning', 'compatibility']
+        tags: ['legacy', 'reasoning', 'compatibility'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
+    },
+    {
+        modelKey: 'openai:gpt-5.2-pro',
+        provider: 'openai',
+        modelId: 'gpt-5.2-pro',
+        snapshotModelId: 'gpt-5.2-pro-2025-12-11',
+        aliases: ['gpt-5.2-pro-2025-12-11'],
+        displayName: 'GPT-5.2 pro',
+        family: 'gpt-5.2',
+        description:
+            'Older pro GPT-5.2 variant for tough problems. Responses API only; may take minutes to finish (consider background mode).',
+        status: 'legacy',
+        recommendedReplacementModelKey: 'openai:gpt-5.4-pro',
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: false,
+            supportsPromptCaching: false,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: true,
+            supportsMcp: null,
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: OPENAI_GPT_PRO_REASONING_LEVELS,
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 400_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2025-08-31',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 21,
+            cachedInputUsdPerMillionTokens: null,
+            outputUsdPerMillionTokens: 168,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'Pricing page does not list cached-input token rates for GPT-5.2 pro.'
+        }),
+        sources: [createOpenAiModelSource('gpt-5.2-pro'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
+        tags: ['legacy', 'reasoning', 'slow', 'expensive', 'responses-only'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
         modelKey: 'openai:gpt-5.2-chat-latest',
@@ -312,7 +429,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: 'Alias pricing matches GPT-5.2.'
         }),
         sources: [createOpenAiModelSource('gpt-5.2-chat-latest'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['legacy', 'alias', 'compatibility']
+        tags: ['legacy', 'alias', 'compatibility'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
         modelKey: 'openai:gpt-5.1',
@@ -363,7 +481,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: null
         }),
         sources: [createOpenAiModelSource('gpt-5.1'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['legacy', 'reasoning', 'compatibility']
+        tags: ['legacy', 'reasoning', 'compatibility'],
+        parameterPolicies: OPENAI_GPT_5_1_PARAMETER_POLICIES
     },
     {
         modelKey: 'openai:gpt-5.1-chat-latest',
@@ -419,7 +538,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             OPENAI_ALL_MODELS_SOURCE,
             OPENAI_PRICING_SOURCE
         ],
-        tags: ['legacy', 'alias', 'chat', 'compatibility']
+        tags: ['legacy', 'alias', 'chat', 'compatibility'],
+        parameterPolicies: OPENAI_GPT_5_1_PARAMETER_POLICIES
     },
     {
         modelKey: 'openai:gpt-5',
@@ -470,7 +590,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: null
         }),
         sources: [createOpenAiModelSource('gpt-5'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['legacy', 'reasoning', 'compatibility']
+        tags: ['legacy', 'reasoning', 'compatibility'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
         modelKey: 'openai:gpt-5-chat-latest',
@@ -521,7 +642,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: null
         }),
         sources: [createOpenAiModelSource('gpt-5-chat-latest'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['legacy', 'alias', 'chat', 'compatibility']
+        tags: ['legacy', 'alias', 'chat', 'compatibility'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
         modelKey: 'openai:gpt-5-mini',
@@ -572,7 +694,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: null
         }),
         sources: [createOpenAiModelSource('gpt-5-mini'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['legacy', 'fast', 'cheap', 'compatibility']
+        tags: ['legacy', 'fast', 'cheap', 'compatibility'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
         modelKey: 'openai:gpt-5-nano',
@@ -623,7 +746,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: null
         }),
         sources: [createOpenAiModelSource('gpt-5-nano'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['legacy', 'cheap', 'background', 'compatibility']
+        tags: ['legacy', 'cheap', 'background', 'compatibility'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
         modelKey: 'openai:gpt-4.1',

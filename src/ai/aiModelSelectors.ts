@@ -21,6 +21,15 @@ function normalizeProvider(value: string): AiProvider | null {
     return null;
 }
 
+function matchesOpenAiVisionFallback(modelIdentifier: string): boolean {
+    return (
+        modelIdentifier.startsWith('gpt-5') ||
+        modelIdentifier.startsWith('gpt-4.1') ||
+        modelIdentifier.startsWith('gpt-4o') ||
+        /^o\d/.test(modelIdentifier)
+    );
+}
+
 function modelMatchesIdentifier(model: AiModelCatalogEntry, identifier: string): boolean {
     const normalizedIdentifier = normalizeModelIdentifier(identifier);
 
@@ -60,6 +69,82 @@ export function getAiModelById(modelId: string, provider?: AiProvider): AiModelC
     }
 
     return null;
+}
+
+export function aiModelSupportsVision(modelIdentifier: string, provider?: AiProvider): boolean {
+    const model = getAiModelByKey(modelIdentifier) ?? getAiModelById(modelIdentifier, provider) ?? getAiModelById(modelIdentifier);
+
+    if (model) {
+        return model.capabilities.supportsVision === true;
+    }
+
+    const normalizedModelIdentifier = modelIdentifier.trim().toLowerCase();
+    if (!normalizedModelIdentifier) return false;
+
+    const inferredProvider = provider ?? inferAiProviderFromModel(normalizedModelIdentifier);
+
+    if (inferredProvider === 'anthropic') {
+        return normalizedModelIdentifier.startsWith('claude-');
+    }
+
+    if (inferredProvider === 'openai') {
+        return matchesOpenAiVisionFallback(normalizedModelIdentifier);
+    }
+
+    return false;
+}
+
+export function isAiAgentChatCandidate(modelIdentifier: string, provider?: AiProvider): boolean {
+    const model = getAiModelByKey(modelIdentifier) ?? getAiModelById(modelIdentifier, provider) ?? getAiModelById(modelIdentifier);
+
+    if (model) {
+        const excludedStatuses = new Set<AiModelStatus>(['deprecated', 'retired']);
+        if (excludedStatuses.has(model.status)) return false;
+        if (model.status === 'specialized' && !model.tags.includes('agent') && !model.tags.includes('chat')) return false;
+        if (model.capabilities.supportsTextInput === false || model.capabilities.supportsTextOutput === false) return false;
+        if (model.capabilities.supportsStreaming === false || model.capabilities.supportsToolCalling === false) return false;
+        if (model.tags.includes('deep-research')) return false;
+        return true;
+    }
+
+    const normalizedModelIdentifier = modelIdentifier.trim().toLowerCase();
+    if (!normalizedModelIdentifier) return false;
+
+    const inferredProvider = provider ?? inferAiProviderFromModel(normalizedModelIdentifier);
+
+    if (inferredProvider === 'anthropic') {
+        return normalizedModelIdentifier.startsWith('claude-');
+    }
+
+    if (inferredProvider !== 'openai') return false;
+
+    const include =
+        normalizedModelIdentifier.startsWith('gpt-5') ||
+        normalizedModelIdentifier.startsWith('gpt-4o') ||
+        normalizedModelIdentifier.startsWith('gpt-4.1') ||
+        /^o\d/.test(normalizedModelIdentifier);
+
+    if (!include) return false;
+
+    const excludeSubstrings = [
+        'realtime',
+        'audio',
+        'transcribe',
+        'tts',
+        'image',
+        'dall-e',
+        'whisper',
+        'embedding',
+        'moderation',
+        'search-api',
+        'computer-use',
+        'deep-research'
+    ];
+
+    if (excludeSubstrings.some((substring) => normalizedModelIdentifier.includes(substring))) return false;
+    if (normalizedModelIdentifier.includes('-pro')) return false;
+
+    return true;
 }
 
 export function listAiModels(params?: {
