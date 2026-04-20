@@ -1,4 +1,4 @@
-import dayjs from 'dayjs';
+import dayjs from './dayjsTimezone.js';
 
 export const getDateFromUnix = (
     unixTimestamp: number,

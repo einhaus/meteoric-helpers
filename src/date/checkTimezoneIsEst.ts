@@ -1,7 +1,4 @@
-import dayjs from 'dayjs';
-import timezone from 'dayjs/plugin/timezone.js';
-
-dayjs.extend(timezone);
+import dayjs from './dayjsTimezone.js';
 
 export const checkTimezoneIsEst = () => {
     if (dayjs.tz.guess() !== 'America/New_York')

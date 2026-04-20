@@ -1,8 +1,5 @@
 import { ymd, ymdhms, ymdhmss } from './constants.js';
-import dayjs from 'dayjs';
-import timezone from 'dayjs/plugin/timezone.js';
-
-dayjs.extend(timezone);
+import dayjs from './dayjsTimezone.js';
 
 export const getDateString = (
     returnFormat: 'ymd' | 'ymdhms' | 'ymdhmss' | 'iso' | 'iso8601' | 'unix' | 'readable1' = 'ymd',

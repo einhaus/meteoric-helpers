@@ -1,7 +1,6 @@
 import { type DateInterval, ymd, ymdhms, ymdhmss } from './constants.js';
-import dayjs from 'dayjs';
+import dayjs from './dayjsTimezone.js';
 
-// eslint-disable-next-line complexity
 export const getDate = (config?: {
     format?:
         | 'ymd'

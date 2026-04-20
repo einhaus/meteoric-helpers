@@ -57,6 +57,7 @@ export * from './date/getShortMonthString.js';
 export * from './date/getStartOrEndUnix.js';
 export * from './date/getDaysAgo.js';
 export * from './date/getsDaysSinceDate.js';
+export * from './date/dayjsTimezone.js';
 export * from './date/generateTimestampRanges.js';
 export * from './date/getDatePlusMinus.js';
 export * from './math/getOptionSellQuantity.js';

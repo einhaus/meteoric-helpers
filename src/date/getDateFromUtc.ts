@@ -1,7 +1,5 @@
 import { ymd, ymdhm, ymdhms } from './constants.js';
-import dayjs from 'dayjs';
-import utc from 'dayjs/plugin/utc.js';
-dayjs.extend(utc);
+import dayjs from './dayjsTimezone.js';
 
 export const getDateFromUtc = (
     dateTime: string | Date | number,
