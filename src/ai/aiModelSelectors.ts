@@ -118,13 +118,13 @@ export function isAiAgentChatCandidate(modelIdentifier: string, provider?: AiPro
 
     if (inferredProvider !== 'openai') return false;
 
-    const include =
+    const shouldInclude =
         normalizedModelIdentifier.startsWith('gpt-5') ||
         normalizedModelIdentifier.startsWith('gpt-4o') ||
         normalizedModelIdentifier.startsWith('gpt-4.1') ||
         /^o\d/.test(normalizedModelIdentifier);
 
-    if (!include) return false;
+    if (!shouldInclude) return false;
 
     const excludeSubstrings = [
         'realtime',
@@ -155,13 +155,14 @@ export function listAiModels(params?: {
 }): AiModelCatalogEntry[] {
     const requestedStatuses = params?.statuses?.length ? new Set(params.statuses) : null;
     const normalizedTags = params?.tags?.map((tag) => tag.trim().toLowerCase()).filter(Boolean) ?? [];
-    const includeLegacy = params?.includeLegacy ?? false;
+    const shouldIncludeLegacy = params?.includeLegacy ?? false;
 
     return AI_MODEL_CATALOG.filter((model) => {
         if (params?.provider && model.provider !== params.provider) return false;
+
         if (requestedStatuses) {
             if (!requestedStatuses.has(model.status)) return false;
-        } else if (!includeLegacy && (model.status === 'legacy' || model.status === 'deprecated' || model.status === 'retired')) {
+        } else if (!shouldIncludeLegacy && (model.status === 'legacy' || model.status === 'deprecated' || model.status === 'retired')) {
             return false;
         }
 
@@ -279,23 +280,28 @@ export function estimateAiModelCostUsd(params: {
 
     const totalPromptTokens = params.inputTokens + cacheReadInputTokens + cacheWriteInputTokens;
 
-    const longContextApplied =
+    const isLongContextApplied =
         model.pricing.longContextThresholdInputTokens !== null && totalPromptTokens > model.pricing.longContextThresholdInputTokens;
 
-    const inputRate = longContextApplied
+    const inputRate = isLongContextApplied
         ? (model.pricing.longContextInputUsdPerMillionTokens ?? model.pricing.inputUsdPerMillionTokens)
         : model.pricing.inputUsdPerMillionTokens;
 
-    const cacheReadRate = longContextApplied
+    const cacheReadRate = isLongContextApplied
         ? (model.pricing.longContextCachedInputUsdPerMillionTokens ?? model.pricing.cachedInputUsdPerMillionTokens)
         : model.pricing.cachedInputUsdPerMillionTokens;
 
-    const outputRate = longContextApplied
+    const outputRate = isLongContextApplied
         ? (model.pricing.longContextOutputUsdPerMillionTokens ?? model.pricing.outputUsdPerMillionTokens)
         : model.pricing.outputUsdPerMillionTokens;
 
-    const cacheWriteRate =
-        cacheWriteMode === '1h' ? model.pricing.cacheWrite1hUsdPerMillionTokens : model.pricing.cacheWrite5mUsdPerMillionTokens;
+    const cacheWriteRate = isLongContextApplied
+        ? cacheWriteMode === '1h'
+            ? (model.pricing.longContextCacheWrite1hUsdPerMillionTokens ?? model.pricing.cacheWrite1hUsdPerMillionTokens)
+            : (model.pricing.longContextCacheWrite5mUsdPerMillionTokens ?? model.pricing.cacheWrite5mUsdPerMillionTokens)
+        : cacheWriteMode === '1h'
+          ? model.pricing.cacheWrite1hUsdPerMillionTokens
+          : model.pricing.cacheWrite5mUsdPerMillionTokens;
 
     if (inputRate === null && cacheReadRate === null && cacheWriteRate === null && outputRate === null) {
         return null;
@@ -315,7 +321,7 @@ export function estimateAiModelCostUsd(params: {
         cacheReadCostUsd: roundUsd(cacheReadCostUsd),
         cacheWriteCostUsd: roundUsd(cacheWriteCostUsd),
         totalCostUsd: roundUsd(totalCostUsd),
-        longContextApplied,
+        longContextApplied: isLongContextApplied,
         totalPromptTokens,
         cacheWriteMode
     };

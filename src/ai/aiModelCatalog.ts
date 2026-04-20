@@ -48,9 +48,11 @@ const OPENAI_GPT_5_4_REASONING_LEVELS = ['none', 'low', 'medium', 'high', 'xhigh
 const OPENAI_GPT_5_1_REASONING_LEVELS = ['none', 'low', 'medium', 'high'] as const;
 const OPENAI_GPT_5_REASONING_LEVELS = ['minimal', 'low', 'medium', 'high'] as const;
 const OPENAI_GPT_PRO_REASONING_LEVELS = ['medium', 'high', 'xhigh'] as const;
+
 const OPENAI_GPT_5_PARAMETER_POLICIES: AiModelParameterPolicies = {
     temperature: 'unsupported'
 };
+
 const OPENAI_GPT_5_1_PARAMETER_POLICIES: AiModelParameterPolicies = {
     temperature: 'requiresReasoningEffortNone'
 };
@@ -532,12 +534,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextOutputUsdPerMillionTokens: null,
             notes: null
         }),
-        sources: [
-            createOpenAiModelSource('gpt-5.1-chat-latest'),
-            OPENAI_MODELS_SOURCE,
-            OPENAI_ALL_MODELS_SOURCE,
-            OPENAI_PRICING_SOURCE
-        ],
+        sources: [createOpenAiModelSource('gpt-5.1-chat-latest'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
         tags: ['legacy', 'alias', 'chat', 'compatibility'],
         parameterPolicies: OPENAI_GPT_5_1_PARAMETER_POLICIES
     },
@@ -1529,10 +1526,12 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             outputUsdPerMillionTokens: 15,
             cacheWrite5mUsdPerMillionTokens: 3.75,
             cacheWrite1hUsdPerMillionTokens: 6,
-            longContextThresholdInputTokens: null,
-            longContextInputUsdPerMillionTokens: null,
-            longContextCachedInputUsdPerMillionTokens: null,
-            longContextOutputUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 200_000,
+            longContextInputUsdPerMillionTokens: 6,
+            longContextCachedInputUsdPerMillionTokens: 0.6,
+            longContextCacheWrite5mUsdPerMillionTokens: 7.5,
+            longContextCacheWrite1hUsdPerMillionTokens: 12,
+            longContextOutputUsdPerMillionTokens: 22.5,
             notes: null
         }),
         sources: [ANTHROPIC_MODELS_SOURCE, ANTHROPIC_PRICING_SOURCE],
@@ -1784,10 +1783,12 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             outputUsdPerMillionTokens: 15,
             cacheWrite5mUsdPerMillionTokens: 3.75,
             cacheWrite1hUsdPerMillionTokens: 6,
-            longContextThresholdInputTokens: null,
-            longContextInputUsdPerMillionTokens: null,
-            longContextCachedInputUsdPerMillionTokens: null,
-            longContextOutputUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 200_000,
+            longContextInputUsdPerMillionTokens: 6,
+            longContextCachedInputUsdPerMillionTokens: 0.6,
+            longContextCacheWrite5mUsdPerMillionTokens: 7.5,
+            longContextCacheWrite1hUsdPerMillionTokens: 12,
+            longContextOutputUsdPerMillionTokens: 22.5,
             notes: null
         }),
         sources: [ANTHROPIC_MODEL_DEPRECATIONS_SOURCE, ANTHROPIC_PRICING_SOURCE],

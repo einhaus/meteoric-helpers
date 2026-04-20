@@ -56,6 +56,8 @@ export type AiModelPricing = Readonly<{
     longContextThresholdInputTokens: number | null;
     longContextInputUsdPerMillionTokens: number | null;
     longContextCachedInputUsdPerMillionTokens: number | null;
+    longContextCacheWrite5mUsdPerMillionTokens?: number | null;
+    longContextCacheWrite1hUsdPerMillionTokens?: number | null;
     longContextOutputUsdPerMillionTokens: number | null;
     notes: string | null;
 }>;
