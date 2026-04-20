@@ -55,6 +55,19 @@ describe('AI request preset helpers', () => {
         expect(config.builtInWebSearchContextSize).toBe('high');
     });
 
+    it('resolves creative-writing presets to the flagship reasoning model without a default temperature', () => {
+        const config = resolveAiRequestConfig({
+            preset: 'creativeWriting',
+            provider: 'openai'
+        });
+
+        expect(config.provider).toBe('openai');
+        expect(config.modelKey).toBe('openai:gpt-5.4');
+        expect(config.reasoningEffort).toBe('low');
+        expect(config.temperature).toBeNull();
+        expect(config.maxOutputTokens).toBe(6_000);
+    });
+
     it('supports explicit model overrides that are not yet in the shared catalog', () => {
         const config = resolveAiRequestConfig({
             preset: 'structuredExtraction',

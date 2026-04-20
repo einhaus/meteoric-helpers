@@ -74,11 +74,11 @@ export const AI_REQUEST_PRESETS: readonly AiRequestPresetDefinition[] = [
     createRequestPreset({
         key: 'creativeWriting',
         description: 'Long-form creative or motivational writing where some variation is desirable.',
-        modelProfile: 'balanced',
+        modelProfile: 'reasoning',
         preferredProvider: null,
         reasoningEffort: 'low',
         anthropicThinkingBudgetTokens: null,
-        temperature: 0.7,
+        temperature: null,
         maxOutputTokens: 6_000,
         useStructuredOutputs: false,
         useToolCalling: false,
