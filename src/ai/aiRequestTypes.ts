@@ -1,3 +1,4 @@
+import type { AiInferenceProfileKey } from './aiInferenceProfiles.js';
 import type { AiModelCatalogEntry, AiModelProfile, AiProvider, AiReasoningEffort } from './aiModelTypes.js';
 
 export type AiRequestPreset =
@@ -20,9 +21,10 @@ export type AiRequestPresetDefinition = Readonly<{
     key: AiRequestPreset;
     description: string;
     modelProfile: AiModelProfile;
+    inferenceProfileKey?: AiInferenceProfileKey | null;
     preferredProvider: AiProvider | null;
-    reasoningEffort: AiReasoningEffort | null;
-    anthropicThinkingBudgetTokens: number | null;
+    reasoningEffort?: AiReasoningEffort | null;
+    anthropicThinkingBudgetTokens?: number | null;
     temperature: number | null;
     maxOutputTokens: number | null;
     useStructuredOutputs: boolean;
@@ -37,6 +39,7 @@ export type AiRequestPresetDefinition = Readonly<{
 export type AiRequestConfigOverride = Readonly<{
     model: string | null;
     modelProfile: AiModelProfile | null;
+    inferenceProfileKey?: AiInferenceProfileKey | null;
     reasoningEffort: AiReasoningEffort | null;
     anthropicThinkingBudgetTokens: number | null;
     temperature: number | null;
@@ -54,6 +57,7 @@ export type AiResolvedRequestConfig = Readonly<{
     presetDescription: string;
     provider: AiProvider;
     modelProfile: AiModelProfile;
+    inferenceProfileKey: AiInferenceProfileKey | null;
     catalogEntry: AiModelCatalogEntry | null;
     modelKey: string;
     modelId: string;

@@ -9,8 +9,9 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.provider).toBe('openai');
-        expect(config.modelKey).toBe('openai:gpt-5.4');
-        expect(config.reasoningEffort).toBe('medium');
+        expect(config.modelKey).toBe('openai:gpt-5.5');
+        expect(config.inferenceProfileKey).toBe('reasoning_high');
+        expect(config.reasoningEffort).toBe('high');
         expect(config.maxOutputTokens).toBe(8_000);
         expect(config.useToolCalling).toBe(true);
         expect(config.parallelToolCalls).toBe(true);
@@ -26,6 +27,7 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.modelKey).toBe('openai:gpt-5.4-nano');
+        expect(config.inferenceProfileKey).toBe('reasoning_none');
         expect(config.requestedMaxOutputTokens).toBe(200_000);
         expect(config.maxOutputTokens).toBe(128_000);
         expect(config.warnings.some((warning) => warning.includes('capped'))).toBe(true);
@@ -39,9 +41,10 @@ describe('AI request preset helpers', () => {
 
         expect(config.provider).toBe('anthropic');
         expect(config.modelKey).toBe('anthropic:claude-sonnet-4-6');
+        expect(config.inferenceProfileKey).toBe('reasoning_medium');
         expect(config.reasoningEffort).toBeNull();
         expect(config.anthropicThinkingBudgetTokens).toBe(2_048);
-        expect(config.warnings.some((warning) => warning.includes('Reasoning effort was cleared'))).toBe(true);
+        expect(config.warnings.some((warning) => warning.includes('Reasoning effort was cleared'))).toBe(false);
     });
 
     it('clears anthropic temperature automatically when a thinking budget is active', () => {
@@ -64,19 +67,21 @@ describe('AI request preset helpers', () => {
 
         expect(config.provider).toBe('openai');
         expect(config.modelKey).toBe('openai:o3-deep-research');
+        expect(config.inferenceProfileKey).toBe('reasoning_high');
         expect(config.useBuiltInWebSearch).toBe(true);
         expect(config.builtInWebSearchContextSize).toBe('high');
     });
 
-    it('resolves creative-writing presets to the flagship reasoning model without a default temperature', () => {
+    it('resolves creative-writing presets to the shared balanced profile without a default temperature', () => {
         const config = resolveAiRequestConfig({
             preset: 'creativeWriting',
             provider: 'openai'
         });
 
         expect(config.provider).toBe('openai');
-        expect(config.modelKey).toBe('openai:gpt-5.4');
-        expect(config.reasoningEffort).toBe('low');
+        expect(config.modelKey).toBe('openai:gpt-5.5');
+        expect(config.inferenceProfileKey).toBe('reasoning_medium');
+        expect(config.reasoningEffort).toBe('medium');
         expect(config.temperature).toBeNull();
         expect(config.maxOutputTokens).toBe(6_000);
     });
@@ -88,9 +93,38 @@ describe('AI request preset helpers', () => {
             temperature: 0.35
         });
 
-        expect(config.modelKey).toBe('openai:gpt-5.4');
+        expect(config.modelKey).toBe('openai:gpt-5.5');
+        expect(config.inferenceProfileKey).toBe('reasoning_medium');
         expect(config.temperature).toBeNull();
         expect(config.warnings.some((warning) => warning.includes('does not support the temperature parameter'))).toBe(true);
+    });
+
+    it('lets model-profile selection control both model and default reasoning', () => {
+        const config = resolveAiRequestConfig({
+            preset: 'agentChat',
+            provider: 'openai',
+            modelProfile: 'fast'
+        });
+
+        expect(config.modelProfile).toBe('fast');
+        expect(config.modelKey).toBe('openai:gpt-5.4-mini');
+        expect(config.inferenceProfileKey).toBe('reasoning_low');
+        expect(config.reasoningEffort).toBe('low');
+        expect(config.overridesApplied).toContain('modelProfile');
+    });
+
+    it('supports inference-profile overrides independently from model-profile selection', () => {
+        const config = resolveAiRequestConfig({
+            preset: 'structuredExtraction',
+            provider: 'openai',
+            inferenceProfileKey: 'reasoning_high'
+        });
+
+        expect(config.modelProfile).toBe('balanced');
+        expect(config.modelKey).toBe('openai:gpt-5.5');
+        expect(config.inferenceProfileKey).toBe('reasoning_high');
+        expect(config.reasoningEffort).toBe('high');
+        expect(config.overridesApplied).toContain('inferenceProfileKey');
     });
 
     it('keeps temperature on GPT-5.1 only when reasoning effort resolves to none', () => {
@@ -108,7 +142,7 @@ describe('AI request preset helpers', () => {
 
         expect(supportedConfig.reasoningEffort).toBe('none');
         expect(supportedConfig.temperature).toBe(0.35);
-        expect(unsupportedConfig.reasoningEffort).toBe('low');
+        expect(unsupportedConfig.reasoningEffort).toBe('medium');
         expect(unsupportedConfig.temperature).toBeNull();
         expect(
             unsupportedConfig.warnings.some((warning) => warning.includes('only supports temperature when reasoning effort is set to "none"'))

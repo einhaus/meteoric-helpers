@@ -1,5 +1,12 @@
 import { AI_MODEL_CATALOG } from './aiModelCatalog.js';
-import { AI_GLOBAL_MODEL_PROFILES, AI_PROVIDER_MODEL_PROFILES } from './aiModelProfiles.js';
+import {
+    AI_GLOBAL_MODEL_PROFILE_DEFAULTS,
+    AI_GLOBAL_MODEL_PROFILES,
+    AI_PROVIDER_MODEL_PROFILE_DEFAULTS,
+    AI_PROVIDER_MODEL_PROFILES
+} from './aiModelProfiles.js';
+import type { AiInferenceProfileKey } from './aiInferenceProfiles.js';
+import type { AiModelProfileDefault } from './aiModelProfiles.js';
 import type {
     AiCacheWriteMode,
     AiModelCatalogEntry,
@@ -234,14 +241,43 @@ export function resolveAiModelId(model: AiModelCatalogEntry, preferSnapshot: boo
     return model.modelId;
 }
 
+export function getPreferredAiModelProfileDefault(provider: AiProvider, profile: AiModelProfile): AiModelProfileDefault {
+    return AI_PROVIDER_MODEL_PROFILE_DEFAULTS[provider][profile];
+}
+
 export function getPreferredAiModelKey(provider: AiProvider, profile: AiModelProfile): string | null {
     return AI_PROVIDER_MODEL_PROFILES[provider][profile];
+}
+
+export function getPreferredAiModelInferenceProfileKey(provider: AiProvider, profile: AiModelProfile): AiInferenceProfileKey | null {
+    return AI_PROVIDER_MODEL_PROFILE_DEFAULTS[provider][profile].inferenceProfileKey;
 }
 
 export function getPreferredAiModel(provider: AiProvider, profile: AiModelProfile): AiModelCatalogEntry | null {
     const modelKey = getPreferredAiModelKey(provider, profile);
     if (!modelKey) return null;
     return getAiModelByKey(modelKey);
+}
+
+export function getPreferredAiModelProfileConfig(params: {
+    provider?: AiProvider;
+    profile: AiModelProfile;
+}): (AiModelProfileDefault & { model: AiModelCatalogEntry | null }) | null {
+    const profileDefault = params.provider
+        ? AI_PROVIDER_MODEL_PROFILE_DEFAULTS[params.provider][params.profile]
+        : AI_GLOBAL_MODEL_PROFILE_DEFAULTS[params.profile];
+
+    if (!profileDefault.modelKey) {
+        return {
+            ...profileDefault,
+            model: null
+        };
+    }
+
+    return {
+        ...profileDefault,
+        model: getAiModelByKey(profileDefault.modelKey)
+    };
 }
 
 export function getPreferredAiModelId(params: { provider?: AiProvider; profile: AiModelProfile; preferSnapshot?: boolean }): string | null {

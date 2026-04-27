@@ -1,6 +1,6 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-04-20';
+const VERIFIED_AT = '2026-04-27';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -17,6 +17,12 @@ const OPENAI_ALL_MODELS_SOURCE: AiModelSource = {
 const OPENAI_PRICING_SOURCE: AiModelSource = {
     label: 'OpenAI pricing',
     url: 'https://developers.openai.com/api/docs/pricing',
+    verifiedAt: VERIFIED_AT
+};
+
+const OPENAI_LATEST_MODEL_GUIDE_SOURCE: AiModelSource = {
+    label: 'OpenAI latest model guide',
+    url: 'https://developers.openai.com/api/docs/guides/latest-model',
     verifiedAt: VERIFIED_AT
 };
 
@@ -44,6 +50,13 @@ const ANTHROPIC_MODEL_DEPRECATIONS_SOURCE: AiModelSource = {
     verifiedAt: VERIFIED_AT
 };
 
+const ANTHROPIC_RELEASE_NOTES_SOURCE: AiModelSource = {
+    label: 'Anthropic release notes',
+    url: 'https://platform.claude.com/docs/en/release-notes/overview',
+    verifiedAt: VERIFIED_AT
+};
+
+const OPENAI_GPT_5_5_REASONING_LEVELS = ['none', 'low', 'medium', 'high', 'xhigh'] as const;
 const OPENAI_GPT_5_4_REASONING_LEVELS = ['none', 'low', 'medium', 'high', 'xhigh'] as const;
 const OPENAI_GPT_5_1_REASONING_LEVELS = ['none', 'low', 'medium', 'high'] as const;
 const OPENAI_GPT_5_REASONING_LEVELS = ['minimal', 'low', 'medium', 'high'] as const;
@@ -68,6 +81,123 @@ const createOpenAiModelSource = (modelId: string): AiModelSource => ({
 });
 
 export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
+    {
+        modelKey: 'openai:gpt-5.5',
+        provider: 'openai',
+        modelId: 'gpt-5.5',
+        snapshotModelId: 'gpt-5.5-2026-04-23',
+        aliases: ['gpt-5.5-2026-04-23'],
+        displayName: 'GPT-5.5',
+        family: 'gpt-5.5',
+        description: 'OpenAI flagship model for complex reasoning, coding, agentic, and professional workflows.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: true,
+            supportsMcp: true,
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: OPENAI_GPT_5_5_REASONING_LEVELS,
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 1_050_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2025-12-01',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 5,
+            cachedInputUsdPerMillionTokens: 0.5,
+            outputUsdPerMillionTokens: 30,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 272_000,
+            longContextInputUsdPerMillionTokens: 10,
+            longContextCachedInputUsdPerMillionTokens: 1,
+            longContextOutputUsdPerMillionTokens: 45,
+            notes: 'Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full session.'
+        }),
+        sources: [
+            createOpenAiModelSource('gpt-5.5'),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_LATEST_MODEL_GUIDE_SOURCE
+        ],
+        tags: ['recommended', 'reasoning', 'coding', 'agent'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
+    },
+    {
+        modelKey: 'openai:gpt-5.5-pro',
+        provider: 'openai',
+        modelId: 'gpt-5.5-pro',
+        snapshotModelId: 'gpt-5.5-pro-2026-04-23',
+        aliases: ['gpt-5.5-pro-2026-04-23'],
+        displayName: 'GPT-5.5 pro',
+        family: 'gpt-5.5',
+        description:
+            'More precise GPT-5.5 variant for tough problems. Responses API requests may take minutes to finish (consider background mode).',
+        status: 'specialized',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: false,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: false,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: false,
+            supportsMcp: true,
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: OPENAI_GPT_PRO_REASONING_LEVELS,
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 1_050_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2025-12-01',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 30,
+            cachedInputUsdPerMillionTokens: null,
+            outputUsdPerMillionTokens: 180,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 272_000,
+            longContextInputUsdPerMillionTokens: 60,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: 270,
+            notes: 'Pricing page does not list cached-input token rates for GPT-5.5 pro. Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full session.'
+        }),
+        sources: [
+            createOpenAiModelSource('gpt-5.5-pro'),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_LATEST_MODEL_GUIDE_SOURCE
+        ],
+        tags: ['specialized', 'reasoning', 'slow', 'expensive', 'responses-only'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
+    },
     {
         modelKey: 'openai:gpt-5.4',
         provider: 'openai',
@@ -285,9 +415,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: ['gpt-5.2-2025-12-11'],
         displayName: 'GPT-5.2',
         family: 'gpt-5.2',
-        description: 'Previous frontier GPT-5 model still useful for compatibility while migrating to GPT-5.4.',
+        description: 'Previous frontier GPT-5 model still useful for compatibility while migrating to GPT-5.5.',
         status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.4',
+        recommendedReplacementModelKey: 'openai:gpt-5.5',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -340,7 +470,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         description:
             'Older pro GPT-5.2 variant for tough problems. Responses API only; may take minutes to finish (consider background mode).',
         status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.4-pro',
+        recommendedReplacementModelKey: 'openai:gpt-5.5-pro',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -392,7 +522,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         family: 'gpt-5.2',
         description: 'Chat-oriented GPT-5.2 model used in ChatGPT, kept mainly for compatibility with older integrations.',
         status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.4',
+        recommendedReplacementModelKey: 'openai:gpt-5.5',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -444,7 +574,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         family: 'gpt-5.1',
         description: 'Older GPT-5 generation kept for migrations and backward compatibility.',
         status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.4',
+        recommendedReplacementModelKey: 'openai:gpt-5.5',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -496,7 +626,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         family: 'gpt-5.1',
         description: 'Chat-oriented GPT-5.1 model used in ChatGPT, retained mainly for compatibility.',
         status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.4',
+        recommendedReplacementModelKey: 'openai:gpt-5.5',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -548,7 +678,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         family: 'gpt-5',
         description: 'Previous GPT-5 model for reasoning and agentic tasks across domains.',
         status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.1',
+        recommendedReplacementModelKey: 'openai:gpt-5.5',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -600,7 +730,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         family: 'gpt-5',
         description: 'Chat-oriented GPT-5 model used in ChatGPT, retained mainly for compatibility.',
         status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.4',
+        recommendedReplacementModelKey: 'openai:gpt-5.5',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -909,7 +1039,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         family: 'gpt-4o',
         description: 'Legacy multimodal GPT model retained for compatibility with existing apps.',
         status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.4',
+        recommendedReplacementModelKey: 'openai:gpt-5.5',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -1011,7 +1141,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         family: 'o1',
         description: 'Legacy full o-series reasoning model retained for compatibility.',
         status: 'legacy',
-        recommendedReplacementModelKey: 'openai:o3',
+        recommendedReplacementModelKey: 'openai:gpt-5.5',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -1062,7 +1192,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         family: 'o3',
         description: 'Legacy reasoning model for complex tasks, succeeded by GPT-5.',
         status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.4',
+        recommendedReplacementModelKey: 'openai:gpt-5.5',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -1526,13 +1656,13 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             outputUsdPerMillionTokens: 15,
             cacheWrite5mUsdPerMillionTokens: 3.75,
             cacheWrite1hUsdPerMillionTokens: 6,
-            longContextThresholdInputTokens: 200_000,
-            longContextInputUsdPerMillionTokens: 6,
-            longContextCachedInputUsdPerMillionTokens: 0.6,
-            longContextCacheWrite5mUsdPerMillionTokens: 7.5,
-            longContextCacheWrite1hUsdPerMillionTokens: 12,
-            longContextOutputUsdPerMillionTokens: 22.5,
-            notes: null
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextCacheWrite5mUsdPerMillionTokens: null,
+            longContextCacheWrite1hUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'Full 1M context window is included at standard pricing.'
         }),
         sources: [ANTHROPIC_MODELS_SOURCE, ANTHROPIC_PRICING_SOURCE],
         tags: ['recommended', 'balanced', 'agent', 'analysis']
@@ -1587,6 +1717,108 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         }),
         sources: [ANTHROPIC_MODELS_SOURCE, ANTHROPIC_PRICING_SOURCE],
         tags: ['recommended', 'fast', 'cheap', 'chat']
+    },
+    {
+        modelKey: 'anthropic:claude-opus-4-5-20251101',
+        provider: 'anthropic',
+        modelId: 'claude-opus-4-5-20251101',
+        snapshotModelId: 'claude-opus-4-5-20251101',
+        aliases: ['claude-opus-4-5'],
+        displayName: 'Claude Opus 4.5 (20251101)',
+        family: 'claude-opus-4',
+        description: 'Active Anthropic Opus 4.5 snapshot retained for compatibility with existing Opus 4.5 deployments.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: null,
+            supportsPromptCaching: true,
+            supportsWebSearch: null,
+            supportsFileSearch: null,
+            supportsComputerUse: null,
+            supportsMcp: null,
+            supportsReasoningEffort: false,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: null,
+        maxOutputTokens: null,
+        knowledgeCutoff: null,
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 5,
+            cachedInputUsdPerMillionTokens: 0.5,
+            outputUsdPerMillionTokens: 25,
+            cacheWrite5mUsdPerMillionTokens: 6.25,
+            cacheWrite1hUsdPerMillionTokens: 10,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'Active in the deprecations table; current overview no longer lists detailed limits for this older active model.'
+        }),
+        sources: [ANTHROPIC_MODEL_DEPRECATIONS_SOURCE, ANTHROPIC_PRICING_SOURCE, ANTHROPIC_RELEASE_NOTES_SOURCE],
+        tags: ['active', 'reasoning', 'compatibility']
+    },
+    {
+        modelKey: 'anthropic:claude-sonnet-4-5-20250929',
+        provider: 'anthropic',
+        modelId: 'claude-sonnet-4-5-20250929',
+        snapshotModelId: 'claude-sonnet-4-5-20250929',
+        aliases: ['claude-sonnet-4-5'],
+        displayName: 'Claude Sonnet 4.5 (20250929)',
+        family: 'claude-sonnet-4',
+        description: 'Active Anthropic Sonnet 4.5 snapshot retained for compatibility with existing Sonnet 4.5 deployments.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: null,
+            supportsPromptCaching: true,
+            supportsWebSearch: null,
+            supportsFileSearch: null,
+            supportsComputerUse: null,
+            supportsMcp: null,
+            supportsReasoningEffort: false,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: true,
+            supportsAdaptiveThinking: false
+        }),
+        contextWindowTokens: null,
+        maxOutputTokens: null,
+        knowledgeCutoff: null,
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 3,
+            cachedInputUsdPerMillionTokens: 0.3,
+            outputUsdPerMillionTokens: 15,
+            cacheWrite5mUsdPerMillionTokens: 3.75,
+            cacheWrite1hUsdPerMillionTokens: 6,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'Active in the deprecations table; current overview no longer lists detailed limits for this older active model.'
+        }),
+        sources: [ANTHROPIC_MODEL_DEPRECATIONS_SOURCE, ANTHROPIC_PRICING_SOURCE],
+        tags: ['active', 'balanced', 'compatibility']
     },
     {
         modelKey: 'anthropic:claude-opus-4-6',
@@ -1802,8 +2034,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: ['claude-3-haiku-latest'],
         displayName: 'Claude Haiku 3 (20240307)',
         family: 'claude-haiku-3',
-        description: 'Deprecated Anthropic Haiku 3 snapshot retained for compatibility.',
-        status: 'deprecated',
+        description: 'Retired Anthropic Haiku 3 snapshot retained for compatibility (requests now error).',
+        status: 'retired',
         recommendedReplacementModelKey: 'anthropic:claude-haiku-4-5',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
@@ -1843,7 +2075,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: null
         }),
         sources: [ANTHROPIC_MODEL_DEPRECATIONS_SOURCE, ANTHROPIC_PRICING_SOURCE],
-        tags: ['deprecated', 'cheap', 'compatibility']
+        tags: ['retired', 'cheap', 'compatibility']
     },
     {
         modelKey: 'anthropic:claude-3-7-sonnet-20250219',

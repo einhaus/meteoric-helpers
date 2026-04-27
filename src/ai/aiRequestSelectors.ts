@@ -1,5 +1,14 @@
 import { AI_REQUEST_PRESETS } from './aiRequestPresets.js';
-import { getAiModelById, getAiModelByKey, getPreferredAiModel, inferAiProviderFromModel, normalizeAiModelKey, resolveAiModelId } from './aiModelSelectors.js';
+import { getAiInferenceProfile, type AiInferenceProfileDefinition, type AiInferenceProfileKey } from './aiInferenceProfiles.js';
+import {
+    getAiModelById,
+    getAiModelByKey,
+    getPreferredAiModel,
+    getPreferredAiModelProfileDefault,
+    inferAiProviderFromModel,
+    normalizeAiModelKey,
+    resolveAiModelId
+} from './aiModelSelectors.js';
 import type { AiModelCatalogEntry, AiModelProfile, AiProvider } from './aiModelTypes.js';
 import type { AiRequestConfigOverride, AiRequestPreset, AiRequestPresetDefinition, AiResolvedRequestConfig } from './aiRequestTypes.js';
 
@@ -24,11 +33,12 @@ function resolveOverride<T>(params: {
     return params.presetValue;
 }
 
-function buildUnknownModelResult(params: {
-    explicitModel: string;
-    provider: AiProvider;
-    warnings: string[];
-}): { catalogEntry: AiModelCatalogEntry | null; modelKey: string; modelId: string; modelDisplayName: string } {
+function buildUnknownModelResult(params: { explicitModel: string; provider: AiProvider; warnings: string[] }): {
+    catalogEntry: AiModelCatalogEntry | null;
+    modelKey: string;
+    modelId: string;
+    modelDisplayName: string;
+} {
     const explicitModel = params.explicitModel.trim();
     const providerPrefixedMatch = explicitModel.match(/^(anthropic|openai)\s*:\s*(.+)$/i);
 
@@ -65,6 +75,32 @@ function resolveProvider(params: {
     return params.preset.preferredProvider ?? 'openai';
 }
 
+function resolveInferenceProfileKey(params: {
+    provider: AiProvider;
+    modelProfile: AiModelProfile;
+    preset: AiRequestPresetDefinition;
+    overrideValue: AiInferenceProfileKey | null | undefined;
+    overridesApplied: string[];
+}): AiInferenceProfileKey | null {
+    if (params.overrideValue !== null && params.overrideValue !== undefined) {
+        params.overridesApplied.push('inferenceProfileKey');
+        return params.overrideValue;
+    }
+
+    if (params.preset.inferenceProfileKey !== undefined) return params.preset.inferenceProfileKey;
+
+    return getPreferredAiModelProfileDefault(params.provider, params.modelProfile).inferenceProfileKey;
+}
+
+function resolveInferenceProfile(inferenceProfileKey: AiInferenceProfileKey | null): AiInferenceProfileDefinition | null {
+    if (!inferenceProfileKey) return null;
+
+    const inferenceProfile = getAiInferenceProfile(inferenceProfileKey);
+    if (!inferenceProfile) throw new Error(`Unknown AI inference profile: ${inferenceProfileKey}`);
+
+    return inferenceProfile;
+}
+
 function resolveCatalogModel(params: {
     provider: AiProvider;
     explicitModel: string | null;
@@ -72,7 +108,10 @@ function resolveCatalogModel(params: {
     warnings: string[];
 }): { catalogEntry: AiModelCatalogEntry | null; modelKey: string; modelId: string; modelDisplayName: string } {
     if (params.explicitModel) {
-        const matchingCatalogModel = getAiModelByKey(params.explicitModel) ?? getAiModelById(params.explicitModel, params.provider) ?? getAiModelById(params.explicitModel);
+        const matchingCatalogModel =
+            getAiModelByKey(params.explicitModel) ??
+            getAiModelById(params.explicitModel, params.provider) ??
+            getAiModelById(params.explicitModel);
 
         if (matchingCatalogModel) {
             if (matchingCatalogModel.provider !== params.provider) {
@@ -97,6 +136,7 @@ function resolveCatalogModel(params: {
     }
 
     const preferredModel = getPreferredAiModel(params.provider, params.modelProfile);
+
     if (!preferredModel) {
         throw new Error(
             `No preferred model is configured for provider "${params.provider}" and profile "${params.modelProfile}". Supply an explicit model override or update aiModelProfiles.ts.`
@@ -118,21 +158,22 @@ function maybeDisableStructuredOutputs(params: {
 }): boolean {
     if (!params.requested) return false;
     if (!params.catalogEntry) return true;
+
     if (params.catalogEntry.capabilities.supportsStructuredOutputs === false) {
-        params.warnings.push(`Structured outputs were disabled because ${params.catalogEntry.modelKey} does not advertise structured-output support.`);
+        params.warnings.push(
+            `Structured outputs were disabled because ${params.catalogEntry.modelKey} does not advertise structured-output support.`
+        );
+
         return false;
     }
 
     return true;
 }
 
-function maybeDisableToolCalling(params: {
-    requested: boolean;
-    catalogEntry: AiModelCatalogEntry | null;
-    warnings: string[];
-}): boolean {
+function maybeDisableToolCalling(params: { requested: boolean; catalogEntry: AiModelCatalogEntry | null; warnings: string[] }): boolean {
     if (!params.requested) return false;
     if (!params.catalogEntry) return true;
+
     if (params.catalogEntry.capabilities.supportsToolCalling === false) {
         params.warnings.push(`Tool calling was disabled because ${params.catalogEntry.modelKey} does not advertise tool-calling support.`);
         return false;
@@ -148,8 +189,12 @@ function maybeDisableBuiltInWebSearch(params: {
 }): boolean {
     if (!params.requested) return false;
     if (!params.catalogEntry) return true;
+
     if (params.catalogEntry.capabilities.supportsWebSearch === false) {
-        params.warnings.push(`Built-in web search was disabled because ${params.catalogEntry.modelKey} does not advertise web-search support.`);
+        params.warnings.push(
+            `Built-in web search was disabled because ${params.catalogEntry.modelKey} does not advertise web-search support.`
+        );
+
         return false;
     }
 
@@ -171,6 +216,7 @@ function clampMaxOutputTokens(params: {
         params.warnings.push(
             `Requested max output tokens (${params.requestedMaxOutputTokens}) were capped to the model maximum (${modelMaxOutputTokens}).`
         );
+
         return modelMaxOutputTokens;
     }
 
@@ -186,7 +232,10 @@ function resolveReasoningEffort(params: {
     if (!params.catalogEntry) return params.requestedReasoningEffort;
 
     if (params.catalogEntry.capabilities.supportsReasoningEffort === false) {
-        params.warnings.push(`Reasoning effort was cleared because ${params.catalogEntry.modelKey} uses a different reasoning/thinking interface.`);
+        params.warnings.push(
+            `Reasoning effort was cleared because ${params.catalogEntry.modelKey} uses a different reasoning/thinking interface.`
+        );
+
         return null;
     }
 
@@ -196,10 +245,29 @@ function resolveReasoningEffort(params: {
         params.warnings.push(
             `Reasoning effort "${params.requestedReasoningEffort}" was cleared because ${params.catalogEntry.modelKey} supports only: ${supportedLevels.join(', ')}.`
         );
+
         return null;
     }
 
     return params.requestedReasoningEffort;
+}
+
+function resolveRequestedReasoningEffort(params: {
+    provider: AiProvider;
+    overrideValue: AiResolvedRequestConfig['reasoningEffort'] | null | undefined;
+    preset: AiRequestPresetDefinition;
+    inferenceProfile: AiInferenceProfileDefinition | null;
+    overridesApplied: string[];
+}): AiResolvedRequestConfig['reasoningEffort'] {
+    if (params.overrideValue !== null && params.overrideValue !== undefined) {
+        params.overridesApplied.push('reasoningEffort');
+        return params.overrideValue;
+    }
+
+    if (params.provider !== 'openai') return null;
+    if (params.inferenceProfile) return params.inferenceProfile.reasoningEffort;
+
+    return params.preset.reasoningEffort ?? null;
 }
 
 function resolveAnthropicThinkingBudgetTokens(params: {
@@ -218,11 +286,32 @@ function resolveAnthropicThinkingBudgetTokens(params: {
     if (!params.catalogEntry) return params.requestedBudgetTokens;
 
     if (params.catalogEntry.capabilities.supportsExtendedThinking === false) {
-        params.warnings.push(`Anthropic thinking budget tokens were cleared because ${params.catalogEntry.modelKey} does not advertise extended-thinking support.`);
+        params.warnings.push(
+            `Anthropic thinking budget tokens were cleared because ${params.catalogEntry.modelKey} does not advertise extended-thinking support.`
+        );
+
         return null;
     }
 
     return params.requestedBudgetTokens;
+}
+
+function resolveRequestedAnthropicThinkingBudgetTokens(params: {
+    provider: AiProvider;
+    overrideValue: number | null | undefined;
+    preset: AiRequestPresetDefinition;
+    inferenceProfile: AiInferenceProfileDefinition | null;
+    overridesApplied: string[];
+}): number | null {
+    if (params.overrideValue !== null && params.overrideValue !== undefined) {
+        params.overridesApplied.push('anthropicThinkingBudgetTokens');
+        return params.overrideValue;
+    }
+
+    if (params.provider !== 'anthropic') return null;
+    if (params.inferenceProfile) return params.inferenceProfile.anthropicThinkingBudgetTokens;
+
+    return params.preset.anthropicThinkingBudgetTokens ?? null;
 }
 
 function resolveTemperature(params: {
@@ -253,6 +342,7 @@ function resolveTemperature(params: {
         params.warnings.push(
             `Temperature was cleared because ${params.catalogEntry.modelKey} only supports temperature when reasoning effort is set to "none".`
         );
+
         return null;
     }
 
@@ -265,10 +355,7 @@ export function getAiRequestPreset(preset: AiRequestPreset): AiRequestPresetDefi
     return matchingPreset;
 }
 
-export function listAiRequestPresets(params?: {
-    provider?: AiProvider;
-    tags?: readonly string[];
-}): AiRequestPresetDefinition[] {
+export function listAiRequestPresets(params?: { provider?: AiProvider; tags?: readonly string[] }): AiRequestPresetDefinition[] {
     const normalizedTags = params?.tags?.map((tag) => tag.trim().toLowerCase()).filter(Boolean) ?? [];
 
     return AI_REQUEST_PRESETS.filter((preset) => {
@@ -290,6 +377,7 @@ export function resolveAiRequestConfig(
     const warnings: string[] = [];
     const overridesApplied: string[] = [];
     const explicitModel = normalizeNonEmptyString(params.model);
+
     const provider = resolveProvider({
         requestedProvider: params.provider,
         explicitModel,
@@ -303,6 +391,16 @@ export function resolveAiRequestConfig(
         overridesApplied
     });
 
+    const inferenceProfileKey = resolveInferenceProfileKey({
+        provider,
+        modelProfile,
+        preset,
+        overrideValue: params.inferenceProfileKey,
+        overridesApplied
+    });
+
+    const inferenceProfile = resolveInferenceProfile(inferenceProfileKey);
+
     const resolvedModel = resolveCatalogModel({
         provider,
         explicitModel,
@@ -310,19 +408,19 @@ export function resolveAiRequestConfig(
         warnings
     });
 
-    const requestedReasoningEffort = resolveOverride({
+    const requestedReasoningEffort = resolveRequestedReasoningEffort({
+        provider,
         overrideValue: params.reasoningEffort,
-        presetValue: preset.reasoningEffort,
-        fieldName: 'reasoningEffort',
+        preset,
+        inferenceProfile,
         overridesApplied
     });
 
-    const presetAnthropicThinkingBudgetTokens = provider === 'anthropic' ? preset.anthropicThinkingBudgetTokens : null;
-
-    const requestedAnthropicThinkingBudgetTokens = resolveOverride({
+    const requestedAnthropicThinkingBudgetTokens = resolveRequestedAnthropicThinkingBudgetTokens({
+        provider,
         overrideValue: params.anthropicThinkingBudgetTokens,
-        presetValue: presetAnthropicThinkingBudgetTokens,
-        fieldName: 'anthropicThinkingBudgetTokens',
+        preset,
+        inferenceProfile,
         overridesApplied
     });
 
@@ -437,9 +535,12 @@ export function resolveAiRequestConfig(
         presetDescription: preset.description,
         provider,
         modelProfile,
+        inferenceProfileKey,
         catalogEntry: resolvedModel.catalogEntry,
         modelKey: resolvedModel.catalogEntry?.modelKey ?? resolvedModel.modelKey,
-        modelId: resolvedModel.catalogEntry ? resolveAiModelId(resolvedModel.catalogEntry, params.preferSnapshot ?? false) : resolvedModel.modelId,
+        modelId: resolvedModel.catalogEntry
+            ? resolveAiModelId(resolvedModel.catalogEntry, params.preferSnapshot ?? false)
+            : resolvedModel.modelId,
         modelDisplayName: resolvedModel.modelDisplayName,
         requestedMaxOutputTokens,
         modelMaxOutputTokens: resolvedModel.catalogEntry?.maxOutputTokens ?? null,

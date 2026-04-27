@@ -1,6 +1,6 @@
 {
   "name": "@einhaus/meteoric-helpers",
-  "version": "1.0.120",
+  "version": "1.0.121",
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -75,7 +75,7 @@
     "prettier": "3.8.3",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.0",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.5"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/",
@@ -83,16 +83,16 @@
   },
   "private": false,
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1033.0",
-    "@aws-sdk/client-ses": "^3.1033.0",
-    "@aws-sdk/s3-request-presigner": "^3.1033.0",
+    "@aws-sdk/client-s3": "^3.1037.0",
+    "@aws-sdk/client-ses": "^3.1037.0",
+    "@aws-sdk/s3-request-presigner": "^3.1037.0",
     "@clickhouse/client": "^1.18.3",
     "@eslint/eslintrc": "^3.3.5",
     "@redis/client": "^5.12.1",
     "bcrypt": "^6.0.0",
     "dayjs": "^1.11.20",
     "mime-types": "^3.0.2",
-    "mysql2": "^3.22.1",
+    "mysql2": "^3.22.3",
     "nanoid": "^5.1.9",
     "node-cache": "^5.1.2",
     "pg": "^8.20.0"
