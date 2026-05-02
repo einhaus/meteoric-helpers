@@ -685,14 +685,59 @@ const handleRetry = async (details: {
     return true;
 };
 
+const ERROR_MESSAGE_KEYS = ['errorMessage', 'message', 'error', 'Message', 'Error'] as const;
+
+const serializeErrorPayload = (value: object): string | null => {
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return null;
+    }
+};
+
+const normalizeErrorMessageValue = (value: unknown): string | null => {
+    if (typeof value === 'string') {
+        const trimmedValue = value.trim();
+        return trimmedValue.length ? trimmedValue : null;
+    }
+
+    if (value instanceof Error) return value.message;
+
+    if (Array.isArray(value)) {
+        const messages = value.map((item) => normalizeErrorMessageValue(item)).filter((message): message is string => Boolean(message));
+
+        return messages.length ? messages.join('; ') : serializeErrorPayload(value);
+    }
+
+    if (value && typeof value === 'object') {
+        const record = value as Record<string, unknown>;
+
+        for (const key of ERROR_MESSAGE_KEYS) {
+            const message = normalizeErrorMessageValue(record[key]);
+
+            if (message) return message;
+        }
+
+        if (Array.isArray(record.errorMessages)) return normalizeErrorMessageValue(record.errorMessages);
+
+        return serializeErrorPayload(record);
+    }
+
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return value.toString();
+    if (typeof value === 'symbol') return value.description ?? 'symbol';
+
+    return null;
+};
+
 const extractErrorMessage = async (response: Response): Promise<string> => {
     const text = typeof response.text === 'function' ? await response.text() : '';
-    const message = text?.trim().length ? text : response.statusText;
+    const fallbackMessage = text.trim().length ? text : response.statusText;
 
     try {
-        const json = JSON.parse(text) as Record<string, string>;
-        return json.errorMessage ?? json.message ?? json.error ?? json.Message ?? json.Error ?? json.errorMessages?.toString() ?? text;
+        const json = JSON.parse(text) as unknown;
+        return normalizeErrorMessageValue(json) ?? fallbackMessage;
     } catch {
-        return message;
+        return fallbackMessage;
     }
 };

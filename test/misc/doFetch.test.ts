@@ -137,4 +137,40 @@ describe('doFetch', () => {
             rmSync(tempRoot, { recursive: true, force: true });
         }
     });
+
+    it('extracts a string message from OpenAI-style nested error payloads', async () => {
+        globalThis.fetch = vi.fn(async () => {
+            return new Response(
+                JSON.stringify({
+                    error: {
+                        message: 'The model `gpt-example` does not exist or you do not have access to it.',
+                        type: 'invalid_request_error',
+                        code: 'model_not_found'
+                    }
+                }),
+                {
+                    status: 404,
+                    statusText: 'Not Found',
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+        }) as typeof fetch;
+
+        const response = await doFetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            type: 'json',
+            timesToRetry: 0,
+            params: { model: 'gpt-example', messages: [] }
+        });
+
+        expect('isError' in response && response.isError).toBe(true);
+
+        if (!('isError' in response) || !response.isError) {
+            throw new Error('Expected doFetch to return an error response');
+        }
+
+        expect(response.message).toBe('The model `gpt-example` does not exist or you do not have access to it.');
+        expect(typeof response.message).toBe('string');
+        expect(response.statusCode).toBe(404);
+    });
 });
