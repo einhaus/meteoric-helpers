@@ -1,6 +1,6 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-04-27';
+const VERIFIED_AT = '2026-05-04';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -17,6 +17,12 @@ const OPENAI_ALL_MODELS_SOURCE: AiModelSource = {
 const OPENAI_PRICING_SOURCE: AiModelSource = {
     label: 'OpenAI pricing',
     url: 'https://developers.openai.com/api/docs/pricing',
+    verifiedAt: VERIFIED_AT
+};
+
+const OPENAI_DEPRECATIONS_SOURCE: AiModelSource = {
+    label: 'OpenAI deprecations',
+    url: 'https://developers.openai.com/api/docs/deprecations',
     verifiedAt: VERIFIED_AT
 };
 
@@ -53,6 +59,18 @@ const ANTHROPIC_MODEL_DEPRECATIONS_SOURCE: AiModelSource = {
 const ANTHROPIC_RELEASE_NOTES_SOURCE: AiModelSource = {
     label: 'Anthropic release notes',
     url: 'https://platform.claude.com/docs/en/release-notes/overview',
+    verifiedAt: VERIFIED_AT
+};
+
+const ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE: AiModelSource = {
+    label: 'Anthropic structured outputs',
+    url: 'https://platform.claude.com/docs/en/build-with-claude/structured-outputs',
+    verifiedAt: VERIFIED_AT
+};
+
+const ANTHROPIC_WEB_SEARCH_SOURCE: AiModelSource = {
+    label: 'Anthropic web search tool',
+    url: 'https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool',
     verifiedAt: VERIFIED_AT
 };
 
@@ -408,6 +426,58 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
+        modelKey: 'openai:gpt-5.3-chat-latest',
+        provider: 'openai',
+        modelId: 'gpt-5.3-chat-latest',
+        snapshotModelId: null,
+        aliases: [],
+        displayName: 'GPT-5.3 Chat (latest)',
+        family: 'gpt-5.3',
+        description: 'Chat-oriented GPT-5.3 Instant model used in ChatGPT and the replacement for deprecated GPT-5 chat aliases.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: null,
+            supportsFileSearch: null,
+            supportsComputerUse: null,
+            supportsMcp: null,
+            supportsReasoningEffort: false,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 128_000,
+        maxOutputTokens: 16_384,
+        knowledgeCutoff: '2025-08-31',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 1.75,
+            cachedInputUsdPerMillionTokens: 0.175,
+            outputUsdPerMillionTokens: 14,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: null
+        }),
+        sources: [createOpenAiModelSource('gpt-5.3-chat-latest'), OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
+        tags: ['active', 'alias', 'chat'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
+    },
+    {
         modelKey: 'openai:gpt-5.2',
         provider: 'openai',
         modelId: 'gpt-5.2',
@@ -522,7 +592,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         family: 'gpt-5.2',
         description: 'Chat-oriented GPT-5.2 model used in ChatGPT, kept mainly for compatibility with older integrations.',
         status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.5',
+        recommendedReplacementModelKey: 'openai:gpt-5.3-chat-latest',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -624,9 +694,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'GPT-5.1 Chat (latest)',
         family: 'gpt-5.1',
-        description: 'Chat-oriented GPT-5.1 model used in ChatGPT, retained mainly for compatibility.',
-        status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.5',
+        description: 'Deprecated chat-oriented GPT-5.1 model used in ChatGPT, retained mainly for compatibility.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-5.3-chat-latest',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -664,8 +734,14 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextOutputUsdPerMillionTokens: null,
             notes: null
         }),
-        sources: [createOpenAiModelSource('gpt-5.1-chat-latest'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['legacy', 'alias', 'chat', 'compatibility'],
+        sources: [
+            createOpenAiModelSource('gpt-5.1-chat-latest'),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_DEPRECATIONS_SOURCE
+        ],
+        tags: ['deprecated', 'alias', 'chat', 'compatibility'],
         parameterPolicies: OPENAI_GPT_5_1_PARAMETER_POLICIES
     },
     {
@@ -728,9 +804,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'GPT-5 Chat (latest)',
         family: 'gpt-5',
-        description: 'Chat-oriented GPT-5 model used in ChatGPT, retained mainly for compatibility.',
-        status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.5',
+        description: 'Deprecated chat-oriented GPT-5 model used in ChatGPT, retained mainly for compatibility.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-5.3-chat-latest',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -768,8 +844,14 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextOutputUsdPerMillionTokens: null,
             notes: null
         }),
-        sources: [createOpenAiModelSource('gpt-5-chat-latest'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['legacy', 'alias', 'chat', 'compatibility'],
+        sources: [
+            createOpenAiModelSource('gpt-5-chat-latest'),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_DEPRECATIONS_SOURCE
+        ],
+        tags: ['deprecated', 'alias', 'chat', 'compatibility'],
         parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
@@ -986,9 +1068,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: ['gpt-4.1-nano-2025-04-14'],
         displayName: 'GPT-4.1 nano',
         family: 'gpt-4.1',
-        description: 'Legacy smallest GPT-4.1 variant retained for compatibility and very low-latency tasks.',
-        status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.4-nano',
+        description: 'Deprecated smallest GPT-4.1 variant retained for compatibility and very low-latency tasks.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-5-nano',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -1026,8 +1108,14 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextOutputUsdPerMillionTokens: null,
             notes: null
         }),
-        sources: [createOpenAiModelSource('gpt-4.1-nano'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['legacy', 'cheap', 'compatibility']
+        sources: [
+            createOpenAiModelSource('gpt-4.1-nano'),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_DEPRECATIONS_SOURCE
+        ],
+        tags: ['deprecated', 'cheap', 'compatibility']
     },
     {
         modelKey: 'openai:gpt-4o',
@@ -1079,6 +1167,62 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         }),
         sources: [createOpenAiModelSource('gpt-4o'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
         tags: ['legacy', 'multimodal', 'compatibility']
+    },
+    {
+        modelKey: 'openai:chatgpt-4o-latest',
+        provider: 'openai',
+        modelId: 'chatgpt-4o-latest',
+        snapshotModelId: null,
+        aliases: [],
+        displayName: 'ChatGPT-4o (latest)',
+        family: 'gpt-4o',
+        description: 'Retired ChatGPT-4o model snapshot retained for compatibility with apps that still reference this model id directly.',
+        status: 'retired',
+        recommendedReplacementModelKey: 'openai:gpt-5.1-chat-latest',
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: false,
+            supportsStructuredOutputs: false,
+            supportsPromptCaching: false,
+            supportsWebSearch: false,
+            supportsFileSearch: false,
+            supportsComputerUse: false,
+            supportsMcp: false,
+            supportsReasoningEffort: false,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 128_000,
+        maxOutputTokens: 16_384,
+        knowledgeCutoff: '2023-10-01',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 5,
+            cachedInputUsdPerMillionTokens: null,
+            outputUsdPerMillionTokens: 15,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'OpenAI deprecations list removal from the API on 2026-02-17; retained for ID resolution only.'
+        }),
+        sources: [
+            createOpenAiModelSource('chatgpt-4o-latest'),
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_DEPRECATIONS_SOURCE
+        ],
+        tags: ['retired', 'chat', 'compatibility']
     },
     {
         modelKey: 'openai:gpt-4o-mini',
@@ -1139,9 +1283,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: ['o1-2024-12-17'],
         displayName: 'o1',
         family: 'o1',
-        description: 'Legacy full o-series reasoning model retained for compatibility.',
-        status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.5',
+        description: 'Deprecated full o-series reasoning model retained for compatibility.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:o3',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -1179,8 +1323,14 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextOutputUsdPerMillionTokens: null,
             notes: null
         }),
-        sources: [createOpenAiModelSource('o1'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['legacy', 'reasoning', 'compatibility']
+        sources: [
+            createOpenAiModelSource('o1'),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_DEPRECATIONS_SOURCE
+        ],
+        tags: ['deprecated', 'reasoning', 'compatibility']
     },
     {
         modelKey: 'openai:o3',
@@ -1241,9 +1391,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: ['o3-mini-2025-01-31'],
         displayName: 'o3-mini',
         family: 'o3',
-        description: 'Legacy small reasoning model retained for compatibility.',
-        status: 'legacy',
-        recommendedReplacementModelKey: 'openai:o4-mini',
+        description: 'Deprecated small reasoning model retained for compatibility.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:o3',
         inputModalities: ['text'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -1281,8 +1431,14 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextOutputUsdPerMillionTokens: null,
             notes: null
         }),
-        sources: [createOpenAiModelSource('o3-mini'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['legacy', 'reasoning', 'cheap', 'compatibility']
+        sources: [
+            createOpenAiModelSource('o3-mini'),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_DEPRECATIONS_SOURCE
+        ],
+        tags: ['deprecated', 'reasoning', 'cheap', 'compatibility']
     },
     {
         modelKey: 'openai:o4-mini',
@@ -1292,9 +1448,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: ['o4-mini-2025-04-16'],
         displayName: 'o4-mini',
         family: 'o4',
-        description: 'Legacy small reasoning model, succeeded by GPT-5 mini.',
-        status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.4-mini',
+        description: 'Deprecated small reasoning model retained for compatibility.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-5-mini',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -1332,15 +1488,21 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextOutputUsdPerMillionTokens: null,
             notes: null
         }),
-        sources: [createOpenAiModelSource('o4-mini'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['legacy', 'reasoning', 'cheap', 'compatibility']
+        sources: [
+            createOpenAiModelSource('o4-mini'),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_DEPRECATIONS_SOURCE
+        ],
+        tags: ['deprecated', 'reasoning', 'cheap', 'compatibility']
     },
     {
         modelKey: 'openai:o3-deep-research',
         provider: 'openai',
         modelId: 'o3-deep-research',
-        snapshotModelId: 'o3-deep-research-2025-06-26',
-        aliases: ['o3-deep-research-2025-06-26'],
+        snapshotModelId: null,
+        aliases: [],
         displayName: 'o3 Deep Research',
         family: 'o3-deep-research',
         description: 'Specialized OpenAI deep-research model designed for long-running research workflows.',
@@ -1400,9 +1562,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'o3 Deep Research (2025-06-26)',
         family: 'o3-deep-research',
-        description: 'Pinned deep-research snapshot kept for compatibility with apps that reference this model id directly.',
-        status: 'legacy',
-        recommendedReplacementModelKey: 'openai:o3-deep-research',
+        description: 'Deprecated pinned deep-research snapshot kept for compatibility with apps that reference this model id directly.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-5.4-pro',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -1445,16 +1607,17 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             OPENAI_DEEP_RESEARCH_GUIDE_SOURCE,
             OPENAI_MODELS_SOURCE,
             OPENAI_ALL_MODELS_SOURCE,
-            OPENAI_PRICING_SOURCE
+            OPENAI_PRICING_SOURCE,
+            OPENAI_DEPRECATIONS_SOURCE
         ],
-        tags: ['legacy', 'deep-research', 'compatibility']
+        tags: ['deprecated', 'deep-research', 'compatibility']
     },
     {
         modelKey: 'openai:o4-mini-deep-research',
         provider: 'openai',
         modelId: 'o4-mini-deep-research',
-        snapshotModelId: 'o4-mini-deep-research-2025-06-26',
-        aliases: ['o4-mini-deep-research-2025-06-26'],
+        snapshotModelId: null,
+        aliases: [],
         displayName: 'o4-mini Deep Research',
         family: 'o4-mini-deep-research',
         description: 'Faster, more affordable OpenAI deep-research model.',
@@ -1514,9 +1677,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'o4-mini Deep Research (2025-06-26)',
         family: 'o4-mini-deep-research',
-        description: 'Pinned deep-research snapshot kept for compatibility with apps that reference this model id directly.',
-        status: 'legacy',
-        recommendedReplacementModelKey: 'openai:o4-mini-deep-research',
+        description: 'Deprecated pinned deep-research snapshot kept for compatibility with apps that reference this model id directly.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-5.4-pro',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -1559,9 +1722,10 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             OPENAI_DEEP_RESEARCH_GUIDE_SOURCE,
             OPENAI_MODELS_SOURCE,
             OPENAI_ALL_MODELS_SOURCE,
-            OPENAI_PRICING_SOURCE
+            OPENAI_PRICING_SOURCE,
+            OPENAI_DEPRECATIONS_SOURCE
         ],
-        tags: ['legacy', 'deep-research', 'fast', 'compatibility']
+        tags: ['deprecated', 'deep-research', 'fast', 'compatibility']
     },
     {
         modelKey: 'anthropic:claude-opus-4-7',
@@ -1585,9 +1749,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsVision: true,
             supportsStreaming: true,
             supportsToolCalling: true,
-            supportsStructuredOutputs: null,
+            supportsStructuredOutputs: true,
             supportsPromptCaching: true,
-            supportsWebSearch: null,
+            supportsWebSearch: true,
             supportsFileSearch: null,
             supportsComputerUse: null,
             supportsMcp: null,
@@ -1611,7 +1775,13 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextOutputUsdPerMillionTokens: null,
             notes: 'Pricing in the latest overview is listed as input, output, and caching rates.'
         }),
-        sources: [ANTHROPIC_MODELS_SOURCE, ANTHROPIC_PRICING_SOURCE],
+        sources: [
+            ANTHROPIC_MODELS_SOURCE,
+            ANTHROPIC_PRICING_SOURCE,
+            ANTHROPIC_RELEASE_NOTES_SOURCE,
+            ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE,
+            ANTHROPIC_WEB_SEARCH_SOURCE
+        ],
         tags: ['recommended', 'reasoning', 'coding', 'agent']
     },
     {
@@ -1636,9 +1806,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsVision: true,
             supportsStreaming: true,
             supportsToolCalling: true,
-            supportsStructuredOutputs: null,
+            supportsStructuredOutputs: true,
             supportsPromptCaching: true,
-            supportsWebSearch: null,
+            supportsWebSearch: true,
             supportsFileSearch: null,
             supportsComputerUse: null,
             supportsMcp: null,
@@ -1664,7 +1834,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextOutputUsdPerMillionTokens: null,
             notes: 'Full 1M context window is included at standard pricing.'
         }),
-        sources: [ANTHROPIC_MODELS_SOURCE, ANTHROPIC_PRICING_SOURCE],
+        sources: [ANTHROPIC_MODELS_SOURCE, ANTHROPIC_PRICING_SOURCE, ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE, ANTHROPIC_WEB_SEARCH_SOURCE],
         tags: ['recommended', 'balanced', 'agent', 'analysis']
     },
     {
@@ -1689,7 +1859,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsVision: true,
             supportsStreaming: true,
             supportsToolCalling: true,
-            supportsStructuredOutputs: null,
+            supportsStructuredOutputs: true,
             supportsPromptCaching: true,
             supportsWebSearch: null,
             supportsFileSearch: null,
@@ -1715,7 +1885,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextOutputUsdPerMillionTokens: null,
             notes: null
         }),
-        sources: [ANTHROPIC_MODELS_SOURCE, ANTHROPIC_PRICING_SOURCE],
+        sources: [ANTHROPIC_MODELS_SOURCE, ANTHROPIC_PRICING_SOURCE, ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE],
         tags: ['recommended', 'fast', 'cheap', 'chat']
     },
     {
@@ -1740,7 +1910,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsVision: true,
             supportsStreaming: true,
             supportsToolCalling: true,
-            supportsStructuredOutputs: null,
+            supportsStructuredOutputs: true,
             supportsPromptCaching: true,
             supportsWebSearch: null,
             supportsFileSearch: null,
@@ -1766,7 +1936,12 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextOutputUsdPerMillionTokens: null,
             notes: 'Active in the deprecations table; current overview no longer lists detailed limits for this older active model.'
         }),
-        sources: [ANTHROPIC_MODEL_DEPRECATIONS_SOURCE, ANTHROPIC_PRICING_SOURCE, ANTHROPIC_RELEASE_NOTES_SOURCE],
+        sources: [
+            ANTHROPIC_MODEL_DEPRECATIONS_SOURCE,
+            ANTHROPIC_PRICING_SOURCE,
+            ANTHROPIC_RELEASE_NOTES_SOURCE,
+            ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE
+        ],
         tags: ['active', 'reasoning', 'compatibility']
     },
     {
@@ -1791,7 +1966,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsVision: true,
             supportsStreaming: true,
             supportsToolCalling: true,
-            supportsStructuredOutputs: null,
+            supportsStructuredOutputs: true,
             supportsPromptCaching: true,
             supportsWebSearch: null,
             supportsFileSearch: null,
@@ -1802,7 +1977,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsExtendedThinking: true,
             supportsAdaptiveThinking: false
         }),
-        contextWindowTokens: null,
+        contextWindowTokens: 200_000,
         maxOutputTokens: null,
         knowledgeCutoff: null,
         pricing: createPricing({
@@ -1817,7 +1992,12 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextOutputUsdPerMillionTokens: null,
             notes: 'Active in the deprecations table; current overview no longer lists detailed limits for this older active model.'
         }),
-        sources: [ANTHROPIC_MODEL_DEPRECATIONS_SOURCE, ANTHROPIC_PRICING_SOURCE],
+        sources: [
+            ANTHROPIC_MODEL_DEPRECATIONS_SOURCE,
+            ANTHROPIC_PRICING_SOURCE,
+            ANTHROPIC_RELEASE_NOTES_SOURCE,
+            ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE
+        ],
         tags: ['active', 'balanced', 'compatibility']
     },
     {
@@ -1828,8 +2008,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'Claude Opus 4.6',
         family: 'claude-opus-4',
-        description: 'Prior Anthropic flagship retained for compatibility while moving to Opus 4.7.',
-        status: 'legacy',
+        description: 'Active prior Anthropic flagship retained for compatibility while moving to Opus 4.7.',
+        status: 'active',
         recommendedReplacementModelKey: 'anthropic:claude-opus-4-7',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
@@ -1842,9 +2022,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsVision: true,
             supportsStreaming: true,
             supportsToolCalling: true,
-            supportsStructuredOutputs: null,
+            supportsStructuredOutputs: true,
             supportsPromptCaching: true,
-            supportsWebSearch: null,
+            supportsWebSearch: true,
             supportsFileSearch: null,
             supportsComputerUse: null,
             supportsMcp: null,
@@ -1868,8 +2048,14 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextOutputUsdPerMillionTokens: null,
             notes: null
         }),
-        sources: [ANTHROPIC_MODELS_SOURCE, ANTHROPIC_PRICING_SOURCE],
-        tags: ['legacy', 'reasoning', 'compatibility']
+        sources: [
+            ANTHROPIC_MODELS_SOURCE,
+            ANTHROPIC_MODEL_DEPRECATIONS_SOURCE,
+            ANTHROPIC_PRICING_SOURCE,
+            ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE,
+            ANTHROPIC_WEB_SEARCH_SOURCE
+        ],
+        tags: ['active', 'reasoning', 'compatibility']
     },
     {
         modelKey: 'anthropic:claude-opus-4-1-20250805',

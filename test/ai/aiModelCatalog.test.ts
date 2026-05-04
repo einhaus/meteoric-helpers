@@ -22,9 +22,7 @@ describe('AI model catalog helpers', () => {
     it('resolves preferred model ids and uses snapshot ids when requested', () => {
         expect(getPreferredAiModelId({ provider: 'openai', profile: 'reasoning' })).toBe('gpt-5.5');
         expect(getPreferredAiModelId({ provider: 'openai', profile: 'balanced' })).toBe('gpt-5.5');
-        expect(getPreferredAiModelId({ provider: 'anthropic', profile: 'fast', preferSnapshot: true })).toBe(
-            'claude-haiku-4-5-20251001'
-        );
+        expect(getPreferredAiModelId({ provider: 'anthropic', profile: 'fast', preferSnapshot: true })).toBe('claude-haiku-4-5-20251001');
     });
 
     it('resolves preferred model profiles as model and inference-profile combinations', () => {
@@ -75,8 +73,12 @@ describe('AI model catalog helpers', () => {
 
     it('can still resolve legacy models used by current apps', () => {
         expect(getAiModelById('gpt-4o-mini')?.modelKey).toBe('openai:gpt-4o-mini');
+        expect(getAiModelById('chatgpt-4o-latest')?.modelKey).toBe('openai:chatgpt-4o-latest');
+        expect(getAiModelById('gpt-5.3-chat-latest')?.status).toBe('active');
+        expect(getAiModelById('gpt-5-chat-latest')?.recommendedReplacementModelKey).toBe('openai:gpt-5.3-chat-latest');
         expect(getAiModelById('gpt-5.5-pro')?.modelKey).toBe('openai:gpt-5.5-pro');
         expect(getAiModelById('gpt-5.2-pro')?.modelKey).toBe('openai:gpt-5.2-pro');
+        expect(getAiModelById('o3-deep-research-2025-06-26')?.modelKey).toBe('openai:o3-deep-research-2025-06-26');
         expect(getAiModelById('claude-3-5-haiku-20241022')?.modelKey).toBe('anthropic:claude-3-5-haiku-20241022');
         expect(inferAiProviderFromModel('claude-sonnet-4-6')).toBe('anthropic');
     });
