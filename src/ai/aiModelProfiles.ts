@@ -13,11 +13,11 @@ export type AiProviderModelProfileDefaultMap = Readonly<Record<AiModelProfile, A
 export const AI_PROVIDER_MODEL_PROFILE_DEFAULTS: Readonly<Record<AiProvider, AiProviderModelProfileDefaultMap>> = {
     openai: {
         reasoning: {
-            modelKey: 'openai:gpt-5.5',
+            modelKey: 'openai:gpt-5.4',
             inferenceProfileKey: 'reasoning_high'
         },
         balanced: {
-            modelKey: 'openai:gpt-5.5',
+            modelKey: 'openai:gpt-5.4',
             inferenceProfileKey: 'reasoning_medium'
         },
         fast: {
@@ -33,7 +33,7 @@ export const AI_PROVIDER_MODEL_PROFILE_DEFAULTS: Readonly<Record<AiProvider, AiP
             inferenceProfileKey: 'reasoning_none'
         },
         webSearch: {
-            modelKey: 'openai:gpt-5.5',
+            modelKey: 'openai:gpt-5.4',
             inferenceProfileKey: 'reasoning_medium'
         },
         deepResearch: {
