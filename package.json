@@ -1,6 +1,6 @@
 {
   "name": "@einhaus/meteoric-helpers",
-  "version": "1.0.126",
+  "version": "1.0.127",
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -83,10 +83,10 @@
   },
   "private": false,
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1042.0",
-    "@aws-sdk/client-ses": "^3.1042.0",
-    "@aws-sdk/s3-request-presigner": "^3.1042.0",
-    "@clickhouse/client": "^1.18.3",
+    "@aws-sdk/client-s3": "^3.1043.0",
+    "@aws-sdk/client-ses": "^3.1043.0",
+    "@aws-sdk/s3-request-presigner": "^3.1043.0",
+    "@clickhouse/client": "^1.18.4",
     "@eslint/eslintrc": "^3.3.5",
     "@redis/client": "^5.12.1",
     "bcrypt": "^6.0.0",

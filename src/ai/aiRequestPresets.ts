@@ -144,7 +144,7 @@ export const AI_REQUEST_PRESETS: readonly AiRequestPresetDefinition[] = [
         modelProfile: 'deepResearch',
         preferredProvider: 'openai',
         temperature: null,
-        maxOutputTokens: 32_000,
+        maxOutputTokens: 100_000,
         useStructuredOutputs: false,
         useToolCalling: false,
         parallelToolCalls: null,

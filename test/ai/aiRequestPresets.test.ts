@@ -9,7 +9,7 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.provider).toBe('openai');
-        expect(config.modelKey).toBe('openai:gpt-5.5');
+        expect(config.modelKey).toBe('openai:gpt-5.4');
         expect(config.inferenceProfileKey).toBe('reasoning_high');
         expect(config.reasoningEffort).toBe('high');
         expect(config.maxOutputTokens).toBe(8_000);
@@ -68,6 +68,7 @@ describe('AI request preset helpers', () => {
         expect(config.provider).toBe('openai');
         expect(config.modelKey).toBe('openai:o3-deep-research');
         expect(config.inferenceProfileKey).toBe('reasoning_high');
+        expect(config.maxOutputTokens).toBe(100_000);
         expect(config.useBuiltInWebSearch).toBe(true);
         expect(config.builtInWebSearchContextSize).toBe('high');
     });
@@ -79,7 +80,7 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.provider).toBe('openai');
-        expect(config.modelKey).toBe('openai:gpt-5.5');
+        expect(config.modelKey).toBe('openai:gpt-5.4');
         expect(config.inferenceProfileKey).toBe('reasoning_medium');
         expect(config.reasoningEffort).toBe('medium');
         expect(config.temperature).toBeNull();
@@ -93,7 +94,7 @@ describe('AI request preset helpers', () => {
             temperature: 0.35
         });
 
-        expect(config.modelKey).toBe('openai:gpt-5.5');
+        expect(config.modelKey).toBe('openai:gpt-5.4');
         expect(config.inferenceProfileKey).toBe('reasoning_medium');
         expect(config.temperature).toBeNull();
         expect(config.warnings.some((warning) => warning.includes('does not support the temperature parameter'))).toBe(true);
@@ -121,7 +122,7 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.modelProfile).toBe('balanced');
-        expect(config.modelKey).toBe('openai:gpt-5.5');
+        expect(config.modelKey).toBe('openai:gpt-5.4');
         expect(config.inferenceProfileKey).toBe('reasoning_high');
         expect(config.reasoningEffort).toBe('high');
         expect(config.overridesApplied).toContain('inferenceProfileKey');
