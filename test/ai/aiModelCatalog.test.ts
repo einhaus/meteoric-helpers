@@ -78,7 +78,12 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('gpt-5-chat-latest')?.recommendedReplacementModelKey).toBe('openai:gpt-5.3-chat-latest');
         expect(getAiModelById('gpt-5.5-pro')?.modelKey).toBe('openai:gpt-5.5-pro');
         expect(getAiModelById('gpt-5.2-pro')?.modelKey).toBe('openai:gpt-5.2-pro');
+        expect(getAiModelById('gpt-5.3-codex')?.status).toBe('active');
+        expect(getAiModelById('gpt-5-codex')?.recommendedReplacementModelKey).toBe('openai:gpt-5.4');
         expect(getAiModelById('o3-deep-research-2025-06-26')?.modelKey).toBe('openai:o3-deep-research-2025-06-26');
+        expect(getAiModelById('o3-deep-research')?.status).toBe('deprecated');
+        expect(getAiModelById('claude-haiku-4-5')?.modelId).toBe('claude-haiku-4-5-20251001');
+        expect(getAiModelById('claude-3-5-haiku')?.modelKey).toBe('anthropic:claude-3-5-haiku-20241022');
         expect(getAiModelById('claude-3-5-haiku-20241022')?.modelKey).toBe('anthropic:claude-3-5-haiku-20241022');
         expect(inferAiProviderFromModel('claude-sonnet-4-6')).toBe('anthropic');
     });

@@ -22,5 +22,6 @@ export * from './db/mysql.js';
 export * from './db/bun.js';
 export * from './db/postgres.js';
 export * from './db/generateTypesMysql.js';
+export * from './db/generateRustTypesMysql.js';
 export * from './db/clickhouse.js';
 export * from './db/generateTypesPg.js';

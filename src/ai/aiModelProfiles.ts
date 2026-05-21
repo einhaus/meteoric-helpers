@@ -33,7 +33,7 @@ export const AI_PROVIDER_MODEL_PROFILE_DEFAULTS: Readonly<Record<AiProvider, AiP
             inferenceProfileKey: 'reasoning_none'
         },
         webSearch: {
-            modelKey: 'openai:gpt-5.4',
+            modelKey: 'openai:gpt-5.5',
             inferenceProfileKey: 'reasoning_medium'
         },
         deepResearch: {
