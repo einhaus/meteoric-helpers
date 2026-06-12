@@ -61,6 +61,8 @@ export interface GenerateTypesMysqlOptions {
      * Defaults to 'DatabaseBunSchema'.
      */
     bunSchemaName?: string;
+    excludeTableNames?: readonly string[];
+    excludeTableNamePatterns?: readonly RegExp[];
 }
 
 const isImmutableAutoManagedColumn = (columnName: string) => columnName === 'created_at' || columnName === 'createdAt';
@@ -73,6 +75,19 @@ function isShardedTable(tableName: string): boolean {
 // Helper function to get the base table name from a sharded table
 function getBaseTableName(tableName: string): string {
     return tableName.replace(/_\d+$/, '');
+}
+
+function isExcludedTableName(tableName: string, options: GenerateTypesMysqlOptions): boolean {
+    if (options.excludeTableNames?.includes(tableName)) {
+        return true;
+    }
+
+    return (
+        options.excludeTableNamePatterns?.some((pattern) => {
+            pattern.lastIndex = 0;
+            return pattern.test(tableName);
+        }) ?? false
+    );
 }
 
 // Interface for table metadata
@@ -116,8 +131,8 @@ async function fetchAllTablesMetadata(DB: DBMysql, dbName: string, tables: strin
     const tableCommentsResult = await DB.doQuery({
         queryString: `
             SELECT
-                table_name,
-                table_comment
+                table_name AS \`table_name\`,
+                table_comment AS \`table_comment\`
             FROM information_schema.tables
             WHERE table_schema = ?
             AND table_type = 'BASE TABLE'
@@ -145,10 +160,10 @@ async function fetchAllTablesMetadata(DB: DBMysql, dbName: string, tables: strin
     const indexesResult = await DB.doQuery({
         queryString: `
             SELECT
-                table_name,
-                index_name,
-                column_name,
-                non_unique
+                table_name AS \`table_name\`,
+                index_name AS \`index_name\`,
+                column_name AS \`column_name\`,
+                non_unique AS \`non_unique\`
             FROM information_schema.statistics
             WHERE table_schema = ?
             ORDER BY table_name, index_name, seq_in_index
@@ -206,9 +221,9 @@ async function fetchAllTablesMetadata(DB: DBMysql, dbName: string, tables: strin
     const fkConstraintsResult = await DB.doQuery({
         queryString: `
             SELECT
-                tc.table_name,
-                tc.constraint_name,
-                kcu.column_name
+                tc.table_name AS \`table_name\`,
+                tc.constraint_name AS \`constraint_name\`,
+                kcu.column_name AS \`column_name\`
             FROM information_schema.table_constraints tc
             JOIN information_schema.key_column_usage kcu
                 ON tc.constraint_name = kcu.constraint_name
@@ -298,13 +313,13 @@ async function fetchAllTablesMetadata(DB: DBMysql, dbName: string, tables: strin
     const foreignKeysResult = await DB.doQuery({
         queryString: `
             SELECT
-                kcu.table_name,
-                kcu.constraint_name,
-                kcu.column_name,
-                kcu.referenced_table_name,
-                kcu.referenced_column_name,
-                rc.update_rule,
-                rc.delete_rule
+                kcu.table_name AS \`table_name\`,
+                kcu.constraint_name AS \`constraint_name\`,
+                kcu.column_name AS \`column_name\`,
+                kcu.referenced_table_name AS \`referenced_table_name\`,
+                kcu.referenced_column_name AS \`referenced_column_name\`,
+                rc.update_rule AS \`update_rule\`,
+                rc.delete_rule AS \`delete_rule\`
             FROM information_schema.key_column_usage kcu
             JOIN information_schema.referential_constraints rc
                 ON kcu.constraint_name = rc.constraint_name
@@ -367,7 +382,7 @@ export const generateTypesMysql = async (options: GenerateTypesMysqlOptions) => 
         // Get all tables in the database
         const tablesResult = await DB.doQuery({
             queryString: `
-      SELECT table_name
+      SELECT table_name AS \`table_name\`
       FROM information_schema.tables
       WHERE table_schema = ?
       AND table_type = 'BASE TABLE'
@@ -383,7 +398,9 @@ export const generateTypesMysql = async (options: GenerateTypesMysqlOptions) => 
         }
 
         // MySQL returns rows as an array
-        const allTables = (tablesResult as ResultSetHeader & { table_name: string }[]).map((row) => row.table_name);
+        const allDiscoveredTables = (tablesResult as ResultSetHeader & { table_name: string }[]).map((row) => row.table_name);
+        const allTables = allDiscoveredTables.filter((tableName) => !isExcludedTableName(tableName, options));
+        const excludedTableCount = allDiscoveredTables.length - allTables.length;
 
         if (allTables.length === 0) {
             console.log('No tables found in the database.');
@@ -392,6 +409,10 @@ export const generateTypesMysql = async (options: GenerateTypesMysqlOptions) => 
         }
 
         console.log(`Found ${allTables.length} tables: ${allTables.join(', ')}`);
+
+        if (excludedTableCount > 0) {
+            console.log(`Excluded ${excludedTableCount} tables from type generation.`);
+        }
 
         // Create a map to organize tables
         // For non-sharded tables: key = table name, value = table name
@@ -477,13 +498,13 @@ type WithOptional<T, K extends keyof T> =
             const columnsResult = await DB.doQuery({
                 queryString: `
                 SELECT
-                  column_name,
-                  data_type,
-                  column_type,
-                  is_nullable,
-                  column_default,
-                  character_maximum_length,
-                  column_comment
+                  column_name AS \`column_name\`,
+                  data_type AS \`data_type\`,
+                  column_type AS \`column_type\`,
+                  is_nullable AS \`is_nullable\`,
+                  column_default AS \`column_default\`,
+                  character_maximum_length AS \`character_maximum_length\`,
+                  column_comment AS \`column_comment\`
                 FROM information_schema.columns
                 WHERE table_schema = ?
                 AND table_name = ?
@@ -586,11 +607,11 @@ type WithOptional<T, K extends keyof T> =
                         tsType = 'string';
                     }
                 }
-                // Special case for TINYINT(1) with a comment of "boolean"
-                // Only treat tinyint(1) as 0 | 1 if it has a comment equal to "boolean"
+                // Special case for TINYINT with a comment of "boolean". MySQL 8+ may omit the legacy
+                // display width and report tinyint(1) as tinyint, so the comment is the stable marker.
                 else if (
                     column.data_type.toLowerCase() === 'tinyint' &&
-                    /^tinyint\(1\)( unsigned)?$/i.test(columnType) &&
+                    /^tinyint(?:\(1\))?( unsigned)?$/i.test(columnType) &&
                     column.column_comment.toLowerCase() === 'boolean'
                 ) {
                     tsType = '0 | 1';
@@ -649,6 +670,7 @@ type WithOptional<T, K extends keyof T> =
             const indexes = tableMetadata?.indexes || [];
             const foreignKeys = tableMetadata?.foreignKeys || [];
             const primaryKeyColumns = indexes.find((index) => index.is_primary)?.column_names ?? [];
+
             const immutableUpdateColumns = Array.from(
                 new Set([
                     ...primaryKeyColumns,

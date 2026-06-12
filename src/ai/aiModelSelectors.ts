@@ -2,11 +2,12 @@ import { AI_MODEL_CATALOG } from './aiModelCatalog.js';
 import {
     AI_GLOBAL_MODEL_PROFILE_DEFAULTS,
     AI_GLOBAL_MODEL_PROFILES,
+    AI_PROVIDER_MODEL_PROFILE_COST_POLICIES,
     AI_PROVIDER_MODEL_PROFILE_DEFAULTS,
     AI_PROVIDER_MODEL_PROFILES
 } from './aiModelProfiles.js';
 import type { AiInferenceProfileKey } from './aiInferenceProfiles.js';
-import type { AiModelProfileDefault } from './aiModelProfiles.js';
+import type { AiModelProfileCostPolicy, AiModelProfileDefault, AiModelProfileCostTier } from './aiModelProfiles.js';
 import type {
     AiCacheWriteMode,
     AiModelCatalogEntry,
@@ -17,6 +18,23 @@ import type {
 } from './aiModelTypes.js';
 
 const AI_MODEL_CATALOG_BY_KEY = new Map(AI_MODEL_CATALOG.map((model) => [model.modelKey, model]));
+
+export type AiModelProfileCostPolicyEvaluation = Readonly<{
+    provider: AiProvider;
+    profile: AiModelProfile;
+    costTier: AiModelProfileCostTier;
+    modelKey: string | null;
+    referenceModelKey: string | null;
+    isWithinPolicy: boolean;
+    isApprovedHigherCost: boolean;
+    approvalReason: string | null;
+    inputPriceMultiplier: number | null;
+    cachedInputPriceMultiplier: number | null;
+    outputPriceMultiplier: number | null;
+    cacheWrite5mPriceMultiplier: number | null;
+    cacheWrite1hPriceMultiplier: number | null;
+    violations: readonly string[];
+}>;
 
 function normalizeModelIdentifier(value: string): string {
     return value.trim().toLowerCase();
@@ -54,6 +72,70 @@ function roundUsd(value: number): number {
 function computeTokenCostUsd(tokens: number, rateUsdPerMillionTokens: number | null): number {
     if (tokens <= 0 || rateUsdPerMillionTokens === null) return 0;
     return (tokens / 1_000_000) * rateUsdPerMillionTokens;
+}
+
+function hasOwnProperty<T extends object>(value: T, key: PropertyKey): boolean {
+    return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function getEffectiveLongContextRate(
+    model: AiModelCatalogEntry,
+    longContextRate: number | null | undefined,
+    standardRate: number | null
+): number | null {
+    if (model.pricing.longContextThresholdInputTokens === null) return standardRate;
+    return longContextRate ?? standardRate;
+}
+
+function computePriceMultiplier(candidateRate: number | null, referenceRate: number | null): number | null {
+    if (candidateRate === null || referenceRate === null || referenceRate === 0) return null;
+    return roundUsd(candidateRate / referenceRate);
+}
+
+function getApprovedHigherCostReason(policy: AiModelProfileCostPolicy, modelKey: string | null): string | null {
+    if (!modelKey) return null;
+
+    const approval = policy.approvedHigherCostModels.find((approvedModel) => approvedModel.modelKey === modelKey);
+    const reason = approval?.reason.trim() ?? '';
+
+    return reason ? reason : null;
+}
+
+function addRateViolation(params: {
+    violations: string[];
+    isApprovedHigherCost: boolean;
+    label: string;
+    modelKey: string;
+    rate: number | null;
+    maxRate: number | null;
+}): void {
+    if (params.maxRate === null) return;
+
+    if (params.rate === null) {
+        params.violations.push(`${params.modelKey} is missing ${params.label} pricing required by the profile cost policy.`);
+        return;
+    }
+
+    if (!params.isApprovedHigherCost && params.rate > params.maxRate) {
+        params.violations.push(`${params.modelKey} ${params.label} price ${params.rate} exceeds profile budget ${params.maxRate}.`);
+    }
+}
+
+function addMultiplierViolation(params: {
+    violations: string[];
+    isApprovedHigherCost: boolean;
+    label: string;
+    modelKey: string;
+    multiplier: number | null;
+    maxMultiplier: number | null;
+}): void {
+    if (params.maxMultiplier === null || params.multiplier === null || params.isApprovedHigherCost) return;
+
+    if (params.multiplier > params.maxMultiplier) {
+        params.violations.push(
+            `${params.modelKey} ${params.label} price multiplier ${params.multiplier} exceeds profile limit ${params.maxMultiplier}.`
+        );
+    }
 }
 
 export function getAiModelCatalog(): readonly AiModelCatalogEntry[] {
@@ -245,6 +327,10 @@ export function getPreferredAiModelProfileDefault(provider: AiProvider, profile:
     return AI_PROVIDER_MODEL_PROFILE_DEFAULTS[provider][profile];
 }
 
+export function getAiModelProfileCostPolicy(provider: AiProvider, profile: AiModelProfile): AiModelProfileCostPolicy {
+    return AI_PROVIDER_MODEL_PROFILE_COST_POLICIES[provider][profile];
+}
+
 export function getPreferredAiModelKey(provider: AiProvider, profile: AiModelProfile): string | null {
     return AI_PROVIDER_MODEL_PROFILES[provider][profile];
 }
@@ -257,6 +343,250 @@ export function getPreferredAiModel(provider: AiProvider, profile: AiModelProfil
     const modelKey = getPreferredAiModelKey(provider, profile);
     if (!modelKey) return null;
     return getAiModelByKey(modelKey);
+}
+
+export function evaluateAiModelProfileCostPolicy(params: {
+    provider: AiProvider;
+    profile: AiModelProfile;
+    candidateModelKey?: string | null;
+}): AiModelProfileCostPolicyEvaluation {
+    const policy = getAiModelProfileCostPolicy(params.provider, params.profile);
+    const defaultModelKey = getPreferredAiModelKey(params.provider, params.profile);
+    const modelKey = hasOwnProperty(params, 'candidateModelKey') ? (params.candidateModelKey ?? null) : defaultModelKey;
+    const approvalReason = getApprovedHigherCostReason(policy, modelKey);
+    const isApprovedHigherCost = approvalReason !== null;
+    const violations: string[] = [];
+
+    if (!modelKey) {
+        if (policy.referenceModelKey !== null) {
+            violations.push(`No preferred model is configured for ${params.provider}.${params.profile}, but the cost policy expects one.`);
+        }
+
+        return {
+            provider: params.provider,
+            profile: params.profile,
+            costTier: policy.costTier,
+            modelKey,
+            referenceModelKey: policy.referenceModelKey,
+            isWithinPolicy: violations.length === 0,
+            isApprovedHigherCost,
+            approvalReason,
+            inputPriceMultiplier: null,
+            cachedInputPriceMultiplier: null,
+            outputPriceMultiplier: null,
+            cacheWrite5mPriceMultiplier: null,
+            cacheWrite1hPriceMultiplier: null,
+            violations
+        };
+    }
+
+    if (policy.referenceModelKey === null) {
+        violations.push(`${params.provider}.${params.profile} has no cost budget for configured model ${modelKey}.`);
+    }
+
+    const model = getAiModelByKey(modelKey);
+    const referenceModel = policy.referenceModelKey ? getAiModelByKey(policy.referenceModelKey) : null;
+
+    if (!model) {
+        violations.push(`${modelKey} is not present in the shared AI model catalog.`);
+    }
+
+    if (policy.referenceModelKey && !referenceModel) {
+        violations.push(`${policy.referenceModelKey} is configured as a cost reference but is not present in the shared AI model catalog.`);
+    }
+
+    if (!model) {
+        return {
+            provider: params.provider,
+            profile: params.profile,
+            costTier: policy.costTier,
+            modelKey,
+            referenceModelKey: policy.referenceModelKey,
+            isWithinPolicy: false,
+            isApprovedHigherCost,
+            approvalReason,
+            inputPriceMultiplier: null,
+            cachedInputPriceMultiplier: null,
+            outputPriceMultiplier: null,
+            cacheWrite5mPriceMultiplier: null,
+            cacheWrite1hPriceMultiplier: null,
+            violations
+        };
+    }
+
+    const inputRate = model.pricing.inputUsdPerMillionTokens;
+    const cachedInputRate = model.pricing.cachedInputUsdPerMillionTokens;
+    const outputRate = model.pricing.outputUsdPerMillionTokens;
+    const cacheWrite5mRate = model.pricing.cacheWrite5mUsdPerMillionTokens;
+    const cacheWrite1hRate = model.pricing.cacheWrite1hUsdPerMillionTokens;
+    const longContextInputRate = getEffectiveLongContextRate(
+        model,
+        model.pricing.longContextInputUsdPerMillionTokens,
+        model.pricing.inputUsdPerMillionTokens
+    );
+    const longContextCachedInputRate = getEffectiveLongContextRate(
+        model,
+        model.pricing.longContextCachedInputUsdPerMillionTokens,
+        model.pricing.cachedInputUsdPerMillionTokens
+    );
+    const longContextOutputRate = getEffectiveLongContextRate(
+        model,
+        model.pricing.longContextOutputUsdPerMillionTokens,
+        model.pricing.outputUsdPerMillionTokens
+    );
+
+    const referenceInputRate = referenceModel?.pricing.inputUsdPerMillionTokens ?? null;
+    const referenceCachedInputRate = referenceModel?.pricing.cachedInputUsdPerMillionTokens ?? null;
+    const referenceOutputRate = referenceModel?.pricing.outputUsdPerMillionTokens ?? null;
+    const referenceCacheWrite5mRate = referenceModel?.pricing.cacheWrite5mUsdPerMillionTokens ?? null;
+    const referenceCacheWrite1hRate = referenceModel?.pricing.cacheWrite1hUsdPerMillionTokens ?? null;
+
+    const inputPriceMultiplier = computePriceMultiplier(inputRate, referenceInputRate);
+    const cachedInputPriceMultiplier = computePriceMultiplier(cachedInputRate, referenceCachedInputRate);
+    const outputPriceMultiplier = computePriceMultiplier(outputRate, referenceOutputRate);
+    const cacheWrite5mPriceMultiplier = computePriceMultiplier(cacheWrite5mRate, referenceCacheWrite5mRate);
+    const cacheWrite1hPriceMultiplier = computePriceMultiplier(cacheWrite1hRate, referenceCacheWrite1hRate);
+
+    addRateViolation({
+        violations,
+        isApprovedHigherCost,
+        label: 'input',
+        modelKey,
+        rate: inputRate,
+        maxRate: policy.maxInputUsdPerMillionTokens
+    });
+    addRateViolation({
+        violations,
+        isApprovedHigherCost,
+        label: 'cached-input',
+        modelKey,
+        rate: cachedInputRate,
+        maxRate: policy.maxCachedInputUsdPerMillionTokens
+    });
+    addRateViolation({
+        violations,
+        isApprovedHigherCost,
+        label: 'output',
+        modelKey,
+        rate: outputRate,
+        maxRate: policy.maxOutputUsdPerMillionTokens
+    });
+    addRateViolation({
+        violations,
+        isApprovedHigherCost,
+        label: '5m cache-write',
+        modelKey,
+        rate: cacheWrite5mRate,
+        maxRate: policy.maxCacheWrite5mUsdPerMillionTokens
+    });
+    addRateViolation({
+        violations,
+        isApprovedHigherCost,
+        label: '1h cache-write',
+        modelKey,
+        rate: cacheWrite1hRate,
+        maxRate: policy.maxCacheWrite1hUsdPerMillionTokens
+    });
+    addRateViolation({
+        violations,
+        isApprovedHigherCost,
+        label: 'long-context input',
+        modelKey,
+        rate: longContextInputRate,
+        maxRate: policy.maxLongContextInputUsdPerMillionTokens
+    });
+    addRateViolation({
+        violations,
+        isApprovedHigherCost,
+        label: 'long-context cached-input',
+        modelKey,
+        rate: longContextCachedInputRate,
+        maxRate: policy.maxLongContextCachedInputUsdPerMillionTokens
+    });
+    addRateViolation({
+        violations,
+        isApprovedHigherCost,
+        label: 'long-context output',
+        modelKey,
+        rate: longContextOutputRate,
+        maxRate: policy.maxLongContextOutputUsdPerMillionTokens
+    });
+
+    addMultiplierViolation({
+        violations,
+        isApprovedHigherCost,
+        label: 'input',
+        modelKey,
+        multiplier: inputPriceMultiplier,
+        maxMultiplier: policy.maxInputPriceMultiplier
+    });
+    addMultiplierViolation({
+        violations,
+        isApprovedHigherCost,
+        label: 'cached-input',
+        modelKey,
+        multiplier: cachedInputPriceMultiplier,
+        maxMultiplier: policy.maxCachedInputPriceMultiplier
+    });
+    addMultiplierViolation({
+        violations,
+        isApprovedHigherCost,
+        label: 'output',
+        modelKey,
+        multiplier: outputPriceMultiplier,
+        maxMultiplier: policy.maxOutputPriceMultiplier
+    });
+    addMultiplierViolation({
+        violations,
+        isApprovedHigherCost,
+        label: '5m cache-write',
+        modelKey,
+        multiplier: cacheWrite5mPriceMultiplier,
+        maxMultiplier: policy.maxCacheWritePriceMultiplier
+    });
+    addMultiplierViolation({
+        violations,
+        isApprovedHigherCost,
+        label: '1h cache-write',
+        modelKey,
+        multiplier: cacheWrite1hPriceMultiplier,
+        maxMultiplier: policy.maxCacheWritePriceMultiplier
+    });
+
+    return {
+        provider: params.provider,
+        profile: params.profile,
+        costTier: policy.costTier,
+        modelKey,
+        referenceModelKey: policy.referenceModelKey,
+        isWithinPolicy: violations.length === 0,
+        isApprovedHigherCost,
+        approvalReason,
+        inputPriceMultiplier,
+        cachedInputPriceMultiplier,
+        outputPriceMultiplier,
+        cacheWrite5mPriceMultiplier,
+        cacheWrite1hPriceMultiplier,
+        violations
+    };
+}
+
+export function listAiModelProfileCostPolicyEvaluations(): AiModelProfileCostPolicyEvaluation[] {
+    const evaluations: AiModelProfileCostPolicyEvaluation[] = [];
+    const providers: readonly AiProvider[] = ['openai', 'anthropic'];
+    const profiles: readonly AiModelProfile[] = ['reasoning', 'balanced', 'fast', 'cheap', 'title', 'webSearch', 'deepResearch'];
+
+    for (const provider of providers) {
+        for (const profile of profiles) {
+            evaluations.push(evaluateAiModelProfileCostPolicy({ provider, profile }));
+        }
+    }
+
+    return evaluations;
+}
+
+export function listAiModelProfileCostPolicyViolations(): AiModelProfileCostPolicyEvaluation[] {
+    return listAiModelProfileCostPolicyEvaluations().filter((evaluation) => evaluation.violations.length > 0);
 }
 
 export function getPreferredAiModelProfileConfig(params: {

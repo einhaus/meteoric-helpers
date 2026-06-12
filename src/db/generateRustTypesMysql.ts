@@ -13,6 +13,8 @@ export interface GenerateRustTypesMysqlOptions {
     outputPath: string;
     manifestOutputPath?: string;
     schemaOverridesPath?: string;
+    excludeTableNames?: readonly string[];
+    excludeTableNamePatterns?: readonly RegExp[];
 }
 
 interface MysqlColumnManifest {
@@ -104,6 +106,19 @@ function isShardedTable(tableName: string): boolean {
 
 function getBaseTableName(tableName: string): string {
     return tableName.replace(/_\d+$/, '');
+}
+
+function isExcludedTableName(tableName: string, options: GenerateRustTypesMysqlOptions): boolean {
+    if (options.excludeTableNames?.includes(tableName)) {
+        return true;
+    }
+
+    return (
+        options.excludeTableNamePatterns?.some((pattern) => {
+            pattern.lastIndex = 0;
+            return pattern.test(tableName);
+        }) ?? false
+    );
 }
 
 function ensureDirectoryExists(targetPath: string): void {
@@ -217,7 +232,7 @@ function mapMysqlColumnToRustType(table: MysqlTableManifest, column: MysqlColumn
 
     const isBooleanTinyInt =
         normalizedDataType === 'tinyint' &&
-        /^tinyint\(1\)( unsigned)?$/i.test(column.columnType) &&
+        /^tinyint(?:\(1\))?( unsigned)?$/i.test(column.columnType) &&
         column.columnComment.toLowerCase() === 'boolean';
 
     if (isBooleanTinyInt) {
@@ -278,7 +293,7 @@ async function buildMysqlSchemaManifest(options: GenerateRustTypesMysqlOptions):
     try {
         const tablesResult = await DB.doQuery({
             queryString: `
-                SELECT table_name
+                SELECT table_name AS \`table_name\`
                 FROM information_schema.tables
                 WHERE table_schema = ?
                   AND table_type = 'BASE TABLE'
@@ -287,7 +302,8 @@ async function buildMysqlSchemaManifest(options: GenerateRustTypesMysqlOptions):
             parameters: [options.db]
         });
 
-        const allTables = (tablesResult as ResultSetHeader & { table_name: string }[]).map((row) => row.table_name);
+        const allDiscoveredTables = (tablesResult as ResultSetHeader & { table_name: string }[]).map((row) => row.table_name);
+        const allTables = allDiscoveredTables.filter((tableName) => !isExcludedTableName(tableName, options));
 
         const tableMap = new Map<string, string>();
 
@@ -314,14 +330,14 @@ async function buildMysqlSchemaManifest(options: GenerateRustTypesMysqlOptions):
         const columnsResult = await DB.doQuery({
             queryString: `
                 SELECT
-                    table_name,
-                    column_name,
-                    data_type,
-                    column_type,
-                    is_nullable,
-                    column_default,
-                    column_comment,
-                    ordinal_position
+                    table_name AS \`table_name\`,
+                    column_name AS \`column_name\`,
+                    data_type AS \`data_type\`,
+                    column_type AS \`column_type\`,
+                    is_nullable AS \`is_nullable\`,
+                    column_default AS \`column_default\`,
+                    column_comment AS \`column_comment\`,
+                    ordinal_position AS \`ordinal_position\`
                 FROM information_schema.columns
                 WHERE table_schema = ?
                   AND table_name IN (${placeholders})

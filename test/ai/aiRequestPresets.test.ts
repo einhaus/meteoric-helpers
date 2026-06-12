@@ -47,6 +47,19 @@ describe('AI request preset helpers', () => {
         expect(config.warnings.some((warning) => warning.includes('Reasoning effort was cleared'))).toBe(false);
     });
 
+    it('supports explicit adaptive-only Anthropic reasoning models without adding legacy thinking budgets', () => {
+        const config = resolveAiRequestConfig({
+            preset: 'agentChat',
+            model: 'anthropic:claude-fable-5'
+        });
+
+        expect(config.provider).toBe('anthropic');
+        expect(config.modelKey).toBe('anthropic:claude-fable-5');
+        expect(config.inferenceProfileKey).toBe('reasoning_high');
+        expect(config.anthropicThinkingBudgetTokens).toBeNull();
+        expect(config.warnings.some((warning) => warning.includes('does not advertise extended-thinking support'))).toBe(false);
+    });
+
     it('clears anthropic temperature automatically when a thinking budget is active', () => {
         const config = resolveAiRequestConfig({
             preset: 'analysis',
@@ -80,7 +93,7 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.provider).toBe('openai');
-        expect(config.modelKey).toBe('openai:gpt-5.5');
+        expect(config.modelKey).toBe('openai:gpt-5.4');
         expect(config.inferenceProfileKey).toBe('reasoning_medium');
         expect(config.reasoningEffort).toBe('medium');
         expect(config.temperature).toBeNull();
@@ -94,7 +107,7 @@ describe('AI request preset helpers', () => {
             temperature: 0.35
         });
 
-        expect(config.modelKey).toBe('openai:gpt-5.5');
+        expect(config.modelKey).toBe('openai:gpt-5.4');
         expect(config.inferenceProfileKey).toBe('reasoning_medium');
         expect(config.temperature).toBeNull();
         expect(config.warnings.some((warning) => warning.includes('does not support the temperature parameter'))).toBe(true);
@@ -122,7 +135,7 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.modelProfile).toBe('balanced');
-        expect(config.modelKey).toBe('openai:gpt-5.5');
+        expect(config.modelKey).toBe('openai:gpt-5.4');
         expect(config.inferenceProfileKey).toBe('reasoning_high');
         expect(config.reasoningEffort).toBe('high');
         expect(config.overridesApplied).toContain('inferenceProfileKey');

@@ -301,6 +301,7 @@ function resolveRequestedAnthropicThinkingBudgetTokens(params: {
     overrideValue: number | null | undefined;
     preset: AiRequestPresetDefinition;
     inferenceProfile: AiInferenceProfileDefinition | null;
+    catalogEntry: AiModelCatalogEntry | null;
     overridesApplied: string[];
 }): number | null {
     if (params.overrideValue !== null && params.overrideValue !== undefined) {
@@ -309,7 +310,16 @@ function resolveRequestedAnthropicThinkingBudgetTokens(params: {
     }
 
     if (params.provider !== 'anthropic') return null;
-    if (params.inferenceProfile) return params.inferenceProfile.anthropicThinkingBudgetTokens;
+    if (params.inferenceProfile) {
+        if (
+            params.catalogEntry?.capabilities.supportsExtendedThinking === false &&
+            params.catalogEntry.capabilities.supportsAdaptiveThinking === true
+        ) {
+            return null;
+        }
+
+        return params.inferenceProfile.anthropicThinkingBudgetTokens;
+    }
 
     return params.preset.anthropicThinkingBudgetTokens ?? null;
 }
@@ -421,6 +431,7 @@ export function resolveAiRequestConfig(
         overrideValue: params.anthropicThinkingBudgetTokens,
         preset,
         inferenceProfile,
+        catalogEntry: resolvedModel.catalogEntry,
         overridesApplied
     });
 
