@@ -142,6 +142,8 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('claude-opus-4-7')?.recommendedReplacementModelKey).toBe('anthropic:claude-opus-4-8');
         expect(getAiModelById('claude-opus-4-1-20250805')?.status).toBe('deprecated');
         expect(getAiModelById('claude-opus-4-1-20250805')?.recommendedReplacementModelKey).toBe('anthropic:claude-opus-4-8');
+        expect(getAiModelById('claude-opus-4')?.status).toBe('retired');
+        expect(getAiModelById('claude-sonnet-4')?.status).toBe('retired');
         expect(getAiModelById('claude-haiku-4-5')?.modelId).toBe('claude-haiku-4-5-20251001');
         expect(getAiModelById('claude-3-5-haiku')?.modelKey).toBe('anthropic:claude-3-5-haiku-20241022');
         expect(getAiModelById('claude-3-5-haiku-20241022')?.modelKey).toBe('anthropic:claude-3-5-haiku-20241022');
