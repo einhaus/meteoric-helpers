@@ -49,6 +49,9 @@ type ResolvedRedactionConfig = {
 
 export type ErrorResponse = { isError: boolean; message: string; statusCode?: number };
 
+export const isErrorResponse = (response: unknown): response is ErrorResponse =>
+    typeof response === 'object' && response !== null && 'isError' in response && response.isError === true;
+
 export const FETCH_DEFAULT_RETRY_MS = 10000;
 export const FETCH_DEFAULT_TIMEOUT_MS = 10000;
 export const FETCH_RETRY_STATUS_CODES = [429, 500, 502, 503, 504];
