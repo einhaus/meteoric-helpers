@@ -1,6 +1,6 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-06-22';
+const VERIFIED_AT = '2026-06-29';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -1870,9 +1870,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'o3 Deep Research',
         family: 'o3-deep-research',
-        description: 'Deprecated OpenAI deep-research model designed for long-running research workflows.',
-        status: 'deprecated',
-        recommendedReplacementModelKey: 'openai:gpt-5.5-pro',
+        description: 'OpenAI deep-research model designed for long-running research workflows.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -1918,7 +1918,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             OPENAI_PRICING_SOURCE,
             OPENAI_DEPRECATIONS_SOURCE
         ],
-        tags: ['deprecated', 'deep-research', 'search']
+        tags: ['active', 'deep-research', 'search']
     },
     {
         modelKey: 'openai:o3-deep-research-2025-06-26',
@@ -1930,7 +1930,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         family: 'o3-deep-research',
         description: 'Deprecated pinned deep-research snapshot kept for compatibility with apps that reference this model id directly.',
         status: 'deprecated',
-        recommendedReplacementModelKey: 'openai:gpt-5.5-pro',
+        recommendedReplacementModelKey: 'openai:o3-deep-research',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -1986,9 +1986,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'o4-mini Deep Research',
         family: 'o4-mini-deep-research',
-        description: 'Deprecated faster, more affordable OpenAI deep-research model.',
-        status: 'deprecated',
-        recommendedReplacementModelKey: 'openai:gpt-5.5-pro',
+        description: 'Faster, more affordable OpenAI deep-research model.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -2034,7 +2034,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             OPENAI_PRICING_SOURCE,
             OPENAI_DEPRECATIONS_SOURCE
         ],
-        tags: ['deprecated', 'deep-research', 'fast', 'search']
+        tags: ['active', 'deep-research', 'fast', 'search']
     },
     {
         modelKey: 'openai:o4-mini-deep-research-2025-06-26',
@@ -2046,7 +2046,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         family: 'o4-mini-deep-research',
         description: 'Deprecated pinned deep-research snapshot kept for compatibility with apps that reference this model id directly.',
         status: 'deprecated',
-        recommendedReplacementModelKey: 'openai:gpt-5.5-pro',
+        recommendedReplacementModelKey: 'openai:o4-mini-deep-research',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -2384,7 +2384,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsAdaptiveThinking: true
         }),
         contextWindowTokens: 1_000_000,
-        maxOutputTokens: 64_000,
+        maxOutputTokens: 128_000,
         knowledgeCutoff: '2025-08',
         pricing: createPricing({
             inputUsdPerMillionTokens: 3,

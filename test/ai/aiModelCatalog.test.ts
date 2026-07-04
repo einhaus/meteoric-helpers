@@ -133,7 +133,11 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('gpt-5.3-codex')?.status).toBe('active');
         expect(getAiModelById('gpt-5-codex')?.recommendedReplacementModelKey).toBe('openai:gpt-5.5');
         expect(getAiModelById('o3-deep-research-2025-06-26')?.modelKey).toBe('openai:o3-deep-research-2025-06-26');
-        expect(getAiModelById('o3-deep-research')?.status).toBe('deprecated');
+        expect(getAiModelById('o3-deep-research-2025-06-26')?.recommendedReplacementModelKey).toBe('openai:o3-deep-research');
+        expect(getAiModelById('o3-deep-research')?.status).toBe('active');
+        expect(getAiModelById('o4-mini-deep-research-2025-06-26')?.recommendedReplacementModelKey).toBe(
+            'openai:o4-mini-deep-research'
+        );
         expect(getAiModelById('claude-fable-5')?.modelKey).toBe('anthropic:claude-fable-5');
         expect(getAiModelById('claude-fable-5')?.maxOutputTokens).toBe(128_000);
         expect(getAiModelById('claude-mythos-5')?.status).toBe('specialized');
@@ -142,6 +146,7 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('claude-opus-4-7')?.recommendedReplacementModelKey).toBe('anthropic:claude-opus-4-8');
         expect(getAiModelById('claude-opus-4-1-20250805')?.status).toBe('deprecated');
         expect(getAiModelById('claude-opus-4-1-20250805')?.recommendedReplacementModelKey).toBe('anthropic:claude-opus-4-8');
+        expect(getAiModelById('claude-sonnet-4-6')?.maxOutputTokens).toBe(128_000);
         expect(getAiModelById('claude-opus-4')?.status).toBe('retired');
         expect(getAiModelById('claude-sonnet-4')?.status).toBe('retired');
         expect(getAiModelById('claude-haiku-4-5')?.modelId).toBe('claude-haiku-4-5-20251001');
