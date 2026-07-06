@@ -1,6 +1,6 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-06-29';
+const VERIFIED_AT = '2026-07-06';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -83,6 +83,12 @@ const ANTHROPIC_MIGRATION_GUIDE_SOURCE: AiModelSource = {
 const ANTHROPIC_OPUS_4_8_SOURCE: AiModelSource = {
     label: 'Anthropic Claude Opus 4.8 launch notes',
     url: 'https://platform.claude.com/docs/en/about-claude/models/whats-new-claude-4-8',
+    verifiedAt: VERIFIED_AT
+};
+
+const ANTHROPIC_SONNET_5_SOURCE: AiModelSource = {
+    label: 'Anthropic Claude Sonnet 5 launch notes',
+    url: 'https://platform.claude.com/docs/en/about-claude/models/whats-new-sonnet-5',
     verifiedAt: VERIFIED_AT
 };
 
@@ -1870,9 +1876,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'o3 Deep Research',
         family: 'o3-deep-research',
-        description: 'OpenAI deep-research model designed for long-running research workflows.',
-        status: 'active',
-        recommendedReplacementModelKey: null,
+        description: 'Deprecated OpenAI deep-research model designed for long-running research workflows.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-5.5-pro',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -1918,7 +1924,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             OPENAI_PRICING_SOURCE,
             OPENAI_DEPRECATIONS_SOURCE
         ],
-        tags: ['active', 'deep-research', 'search']
+        tags: ['deprecated', 'deep-research', 'search', 'compatibility']
     },
     {
         modelKey: 'openai:o3-deep-research-2025-06-26',
@@ -1930,7 +1936,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         family: 'o3-deep-research',
         description: 'Deprecated pinned deep-research snapshot kept for compatibility with apps that reference this model id directly.',
         status: 'deprecated',
-        recommendedReplacementModelKey: 'openai:o3-deep-research',
+        recommendedReplacementModelKey: 'openai:gpt-5.5-pro',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -1986,9 +1992,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'o4-mini Deep Research',
         family: 'o4-mini-deep-research',
-        description: 'Faster, more affordable OpenAI deep-research model.',
-        status: 'active',
-        recommendedReplacementModelKey: null,
+        description: 'Deprecated faster, more affordable OpenAI deep-research model.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-5.5-pro',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -2034,7 +2040,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             OPENAI_PRICING_SOURCE,
             OPENAI_DEPRECATIONS_SOURCE
         ],
-        tags: ['active', 'deep-research', 'fast', 'search']
+        tags: ['deprecated', 'deep-research', 'fast', 'search', 'compatibility']
     },
     {
         modelKey: 'openai:o4-mini-deep-research-2025-06-26',
@@ -2046,7 +2052,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         family: 'o4-mini-deep-research',
         description: 'Deprecated pinned deep-research snapshot kept for compatibility with apps that reference this model id directly.',
         status: 'deprecated',
-        recommendedReplacementModelKey: 'openai:o4-mini-deep-research',
+        recommendedReplacementModelKey: 'openai:gpt-5.5-pro',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -2351,6 +2357,68 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         }
     },
     {
+        modelKey: 'anthropic:claude-sonnet-5',
+        provider: 'anthropic',
+        modelId: 'claude-sonnet-5',
+        snapshotModelId: 'claude-sonnet-5',
+        aliases: [],
+        displayName: 'Claude Sonnet 5',
+        family: 'claude-sonnet-5',
+        description: 'Anthropic Sonnet-tier model that upgrades Claude Sonnet 4.6 with stronger speed/intelligence balance.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: null,
+            supportsComputerUse: null,
+            supportsMcp: null,
+            supportsReasoningEffort: false,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: false,
+            supportsAdaptiveThinking: true
+        }),
+        contextWindowTokens: 1_000_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-01',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 2,
+            cachedInputUsdPerMillionTokens: 0.2,
+            outputUsdPerMillionTokens: 10,
+            cacheWrite5mUsdPerMillionTokens: 2.5,
+            cacheWrite1hUsdPerMillionTokens: 4,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'Introductory pricing applies through August 31, 2026; standard Sonnet pricing becomes $3 input, $0.30 cached input, $3.75 5m cache write, $6 1h cache write, and $15 output per MTok on September 1, 2026. Full 1M context is included at standard pricing. The new tokenizer can produce about 30% more tokens for the same text compared with Sonnet 4.6.'
+        }),
+        sources: [
+            ANTHROPIC_MODELS_SOURCE,
+            ANTHROPIC_MODEL_IDS_SOURCE,
+            ANTHROPIC_PRICING_SOURCE,
+            ANTHROPIC_SONNET_5_SOURCE,
+            ANTHROPIC_ADAPTIVE_THINKING_SOURCE,
+            ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE,
+            ANTHROPIC_WEB_SEARCH_SOURCE
+        ],
+        tags: ['recommended', 'balanced', 'agent', 'analysis'],
+        parameterPolicies: {
+            temperature: 'unsupported'
+        }
+    },
+    {
         modelKey: 'anthropic:claude-sonnet-4-6',
         provider: 'anthropic',
         modelId: 'claude-sonnet-4-6',
@@ -2360,7 +2428,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         family: 'claude-sonnet-4',
         description: 'Balanced Anthropic model combining strong reasoning with lower latency and cost than Opus.',
         status: 'active',
-        recommendedReplacementModelKey: null,
+        recommendedReplacementModelKey: 'anthropic:claude-sonnet-5',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -2407,7 +2475,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE,
             ANTHROPIC_WEB_SEARCH_SOURCE
         ],
-        tags: ['recommended', 'balanced', 'agent', 'analysis']
+        tags: ['active', 'balanced', 'agent', 'analysis', 'compatibility']
     },
     {
         modelKey: 'anthropic:claude-haiku-4-5',

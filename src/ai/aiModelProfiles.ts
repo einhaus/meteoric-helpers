@@ -78,7 +78,7 @@ export const AI_PROVIDER_MODEL_PROFILE_DEFAULTS: Readonly<Record<AiProvider, AiP
             inferenceProfileKey: 'reasoning_high'
         },
         balanced: {
-            modelKey: 'anthropic:claude-sonnet-4-6',
+            modelKey: 'anthropic:claude-sonnet-5',
             inferenceProfileKey: 'reasoning_medium'
         },
         fast: {
@@ -94,7 +94,7 @@ export const AI_PROVIDER_MODEL_PROFILE_DEFAULTS: Readonly<Record<AiProvider, AiP
             inferenceProfileKey: 'reasoning_none'
         },
         webSearch: {
-            modelKey: 'anthropic:claude-sonnet-4-6',
+            modelKey: 'anthropic:claude-sonnet-5',
             inferenceProfileKey: 'reasoning_medium'
         },
         deepResearch: {

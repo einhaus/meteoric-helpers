@@ -60,6 +60,20 @@ describe('AI request preset helpers', () => {
         expect(config.warnings.some((warning) => warning.includes('does not advertise extended-thinking support'))).toBe(false);
     });
 
+    it('uses the Anthropic Sonnet 5 balanced default without legacy thinking budgets', () => {
+        const config = resolveAiRequestConfig({
+            preset: 'analysis',
+            provider: 'anthropic'
+        });
+
+        expect(config.provider).toBe('anthropic');
+        expect(config.modelKey).toBe('anthropic:claude-sonnet-5');
+        expect(config.inferenceProfileKey).toBe('reasoning_medium');
+        expect(config.anthropicThinkingBudgetTokens).toBeNull();
+        expect(config.temperature).toBeNull();
+        expect(config.warnings.some((warning) => warning.includes('does not support the temperature parameter'))).toBe(true);
+    });
+
     it('clears anthropic temperature automatically when a thinking budget is active', () => {
         const config = resolveAiRequestConfig({
             preset: 'analysis',

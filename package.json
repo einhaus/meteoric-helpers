@@ -1,6 +1,6 @@
 {
   "name": "@einhaus/meteoric-helpers",
-  "version": "1.0.130",
+  "version": "1.0.131",
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -75,7 +75,7 @@
     "prettier": "3.9.4",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.1",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/",
