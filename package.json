@@ -1,6 +1,6 @@
 {
   "name": "@einhaus/meteoric-helpers",
-  "version": "1.0.133",
+  "version": "1.0.134",
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -64,17 +64,17 @@
     "@types/mime-types": "^3.0.1",
     "@types/node": "^26.1.1",
     "@types/pg": "^8.20.0",
-    "@typescript-eslint/eslint-plugin": "^8.63.0",
-    "@typescript-eslint/parser": "^8.63.0",
+    "@typescript-eslint/eslint-plugin": "^8.64.0",
+    "@typescript-eslint/parser": "^8.64.0",
     "concurrently": "^10.0.3",
-    "eslint": "^10.6.0",
+    "eslint": "^10.7.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-prettier": "^5.5.6",
     "eslint-plugin-sonarjs": "^4.1.0",
     "prettier": "3.9.5",
     "typescript": "^7.0.2",
-    "typescript-eslint": "^8.63.0",
+    "typescript-eslint": "^8.64.0",
     "vitest": "^4.1.10"
   },
   "publishConfig": {
@@ -83,17 +83,17 @@
   },
   "private": false,
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1084.0",
-    "@aws-sdk/client-ses": "^3.1084.0",
-    "@aws-sdk/s3-request-presigner": "^3.1084.0",
+    "@aws-sdk/client-s3": "^3.1086.0",
+    "@aws-sdk/client-ses": "^3.1086.0",
+    "@aws-sdk/s3-request-presigner": "^3.1086.0",
     "@clickhouse/client": "^1.23.1",
-    "@eslint/eslintrc": "^3.3.5",
+    "@eslint/eslintrc": "^3.3.6",
     "@redis/client": "^6.1.0",
     "bcrypt": "^6.0.0",
     "dayjs": "^1.11.21",
     "mime-types": "^3.0.2",
     "mysql2": "^3.22.6",
-    "nanoid": "^5.1.16",
+    "nanoid": "^6.0.0",
     "node-cache": "^5.1.2",
     "pg": "^8.22.0"
   },

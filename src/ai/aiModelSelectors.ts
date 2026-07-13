@@ -663,11 +663,19 @@ export function estimateAiModelCostUsd(params: {
 
     const cacheWriteRate = isLongContextApplied
         ? cacheWriteMode === '1h'
-            ? (model.pricing.longContextCacheWrite1hUsdPerMillionTokens ?? model.pricing.cacheWrite1hUsdPerMillionTokens)
-            : (model.pricing.longContextCacheWrite5mUsdPerMillionTokens ?? model.pricing.cacheWrite5mUsdPerMillionTokens)
+            ? (model.pricing.longContextCacheWrite1hUsdPerMillionTokens ??
+              model.pricing.longContextCacheWriteUsdPerMillionTokens ??
+              model.pricing.cacheWrite1hUsdPerMillionTokens ??
+              model.pricing.cacheWriteUsdPerMillionTokens ??
+              null)
+            : (model.pricing.longContextCacheWrite5mUsdPerMillionTokens ??
+              model.pricing.longContextCacheWriteUsdPerMillionTokens ??
+              model.pricing.cacheWrite5mUsdPerMillionTokens ??
+              model.pricing.cacheWriteUsdPerMillionTokens ??
+              null)
         : cacheWriteMode === '1h'
-          ? model.pricing.cacheWrite1hUsdPerMillionTokens
-          : model.pricing.cacheWrite5mUsdPerMillionTokens;
+          ? (model.pricing.cacheWrite1hUsdPerMillionTokens ?? model.pricing.cacheWriteUsdPerMillionTokens ?? null)
+          : (model.pricing.cacheWrite5mUsdPerMillionTokens ?? model.pricing.cacheWriteUsdPerMillionTokens ?? null);
 
     if (inputRate === null && cacheReadRate === null && cacheWriteRate === null && outputRate === null) {
         return null;

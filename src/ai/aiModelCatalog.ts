@@ -1,6 +1,6 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-07-06';
+const VERIFIED_AT = '2026-07-13';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -110,6 +110,7 @@ const ANTHROPIC_WEB_SEARCH_SOURCE: AiModelSource = {
     verifiedAt: VERIFIED_AT
 };
 
+const OPENAI_GPT_5_6_REASONING_LEVELS = ['none', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
 const OPENAI_GPT_5_5_REASONING_LEVELS = ['none', 'low', 'medium', 'high', 'xhigh'] as const;
 const OPENAI_GPT_5_4_REASONING_LEVELS = ['none', 'low', 'medium', 'high', 'xhigh'] as const;
 const OPENAI_GPT_5_1_REASONING_LEVELS = ['none', 'low', 'medium', 'high'] as const;
@@ -136,6 +137,186 @@ const createOpenAiModelSource = (modelId: string): AiModelSource => ({
 });
 
 export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
+    {
+        modelKey: 'openai:gpt-5.6-sol',
+        provider: 'openai',
+        modelId: 'gpt-5.6-sol',
+        snapshotModelId: 'gpt-5.6-sol',
+        aliases: ['gpt-5.6'],
+        displayName: 'GPT-5.6 Sol',
+        family: 'gpt-5.6',
+        description: 'Frontier GPT-5.6 model for complex professional, coding, reasoning, and agentic workflows.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: true,
+            supportsMcp: true,
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: OPENAI_GPT_5_6_REASONING_LEVELS,
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 1_050_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-02-16',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 5,
+            cachedInputUsdPerMillionTokens: 0.5,
+            outputUsdPerMillionTokens: 30,
+            cacheWriteUsdPerMillionTokens: 6.25,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 272_000,
+            longContextInputUsdPerMillionTokens: 10,
+            longContextCachedInputUsdPerMillionTokens: 1,
+            longContextCacheWriteUsdPerMillionTokens: 12.5,
+            longContextOutputUsdPerMillionTokens: 45,
+            notes: 'Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
+        }),
+        sources: [
+            createOpenAiModelSource('gpt-5.6-sol'),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_LATEST_MODEL_GUIDE_SOURCE
+        ],
+        tags: ['recommended', 'reasoning', 'coding', 'agent', 'flagship'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
+    },
+    {
+        modelKey: 'openai:gpt-5.6-terra',
+        provider: 'openai',
+        modelId: 'gpt-5.6-terra',
+        snapshotModelId: 'gpt-5.6-terra',
+        aliases: [],
+        displayName: 'GPT-5.6 Terra',
+        family: 'gpt-5.6',
+        description: 'GPT-5.6 model that balances intelligence and cost for broad production workloads.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: true,
+            supportsMcp: true,
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: OPENAI_GPT_5_6_REASONING_LEVELS,
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 1_050_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-02-16',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 2.5,
+            cachedInputUsdPerMillionTokens: 0.25,
+            outputUsdPerMillionTokens: 15,
+            cacheWriteUsdPerMillionTokens: 3.125,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 272_000,
+            longContextInputUsdPerMillionTokens: 5,
+            longContextCachedInputUsdPerMillionTokens: 0.5,
+            longContextCacheWriteUsdPerMillionTokens: 6.25,
+            longContextOutputUsdPerMillionTokens: 22.5,
+            notes: 'Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
+        }),
+        sources: [
+            createOpenAiModelSource('gpt-5.6-terra'),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_LATEST_MODEL_GUIDE_SOURCE
+        ],
+        tags: ['recommended', 'reasoning', 'balanced', 'coding', 'agent'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
+    },
+    {
+        modelKey: 'openai:gpt-5.6-luna',
+        provider: 'openai',
+        modelId: 'gpt-5.6-luna',
+        snapshotModelId: 'gpt-5.6-luna',
+        aliases: [],
+        displayName: 'GPT-5.6 Luna',
+        family: 'gpt-5.6',
+        description: 'Cost-sensitive GPT-5.6 model for efficient, high-volume production workloads.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: true,
+            supportsMcp: true,
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: OPENAI_GPT_5_6_REASONING_LEVELS,
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 1_050_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-02-16',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 1,
+            cachedInputUsdPerMillionTokens: 0.1,
+            outputUsdPerMillionTokens: 6,
+            cacheWriteUsdPerMillionTokens: 1.25,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 272_000,
+            longContextInputUsdPerMillionTokens: 2,
+            longContextCachedInputUsdPerMillionTokens: 0.2,
+            longContextCacheWriteUsdPerMillionTokens: 2.5,
+            longContextOutputUsdPerMillionTokens: 9,
+            notes: 'Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
+        }),
+        sources: [
+            createOpenAiModelSource('gpt-5.6-luna'),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_LATEST_MODEL_GUIDE_SOURCE
+        ],
+        tags: ['active', 'reasoning', 'fast', 'cheap', 'high-volume'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
+    },
     {
         modelKey: 'openai:gpt-5.5',
         provider: 'openai',
@@ -470,9 +651,10 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'Chat Latest',
         family: 'chat-latest',
-        description: 'Latest ChatGPT Instant model alias for ChatGPT-style integrations; OpenAI recommends GPT-5.5 for production API use.',
+        description:
+            'Latest ChatGPT Instant model alias for ChatGPT-style integrations; OpenAI recommends GPT-5.6 Sol for production API use.',
         status: 'active',
-        recommendedReplacementModelKey: null,
+        recommendedReplacementModelKey: 'openai:gpt-5.6-sol',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -508,7 +690,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextInputUsdPerMillionTokens: null,
             longContextCachedInputUsdPerMillionTokens: null,
             longContextOutputUsdPerMillionTokens: null,
-            notes: 'OpenAI recommends GPT-5.5 for production API use when a stable model ID is preferable to the ChatGPT latest alias.'
+            notes: 'OpenAI recommends GPT-5.6 Sol for production API use when a stable model ID is preferable to the ChatGPT latest alias.'
         }),
         sources: [
             createOpenAiModelSource('chat-latest'),

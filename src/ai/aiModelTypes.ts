@@ -4,7 +4,7 @@ export type AiModelStatus = 'active' | 'specialized' | 'legacy' | 'deprecated' |
 
 export type AiModelProfile = 'reasoning' | 'balanced' | 'fast' | 'cheap' | 'title' | 'webSearch' | 'deepResearch';
 
-export type AiReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+export type AiReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 export type AiInputModality = 'text' | 'image' | 'audio' | 'video';
 
@@ -51,11 +51,13 @@ export type AiModelPricing = Readonly<{
     inputUsdPerMillionTokens: number | null;
     cachedInputUsdPerMillionTokens: number | null;
     outputUsdPerMillionTokens: number | null;
+    cacheWriteUsdPerMillionTokens?: number | null;
     cacheWrite5mUsdPerMillionTokens: number | null;
     cacheWrite1hUsdPerMillionTokens: number | null;
     longContextThresholdInputTokens: number | null;
     longContextInputUsdPerMillionTokens: number | null;
     longContextCachedInputUsdPerMillionTokens: number | null;
+    longContextCacheWriteUsdPerMillionTokens?: number | null;
     longContextCacheWrite5mUsdPerMillionTokens?: number | null;
     longContextCacheWrite1hUsdPerMillionTokens?: number | null;
     longContextOutputUsdPerMillionTokens: number | null;

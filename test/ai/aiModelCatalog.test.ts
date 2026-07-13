@@ -16,6 +16,8 @@ import {
 
 describe('AI model catalog helpers', () => {
     it('normalizes provider-prefixed and raw model identifiers into shared model keys', () => {
+        expect(normalizeAiModelKey('gpt-5.6')).toBe('openai:gpt-5.6-sol');
+        expect(normalizeAiModelKey('gpt-5.6-terra')).toBe('openai:gpt-5.6-terra');
         expect(normalizeAiModelKey('openai:gpt-5.5')).toBe('openai:gpt-5.5');
         expect(normalizeAiModelKey('claude-sonnet-4-6')).toBe('anthropic:claude-sonnet-4-6');
         expect(normalizeAiModelKey('gpt-5.4-mini')).toBe('openai:gpt-5.4-mini');
@@ -99,6 +101,41 @@ describe('AI model catalog helpers', () => {
                 expect.stringContaining('output price 30 exceeds profile budget 15')
             ])
         );
+
+        const modeledSamePriceTerraCandidate = evaluateAiModelProfileCostPolicy({
+            provider: 'openai',
+            profile: 'balanced',
+            candidateModelKey: 'openai:gpt-5.6-terra'
+        });
+
+        expect(modeledSamePriceTerraCandidate.isWithinPolicy).toBe(true);
+        expect(modeledSamePriceTerraCandidate.inputPriceMultiplier).toBe(1);
+        expect(modeledSamePriceTerraCandidate.cachedInputPriceMultiplier).toBe(1);
+        expect(modeledSamePriceTerraCandidate.outputPriceMultiplier).toBe(1);
+        expect(getAiModelById('gpt-5.6-terra')?.pricing.cacheWriteUsdPerMillionTokens).toBe(3.125);
+        expect(getAiModelById('gpt-5.4')?.pricing.cacheWriteUsdPerMillionTokens).toBeUndefined();
+
+        const unapprovedSolPromotion = evaluateAiModelProfileCostPolicy({
+            provider: 'openai',
+            profile: 'reasoning',
+            candidateModelKey: 'openai:gpt-5.6-sol'
+        });
+
+        expect(unapprovedSolPromotion.isWithinPolicy).toBe(false);
+        expect(unapprovedSolPromotion.inputPriceMultiplier).toBe(2);
+        expect(unapprovedSolPromotion.cachedInputPriceMultiplier).toBe(2);
+        expect(unapprovedSolPromotion.outputPriceMultiplier).toBe(2);
+
+        const unapprovedLunaFastPromotion = evaluateAiModelProfileCostPolicy({
+            provider: 'openai',
+            profile: 'fast',
+            candidateModelKey: 'openai:gpt-5.6-luna'
+        });
+
+        expect(unapprovedLunaFastPromotion.isWithinPolicy).toBe(false);
+        expect(unapprovedLunaFastPromotion.inputPriceMultiplier).toBe(1.333333333333);
+        expect(unapprovedLunaFastPromotion.cachedInputPriceMultiplier).toBe(1.333333333333);
+        expect(unapprovedLunaFastPromotion.outputPriceMultiplier).toBe(1.333333333333);
     });
 
     it('filters legacy models unless explicitly requested', () => {
@@ -135,11 +172,40 @@ describe('AI model catalog helpers', () => {
         expect(estimate?.totalCostUsd).toBe(7.5);
     });
 
+    it('charges generic cache-write pricing for GPT-5.6 models', () => {
+        const standardEstimate = estimateAiModelCostUsd({
+            model: 'gpt-5.6-terra',
+            inputTokens: 1_000,
+            outputTokens: 100,
+            cacheWriteInputTokens: 1_000
+        });
+
+        expect(standardEstimate?.cacheWriteCostUsd).toBe(0.003125);
+        expect(standardEstimate?.totalCostUsd).toBe(0.007125);
+
+        const longContextEstimate = estimateAiModelCostUsd({
+            model: 'gpt-5.6-terra',
+            inputTokens: 300_000,
+            outputTokens: 100_000,
+            cacheWriteInputTokens: 1_000
+        });
+
+        expect(longContextEstimate?.longContextApplied).toBe(true);
+        expect(longContextEstimate?.cacheWriteCostUsd).toBe(0.00625);
+        expect(longContextEstimate?.totalCostUsd).toBe(3.75625);
+    });
+
     it('can still resolve legacy models used by current apps', () => {
+        expect(getAiModelById('gpt-5.6')?.modelKey).toBe('openai:gpt-5.6-sol');
+        expect(getAiModelById('gpt-5.6-sol')?.capabilities.reasoningEffortLevels).toContain('max');
+        expect(getAiModelById('gpt-5.6-sol')?.pricing.inputUsdPerMillionTokens).toBe(5);
+        expect(getAiModelById('gpt-5.6-terra')?.pricing.longContextOutputUsdPerMillionTokens).toBe(22.5);
+        expect(getAiModelById('gpt-5.6-luna')?.pricing.outputUsdPerMillionTokens).toBe(6);
         expect(getAiModelById('gpt-4o-mini')?.modelKey).toBe('openai:gpt-4o-mini');
         expect(getAiModelById('chatgpt-4o-latest')?.modelKey).toBe('openai:chatgpt-4o-latest');
         expect(getAiModelById('chat-latest')?.modelKey).toBe('openai:chat-latest');
         expect(getAiModelById('chat-latest')?.maxOutputTokens).toBe(128_000);
+        expect(getAiModelById('chat-latest')?.recommendedReplacementModelKey).toBe('openai:gpt-5.6-sol');
         expect(getAiModelById('gpt-5.3-chat-latest')?.status).toBe('deprecated');
         expect(getAiModelById('gpt-5-chat-latest')?.recommendedReplacementModelKey).toBe('openai:gpt-5.5');
         expect(getAiModelById('gpt-5.5-pro')?.modelKey).toBe('openai:gpt-5.5-pro');
@@ -181,6 +247,9 @@ describe('AI model catalog helpers', () => {
     });
 
     it('filters shared agent-chat candidates using catalog capabilities and status', () => {
+        expect(isAiAgentChatCandidate('gpt-5.6-sol')).toBe(true);
+        expect(isAiAgentChatCandidate('gpt-5.6-terra')).toBe(true);
+        expect(isAiAgentChatCandidate('gpt-5.6-luna')).toBe(true);
         expect(isAiAgentChatCandidate('gpt-5.5')).toBe(true);
         expect(isAiAgentChatCandidate('chat-latest')).toBe(true);
         expect(isAiAgentChatCandidate('o3-deep-research')).toBe(false);
