@@ -89,6 +89,11 @@ export interface DBConfig {
     charset?: string;
     connectionLimit?: number;
     logFolder: string;
+    /**
+     * Return JSON columns as raw strings instead of driver-decoded objects (MySQL). Defaults to true.
+     * mysql2 >= 3.23.0 auto-decodes MariaDB JSON columns, which breaks consumers that JSON.parse column values themselves.
+     */
+    jsonStrings?: boolean;
     /** Maximum number of retry attempts for database operations. Defaults to 4 if not specified. */
     maxRetries?: number;
     /** Delay in milliseconds between retry attempts. Defaults to 10000 (10 seconds) if not specified. */

@@ -59,6 +59,46 @@ const createMockPool = () => {
     };
 };
 
+describe('DBMysql connection config', () => {
+    beforeEach(() => {
+        createConnection.mockReset();
+        createPool.mockReset();
+    });
+
+    it('forces JSON and date columns to be returned as raw strings by default', () => {
+        createPool.mockReturnValue(createMockPool().pool);
+
+        const db = DBMysql.getInstance(TEST_DB_CONFIG, `config-pool-${testInstanceId++}`);
+        db.getPool();
+
+        expect(createPool).toHaveBeenCalledOnce();
+        expect(createPool).toHaveBeenCalledWith(expect.objectContaining({ jsonStrings: true, dateStrings: true }));
+    });
+
+    it('allows opting into driver-decoded JSON columns', () => {
+        createPool.mockReturnValue(createMockPool().pool);
+
+        const db = DBMysql.getInstance({ ...TEST_DB_CONFIG, jsonStrings: false }, `config-pool-${testInstanceId++}`);
+        db.getPool();
+
+        expect(createPool).toHaveBeenCalledWith(expect.objectContaining({ jsonStrings: false }));
+    });
+
+    it('resets the pool when jsonStrings changes on an existing instance', async () => {
+        createPool.mockReturnValue(createMockPool().pool);
+
+        const instanceKey = `config-pool-${testInstanceId++}`;
+        const db = DBMysql.getInstance(TEST_DB_CONFIG, instanceKey);
+        db.getPool();
+        expect(createPool).toHaveBeenCalledOnce();
+
+        DBMysql.getInstance({ ...TEST_DB_CONFIG, jsonStrings: false }, instanceKey);
+
+        await vi.waitFor(() => expect(createPool).toHaveBeenCalledTimes(2));
+        expect(createPool).toHaveBeenLastCalledWith(expect.objectContaining({ jsonStrings: false }));
+    });
+});
+
 describe('DBMysql.createResultStream', () => {
     beforeEach(() => {
         createConnection.mockReset();

@@ -90,7 +90,8 @@ export class DBMysql {
                 previousConfig.user !== config.user ||
                 previousConfig.password !== config.password ||
                 previousConfig.db !== config.db ||
-                previousConfig.charset !== config.charset;
+                previousConfig.charset !== config.charset ||
+                (previousConfig.jsonStrings ?? true) !== (config.jsonStrings ?? true);
 
             // Only reset the pool if connection-affecting config actually changed.
             if (shouldResetPool) {
@@ -139,6 +140,8 @@ export class DBMysql {
             charset: this.config.charset ?? 'utf8mb4',
             multipleStatements: true,
             dateStrings: true,
+            // mysql2 >= 3.23.0 auto-decodes MariaDB JSON columns; consumers expect raw strings and parse themselves
+            jsonStrings: this.config.jsonStrings ?? true,
             enableKeepAlive: true,
             connectTimeout: 30000
         };
