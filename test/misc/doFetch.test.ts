@@ -47,8 +47,8 @@ describe('doFetch', () => {
         }
 
         expect(response.statusCode).toBe(408);
-        expect(response.message).toContain('"APCA-API-KEY-ID":"PKFV[REDACTED]"');
-        expect(response.message).toContain('"APCA-API-SECRET-KEY":"3oq6[REDACTED]"');
+        expect(response.message).toContain('"apca-api-key-id":"PKFV[REDACTED]"');
+        expect(response.message).toContain('"apca-api-secret-key":"3oq6[REDACTED]"');
         expect(response.message).not.toContain('3oq658nfPCL2M1Jdo8uzsdfsdfsfN2cnz7zxjtr3zWC1kSE');
     });
 

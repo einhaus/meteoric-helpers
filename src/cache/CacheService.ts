@@ -62,7 +62,6 @@ export class CacheService {
             // If config is provided and instance exists, update the config with new values
             Object.assign(instance.config, config);
             // Close existing connection to apply new config on next getClient call
-            // eslint-disable-next-line no-void
             void instance.close();
         }
 
@@ -86,14 +85,12 @@ export class CacheService {
             const instance = CacheService.instances.get(key);
 
             if (instance) {
-                // eslint-disable-next-line no-void
                 void instance.close();
                 CacheService.instances.delete(key);
             }
         } else {
             // Reset all instances
             for (const [instanceKey, instance] of CacheService.instances.entries()) {
-                // eslint-disable-next-line no-void
                 void instance.close();
                 CacheService.instances.delete(instanceKey);
             }
@@ -148,10 +145,8 @@ export class CacheService {
         const TWENTY_FOUR_HOURS_IN_SECONDS = 86400;
 
         if (ttlSeconds) {
-            // eslint-disable-next-line @typescript-eslint/naming-convention
             return client.set(key, value, { EX: ttlSeconds });
         } else {
-            // eslint-disable-next-line @typescript-eslint/naming-convention
             return client.set(key, value, { EX: TWENTY_FOUR_HOURS_IN_SECONDS });
         }
     }

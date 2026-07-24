@@ -69,9 +69,9 @@ export async function discoverOpenAiModels(apiKey: string): Promise<DiscoveredPr
     }
 
     const body = (await response.json()) as {
-        data?: Array<{
+        data?: {
             id?: string;
-        }>;
+        }[];
     };
 
     const discoveredModels: DiscoveredProviderModel[] = [];
@@ -110,10 +110,10 @@ export async function discoverAnthropicModels(apiKey: string): Promise<Discovere
         }
 
         const body = (await response.json()) as {
-            data?: Array<{
+            data?: {
                 id?: string;
                 display_name?: string | null;
-            }>;
+            }[];
             has_more?: boolean;
             last_id?: string | null;
         };

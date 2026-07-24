@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import { SendEmailCommand, SESClient, type SendEmailCommandInput, type SendEmailCommandOutput } from '@aws-sdk/client-ses';
 import type { AwsCredentials } from '../file/S3Helper.js';
 

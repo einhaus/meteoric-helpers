@@ -1,6 +1,3 @@
-/* eslint-disable max-depth */
-/* eslint-disable @typescript-eslint/naming-convention */
-/* eslint-disable max-len */
 import type { ResultSetHeader } from 'mysql2/promise';
 import fs from 'fs';
 import { DBMysql } from './mysql.js';
@@ -111,7 +108,6 @@ interface TableMetadata {
 }
 
 // Function to fetch all metadata for all tables at once
-// eslint-disable-next-line max-statements, complexity
 async function fetchAllTablesMetadata(DB: DBMysql, dbName: string, tables: string[]): Promise<Map<string, TableMetadata>> {
     console.log('Fetching metadata for all tables...');
     const tableMetadataMap = new Map<string, TableMetadata>();
@@ -362,7 +358,6 @@ async function fetchAllTablesMetadata(DB: DBMysql, dbName: string, tables: strin
     return tableMetadataMap;
 }
 
-// eslint-disable-next-line complexity, max-statements
 export const generateTypesMysql = async (options: GenerateTypesMysqlOptions) => {
     const DB = DBMysql.getInstance(
         {
@@ -445,8 +440,8 @@ export const generateTypesMysql = async (options: GenerateTypesMysqlOptions) => 
         // Fetch all metadata for all tables at once
         const tableMetadataMap = await fetchAllTablesMetadata(DB, options.db, Array.from(tableMap.values()));
 
-        let typesFileContent = `/* eslint-disable max-len */
-/* eslint-disable @typescript-eslint/naming-convention */
+        let typesFileContent = `/* oxlint-disable max-len */
+/* oxlint-disable typescript/naming-convention */
 /**
  * Auto-generated TypeScript interfaces for MySQL database schema
  * Generated on: ${new Date().toISOString()}

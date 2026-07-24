@@ -1,107 +1,110 @@
 {
-  "name": "@einhaus/meteoric-helpers",
-  "version": "1.0.136",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs",
-      "types": "./dist/index.d.ts"
+    "name": "@einhaus/meteoric-helpers",
+    "version": "1.0.137",
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs",
+            "types": "./dist/index.d.ts"
+        },
+        "./dbHelpers/mysql": {
+            "import": "./dist/dbHelpers/mysql.js",
+            "require": "./dist/dbHelpers/mysql.cjs",
+            "types": "./dist/dbHelpers/mysql.d.ts"
+        },
+        "./dist/dbHelpers/mysql": {
+            "import": "./dist/dbHelpers/mysql.js",
+            "require": "./dist/dbHelpers/mysql.cjs",
+            "types": "./dist/dbHelpers/mysql.d.ts"
+        },
+        "./dbHelpers/postgres": {
+            "import": "./dist/dbHelpers/postgres.js",
+            "require": "./dist/dbHelpers/postgres.cjs",
+            "types": "./dist/dbHelpers/postgres.d.ts"
+        },
+        "./node": {
+            "import": "./dist/node.js",
+            "require": "./dist/node.cjs",
+            "types": "./dist/node.d.ts"
+        },
+        "./node.js": {
+            "import": "./dist/node.js",
+            "require": "./dist/node.cjs",
+            "types": "./dist/node.d.ts"
+        },
+        "./*": {
+            "import": "./dist/*.js",
+            "require": "./dist/*.cjs",
+            "types": "./dist/*.d.ts"
+        }
     },
-    "./dbHelpers/mysql": {
-      "import": "./dist/dbHelpers/mysql.js",
-      "require": "./dist/dbHelpers/mysql.cjs",
-      "types": "./dist/dbHelpers/mysql.d.ts"
+    "browser": "./dist/index.js",
+    "main": "./dist/index.js",
+    "types": "dist/index.d.ts",
+    "author": "Meteoric, LLC",
+    "license": "MIT",
+    "description": "A collection of helper functions used in Meteoric LLC projects.",
+    "type": "module",
+    "scripts": {
+        "clean": "rm -rf ./dist",
+        "build": "bun run clean && tsc -v && bun -v && bun './utilities/buildBarrelFile.ts' && tsc -p .",
+        "test": "vitest run --dir ./test",
+        "build:barrel": "bun './utilities/buildBarrelFile.ts'",
+        "watch:barrel": "bun './utilities/watchBarrelFile.ts'",
+        "watch": "bun run clean && bun run build:barrel && tsc -p . && concurrently \"tsc -p . --watch --preserveWatchOutput\" \"bun run watch:barrel -- --no-initial\"",
+        "type-check": "tsc --noEmit",
+        "lint": "oxlint --disable-nested-config --deny-warnings --report-unused-disable-directives-severity=error .",
+        "lint:all": "bun run lint",
+        "lint:fix": "oxlint --disable-nested-config --fix --deny-warnings --report-unused-disable-directives-severity=error .",
+        "format": "oxfmt .",
+        "format:check": "oxfmt --check ."
     },
-    "./dist/dbHelpers/mysql": {
-      "import": "./dist/dbHelpers/mysql.js",
-      "require": "./dist/dbHelpers/mysql.cjs",
-      "types": "./dist/dbHelpers/mysql.d.ts"
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/einhaus/meteoric-helpers.git"
     },
-    "./dbHelpers/postgres": {
-      "import": "./dist/dbHelpers/postgres.js",
-      "require": "./dist/dbHelpers/postgres.cjs",
-      "types": "./dist/dbHelpers/postgres.d.ts"
+    "devDependencies": {
+        "@types/bcrypt": "^6.0.0",
+        "@types/mime-types": "^3.0.1",
+        "@types/node": "^26.1.1",
+        "@types/pg": "^8.20.0",
+        "concurrently": "^10.0.3",
+        "oxfmt": "^0.60.0",
+        "oxlint": "^1.75.0",
+        "oxlint-tsgolint": "^7.0.2001",
+        "typescript": "^7.0.2",
+        "vitest": "^4.1.10"
     },
-    "./node": {
-      "import": "./dist/node.js",
-      "require": "./dist/node.cjs",
-      "types": "./dist/node.d.ts"
+    "publishConfig": {
+        "registry": "https://npm.pkg.github.com/",
+        "access": "restricted"
     },
-    "./node.js": {
-      "import": "./dist/node.js",
-      "require": "./dist/node.cjs",
-      "types": "./dist/node.d.ts"
+    "private": false,
+    "dependencies": {
+        "@aws-sdk/client-s3": "^3.1094.0",
+        "@aws-sdk/client-ses": "^3.1094.0",
+        "@aws-sdk/s3-request-presigner": "^3.1094.0",
+        "@clickhouse/client": "^1.23.1",
+        "@redis/client": "^6.1.0",
+        "bcrypt": "^6.0.0",
+        "dayjs": "^1.11.21",
+        "mime-types": "^3.0.2",
+        "mysql2": "^3.23.1",
+        "nanoid": "^6.0.0",
+        "node-cache": "^5.1.2",
+        "pg": "^8.22.0"
     },
-    "./*": {
-      "import": "./dist/*.js",
-      "require": "./dist/*.cjs",
-      "types": "./dist/*.d.ts"
+    "overrides": {
+        "fast-xml-parser": "5.3.6",
+        "rollup": "4.59.0",
+        "minimatch@3": "3.1.5",
+        "minimatch@9": "9.0.9",
+        "minimatch@10": "10.2.4",
+        "typescript": "^7.0.2",
+        "oxlint-tsgolint": "^7.0.2001"
     }
-  },
-  "browser": "./dist/index.js",
-  "main": "./dist/index.js",
-  "types": "dist/index.d.ts",
-  "author": "Meteoric, LLC",
-  "license": "MIT",
-  "description": "A collection of helper functions used in Meteoric LLC projects.",
-  "type": "module",
-  "scripts": {
-    "clean": "rm -rf ./dist",
-    "build": "bun run clean && tsc -v && bun -v && bun './utilities/buildBarrelFile.ts' && tsc -p .",
-    "test": "vitest --dir ./test",
-    "build:barrel": "bun './utilities/buildBarrelFile.ts'",
-    "watch:barrel": "bun './utilities/watchBarrelFile.ts'",
-    "watch": "bun run clean && bun run build:barrel && tsc -p . && concurrently \"tsc -p . --watch --preserveWatchOutput\" \"bun run watch:barrel -- --no-initial\"",
-    "type-check": "tsc --noEmit"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/einhaus/meteoric-helpers.git"
-  },
-  "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@types/bcrypt": "^6.0.0",
-    "@types/mime-types": "^3.0.1",
-    "@types/node": "^26.1.1",
-    "@types/pg": "^8.20.0",
-    "@typescript-eslint/eslint-plugin": "^8.64.0",
-    "@typescript-eslint/parser": "^8.64.0",
-    "concurrently": "^10.0.3",
-    "eslint": "^10.7.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-prettier": "^5.5.6",
-    "eslint-plugin-sonarjs": "^4.2.0",
-    "prettier": "3.9.5",
-    "typescript": "^7.0.2",
-    "typescript-eslint": "^8.64.0",
-    "vitest": "^4.1.10"
-  },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com/",
-    "access": "restricted"
-  },
-  "private": false,
-  "dependencies": {
-    "@aws-sdk/client-s3": "^3.1087.0",
-    "@aws-sdk/client-ses": "^3.1087.0",
-    "@aws-sdk/s3-request-presigner": "^3.1087.0",
-    "@clickhouse/client": "^1.23.1",
-    "@eslint/eslintrc": "^3.3.6",
-    "@redis/client": "^6.1.0",
-    "bcrypt": "^6.0.0",
-    "dayjs": "^1.11.21",
-    "mime-types": "^3.0.2",
-    "mysql2": "^3.23.0",
-    "nanoid": "^6.0.0",
-    "node-cache": "^5.1.2",
-    "pg": "^8.22.0"
-  },
-  "overrides": {
-    "fast-xml-parser": "5.3.6",
-    "rollup": "4.59.0",
-    "minimatch@3": "3.1.5",
-    "minimatch@9": "9.0.9",
-    "minimatch@10": "10.2.4"
-  }
 }

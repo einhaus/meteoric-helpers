@@ -1,4 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/naming-convention
 import NodeCache from 'node-cache';
 
 export interface LocalCacheConfig {

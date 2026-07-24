@@ -8,7 +8,6 @@ export const getDatePlusMinus = (
     returnFormat: 'ymd' | 'unix' | 'ymdhms' = 'ymd',
     startOrEndOfDay?: 'start' | 'end' | null,
     inputDateTime: string | Date | number = ''
-    // eslint-disable-next-line max-params
 ): string => {
     let dateObject = inputDateTime && typeof inputDateTime === 'string' ? dayjs(inputDateTime) : dayjs();
     dateObject = inputDateTime && typeof inputDateTime === 'number' ? dayjs.unix(inputDateTime) : dateObject;

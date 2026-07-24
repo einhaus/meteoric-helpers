@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import { Pool, type PoolClient, type QueryResult } from 'pg';
 import type {
     DBConfig,
@@ -102,7 +101,6 @@ export class DBPostgres {
 
             // Only reset the pool if connection-affecting config actually changed.
             if (shouldResetPool) {
-                // eslint-disable-next-line no-void
                 void instance.resetPool('config updated');
             }
         }
@@ -168,7 +166,6 @@ export class DBPostgres {
     private async resetPool(reason: string) {
         if (this.poolResetPromise) return this.poolResetPromise;
 
-        // eslint-disable-next-line @typescript-eslint/require-await
         this.poolResetPromise = (async () => {
             const oldPool = this.db;
             // Swap in a fresh pool immediately so concurrent callers can proceed.
@@ -176,7 +173,6 @@ export class DBPostgres {
 
             if (oldPool) {
                 // Close the old pool in the background; don't block callers on draining.
-                // eslint-disable-next-line no-void
                 void oldPool.end().catch((e: unknown) => {
                     this.handleError(e);
                 });
@@ -213,7 +209,7 @@ export class DBPostgres {
                     if (Array.isArray(parameters)) {
                         paramArray = parameters as (string | number | boolean | null)[];
                     } else {
-                        paramArray = [parameters as string | number | boolean | null];
+                        paramArray = [parameters];
                     }
                 }
 
@@ -233,7 +229,6 @@ export class DBPostgres {
                     const errorType = this.getErrorType(errorCode);
 
                     console.warn(
-                        // eslint-disable-next-line max-len
                         `[${errorType}] Retryable error encountered: ${errorCode || 'Unknown'} - ${(e as Error).message}. Retrying (${retryAttempts + 1}/${this.maxRetries})...`
                     );
 
@@ -265,7 +260,6 @@ export class DBPostgres {
                 const dbConnection: Pool | PoolClient = connection ? connection : this.getOrThrowPool();
 
                 // PostgreSQL uses parameterized queries differently than MySQL
-                // eslint-disable-next-line no-nested-ternary
                 const paramArray = parameters ? (Array.isArray(parameters) ? parameters : [parameters]) : [];
                 const result = await dbConnection.query(queryString, paramArray as (string | number | boolean | null)[]);
 
@@ -280,7 +274,6 @@ export class DBPostgres {
                     const errorType = this.getErrorType(errorCode);
 
                     console.warn(
-                        // eslint-disable-next-line max-len
                         `[${errorType}] Retryable error encountered: ${errorCode || 'Unknown'} - ${(e as Error).message}. Retrying (${retryAttempts}/${this.maxRetries})...`
                     );
 
@@ -451,7 +444,6 @@ export class DBPostgres {
      * Bulk copy data into a PostgreSQL table using the COPY FROM STDIN protocol.
      * This is much faster than INSERT for large datasets.
      */
-    // eslint-disable-next-line max-statements
     async bulkCopy<T extends object>(config: {
         table: string;
         values: Insertable<T>[];
@@ -640,7 +632,6 @@ export class DBPostgres {
         return this.doQuery({ queryString, parameters: parameters as DbParameters, verbose });
     }
 
-    // eslint-disable-next-line complexity
     private buildWhereClauseWithParams<T>(
         conditions: WhereCondition<T>[],
         joinOperator: 'AND' | 'OR',
@@ -713,7 +704,6 @@ export class DBPostgres {
         };
     }
 
-    // eslint-disable-next-line complexity
     async doInsert<T>(config: {
         queryString: string;
         parameters?: T[] | DbParameters | undefined;
@@ -755,7 +745,7 @@ export class DBPostgres {
                     if (Array.isArray(parameters)) {
                         paramArray = parameters as (string | number | boolean | null)[];
                     } else {
-                        paramArray = [parameters as string | number | boolean | null];
+                        paramArray = [parameters];
                     }
                 }
 
@@ -776,7 +766,6 @@ export class DBPostgres {
                     const errorType = this.getErrorType(errorCode);
 
                     console.warn(
-                        // eslint-disable-next-line max-len
                         `[${errorType}] Insert transient error: ${errorCode || 'Unknown'} - ${(e as Error).message}. Retrying (${retryAttempts + 1}/${this.maxRetries})...`
                     );
 
@@ -1032,7 +1021,6 @@ export class DBPostgres {
                 if (e instanceof Error) {
                     const argString = process.argv.slice(1).join(' ');
 
-                    // eslint-disable-next-line max-len
                     const logEntry = `${argString}\nError Stack: ${e.stack ?? ''}\n Datetime: ${getDate({ format: 'ymdhms' })}\n${JSON.stringify(
                         e,
                         null,

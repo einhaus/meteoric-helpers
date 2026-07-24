@@ -4,10 +4,12 @@ import {
     AI_GLOBAL_MODEL_PROFILES,
     AI_PROVIDER_MODEL_PROFILE_COST_POLICIES,
     AI_PROVIDER_MODEL_PROFILE_DEFAULTS,
-    AI_PROVIDER_MODEL_PROFILES
+    AI_PROVIDER_MODEL_PROFILES,
+    type AiModelProfileCostPolicy,
+    type AiModelProfileDefault,
+    type AiModelProfileCostTier
 } from './aiModelProfiles.js';
 import type { AiInferenceProfileKey } from './aiInferenceProfiles.js';
-import type { AiModelProfileCostPolicy, AiModelProfileDefault, AiModelProfileCostTier } from './aiModelProfiles.js';
 import type {
     AiCacheWriteMode,
     AiModelCatalogEntry,

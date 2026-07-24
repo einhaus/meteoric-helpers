@@ -220,6 +220,10 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('claude-fable-5')?.modelKey).toBe('anthropic:claude-fable-5');
         expect(getAiModelById('claude-fable-5')?.maxOutputTokens).toBe(128_000);
         expect(getAiModelById('claude-mythos-5')?.status).toBe('specialized');
+        expect(getAiModelById('claude-mythos-preview')?.status).toBe('deprecated');
+        expect(getAiModelById('claude-mythos-preview')?.recommendedReplacementModelKey).toBe('anthropic:claude-mythos-5');
+        expect(getAiModelById('claude-mythos-preview')?.contextWindowTokens).toBe(1_000_000);
+        expect(getAiModelById('claude-mythos-preview')?.maxOutputTokens).toBeNull();
         expect(getAiModelById('claude-opus-4-8')?.modelKey).toBe('anthropic:claude-opus-4-8');
         expect(getAiModelById('claude-opus-4-8')?.recommendedReplacementModelKey).toBe('anthropic:claude-fable-5');
         expect(getAiModelById('claude-opus-4-7')?.recommendedReplacementModelKey).toBe('anthropic:claude-opus-4-8');

@@ -1,6 +1,3 @@
-/* eslint-disable sonarjs/no-nested-template-literals */
-/* eslint-disable @typescript-eslint/naming-convention */
-/* eslint-disable max-len */
 import type { QueryResult } from 'pg';
 import fs from 'fs';
 import { DBPostgres } from './postgres.js';
@@ -102,7 +99,6 @@ interface TableMetadata {
 }
 
 // Function to fetch all metadata for all tables at once
-// eslint-disable-next-line max-statements
 async function fetchAllTablesMetadata(DB: DBPostgres, tables: string[]): Promise<Map<string, TableMetadata>> {
     console.log('Fetching metadata for all tables...');
     const tableMetadataMap = new Map<string, TableMetadata>();
@@ -308,7 +304,6 @@ async function fetchAllTablesMetadata(DB: DBPostgres, tables: string[]): Promise
     return tableMetadataMap;
 }
 
-// eslint-disable-next-line complexity, max-statements
 export const generateTypesPg = async (options: GenerateTypesPgOptions) => {
     const DB = DBPostgres.getInstance(
         {

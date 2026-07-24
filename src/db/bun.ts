@@ -1,11 +1,9 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import { existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import { getDate } from '../date/getDate.js';
 import { type LoggerConfig, Logger } from '../misc/Logger.js';
 import { sleep } from '../misc/sleep.js';
 import type {
-    BunDbAssignmentShape,
     BunDbClient,
     BunDbColumnName,
     BunDbDeleteConfig,
@@ -138,7 +136,7 @@ export interface DBBunConfig<Schema extends BunDbSchema = BunDbSchema> {
  * while delegating connection pooling and transactions to Bun.SQL.
  */
 export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbClient<Schema> {
-    private static readonly instances: Map<string, DBBun<any>> = new Map();
+    private static readonly instances: Map<string, DBBun> = new Map();
     private static readonly DEFAULT_KEY = 'default';
     private client: BunRuntimeSqlClient | undefined;
     private config: DBBunConfig<Schema>;
@@ -195,7 +193,6 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
             instance.config = config;
 
             if (instance.shouldResetClient(previousConfig, config)) {
-                // eslint-disable-next-line no-void
                 void instance.resetClient('config updated');
             }
         }
@@ -247,7 +244,7 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
         const result = await this.select(table, {
             ...(config ?? {}),
             limit: config?.limit ?? 1
-        } as BunDbSelectConfig<Schema, Table, Columns>);
+        });
 
         return result[0];
     }
@@ -340,7 +337,7 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
                 const result = await self.selectWithContext<Table, Columns>(context, table, {
                     ...(config ?? {}),
                     limit: config?.limit ?? 1
-                } as BunDbSelectConfig<Schema, Table, Columns>);
+                });
 
                 return result[0];
             },
@@ -418,7 +415,7 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
                 const result = await self.selectWithContext<Table, Columns>(context, table, {
                     ...(config ?? {}),
                     limit: config?.limit ?? 1
-                } as BunDbSelectConfig<Schema, Table, Columns>);
+                });
 
                 return result[0];
             },
@@ -586,7 +583,7 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
         table: Table,
         config: BunDbUpdateConfig<Schema, Table>
     ): Promise<BunDbWriteResult> {
-        const setEntries = Object.entries(config.set as BunDbAssignmentShape<Schema, Table>).filter(([, value]) => value !== undefined);
+        const setEntries = Object.entries(config.set).filter(([, value]) => value !== undefined);
 
         if (setEntries.length === 0) {
             throw new Error(`No columns provided for update on table "${String(table)}".`);
@@ -766,7 +763,11 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
                     throw new Error(`Operator ${operator} requires a non-empty array value for column "${String(condition.column)}".`);
                 }
 
-                const placeholders = value.map(() => `$${parameterIndex++}`);
+                const placeholders: string[] = [];
+                for (let index = 0; index < value.length; index++) {
+                    placeholders.push(`$${parameterIndex + index}`);
+                }
+                parameterIndex += value.length;
                 parts.push(`${column} ${upperOperator} (${placeholders.join(', ')})`);
                 values.push(...value);
                 continue;

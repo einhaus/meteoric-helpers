@@ -38,9 +38,9 @@ export type NullableFlexible<T> = {
  */
 type NormalizeNullUndefined<T> = T extends null | undefined
     ? null | undefined
-    : T extends infer U | null
+    : T extends (infer U) | null
       ? U | null | undefined
-      : T extends infer U | undefined
+      : T extends (infer U) | undefined
         ? U | null | undefined
         : T;
 

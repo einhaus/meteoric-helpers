@@ -54,7 +54,7 @@ const nodeModules = [
 // Files that should always be in Node entry point regardless of imports
 const alwaysNodeFiles = ['S3Helper'];
 
-const srcDir = path.dirname(fileURLToPath(import.meta.url)) + '/../src';
+const srcDir = `${path.dirname(fileURLToPath(import.meta.url))}/../src`;
 const mainBarrelFile = path.join(srcDir, 'index.ts');
 const nodeBarrelFile = path.join(srcDir, 'node.ts');
 
@@ -150,7 +150,7 @@ for (const directory of directoriesToInclude) {
 
 // Write all web-compatible exports to main barrel file
 for (const exportStatement of allExports) {
-    fs.appendFileSync(mainBarrelFile, exportStatement + '\n');
+    fs.appendFileSync(mainBarrelFile, `${exportStatement}\n`);
 }
 
 // Write all exports including node-specific ones to node barrel file
@@ -158,7 +158,7 @@ fs.appendFileSync(nodeBarrelFile, '// Include all web-compatible exports\n');
 fs.appendFileSync(nodeBarrelFile, "export * from './index.js';\n\n");
 fs.appendFileSync(nodeBarrelFile, '// Node.js specific exports\n');
 for (const exportStatement of nodeSpecificExports) {
-    fs.appendFileSync(nodeBarrelFile, exportStatement + '\n');
+    fs.appendFileSync(nodeBarrelFile, `${exportStatement}\n`);
 }
 
 console.log(`\nBuild complete!`);

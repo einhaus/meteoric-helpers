@@ -1,6 +1,6 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-07-13';
+const VERIFIED_AT = '2026-07-20';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -107,6 +107,12 @@ const ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE: AiModelSource = {
 const ANTHROPIC_WEB_SEARCH_SOURCE: AiModelSource = {
     label: 'Anthropic web search tool',
     url: 'https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool',
+    verifiedAt: VERIFIED_AT
+};
+
+const ANTHROPIC_CONTEXT_WINDOWS_SOURCE: AiModelSource = {
+    label: 'Anthropic context windows',
+    url: 'https://platform.claude.com/docs/en/build-with-claude/context-windows',
     verifiedAt: VERIFIED_AT
 };
 
@@ -2404,6 +2410,69 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE
         ],
         tags: ['specialized', 'reasoning', 'coding', 'agent', 'limited-availability'],
+        parameterPolicies: {
+            temperature: 'unsupported'
+        }
+    },
+    {
+        modelKey: 'anthropic:claude-mythos-preview',
+        provider: 'anthropic',
+        modelId: 'claude-mythos-preview',
+        snapshotModelId: 'claude-mythos-preview',
+        aliases: [],
+        displayName: 'Claude Mythos Preview',
+        family: 'claude-mythos',
+        description: 'Deprecated invitation-only Project Glasswing research preview retained for compatibility until retirement.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'anthropic:claude-mythos-5',
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: null,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: null,
+            supportsComputerUse: null,
+            supportsMcp: null,
+            supportsReasoningEffort: false,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: true,
+            supportsAdaptiveThinking: true
+        }),
+        contextWindowTokens: 1_000_000,
+        maxOutputTokens: null,
+        knowledgeCutoff: null,
+        pricing: createPricing({
+            inputUsdPerMillionTokens: null,
+            cachedInputUsdPerMillionTokens: null,
+            outputUsdPerMillionTokens: null,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'Anthropic documents prompt-caching and standard-rate 1M-context support but does not publish base token rates for this gated preview.'
+        }),
+        sources: [
+            ANTHROPIC_MODELS_SOURCE,
+            ANTHROPIC_PRICING_SOURCE,
+            ANTHROPIC_MODEL_DEPRECATIONS_SOURCE,
+            ANTHROPIC_RELEASE_NOTES_SOURCE,
+            ANTHROPIC_MIGRATION_GUIDE_SOURCE,
+            ANTHROPIC_ADAPTIVE_THINKING_SOURCE,
+            ANTHROPIC_WEB_SEARCH_SOURCE,
+            ANTHROPIC_CONTEXT_WINDOWS_SOURCE
+        ],
+        tags: ['deprecated', 'reasoning', 'agent', 'specialized', 'limited-availability', 'compatibility'],
         parameterPolicies: {
             temperature: 'unsupported'
         }

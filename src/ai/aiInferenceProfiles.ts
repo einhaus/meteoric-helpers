@@ -1,11 +1,6 @@
 import type { AiReasoningEffort } from './aiModelTypes.js';
 
-export type AiInferenceProfileKey =
-    | 'reasoning_none'
-    | 'reasoning_low'
-    | 'reasoning_medium'
-    | 'reasoning_high'
-    | 'reasoning_xhigh';
+export type AiInferenceProfileKey = 'reasoning_none' | 'reasoning_low' | 'reasoning_medium' | 'reasoning_high' | 'reasoning_xhigh';
 
 export type AiInferenceProfileDefinition = Readonly<{
     key: AiInferenceProfileKey;

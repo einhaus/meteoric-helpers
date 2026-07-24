@@ -21,14 +21,14 @@ let ignoreRootUnknownFileEventsUntil = 0;
 
 function normalizeFilename(filename: string | Buffer | null | undefined): string | undefined {
     if (!filename) return undefined;
-    return typeof filename === 'string' ? filename : filename.toString();
+    return typeof filename === 'string' ? filename : String(filename);
 }
 
 function markIgnoreRootUnknownFileEvents(): void {
     ignoreRootUnknownFileEventsUntil = Date.now() + 500;
 }
 
-function buildBarrelFiles(): Promise<void> {
+async function buildBarrelFiles(): Promise<void> {
     return new Promise((resolve, reject) => {
         markIgnoreRootUnknownFileEvents();
         const child = spawn(process.execPath, [buildScript], { stdio: 'inherit' });
@@ -63,6 +63,17 @@ function getDirectoriesToWatch(): Set<string> {
     return directories;
 }
 
+function watchDirectory(dir: string): fs.FSWatcher {
+    return fs.watch(dir, (eventType, filename) => {
+        if (dir === srcDir && !filename && Date.now() < ignoreRootUnknownFileEventsUntil) return;
+
+        const normalized = normalizeFilename(filename);
+        if (normalized && ignoredFiles.has(normalized)) return;
+
+        scheduleRebuild(`${eventType}${normalized ? `: ${path.join(dir, normalized)}` : ''}`);
+    });
+}
+
 function refreshWatchers(): void {
     const desired = getDirectoriesToWatch();
 
@@ -75,16 +86,7 @@ function refreshWatchers(): void {
     for (const dir of desired) {
         if (watchers.has(dir)) continue;
 
-        const watcher = fs.watch(dir, (eventType, filename) => {
-            if (dir === srcDir && !filename && Date.now() < ignoreRootUnknownFileEventsUntil) return;
-
-            const normalized = normalizeFilename(filename);
-            if (normalized && ignoredFiles.has(normalized)) return;
-
-            scheduleRebuild(`${eventType}${normalized ? `: ${path.join(dir, normalized)}` : ''}`);
-        });
-
-        watchers.set(dir, watcher);
+        watchers.set(dir, watchDirectory(dir));
     }
 }
 

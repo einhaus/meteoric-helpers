@@ -57,9 +57,10 @@ export type BunDbTableName<Schema extends BunDbSchema> = Extract<
     string
 >;
 
-export type BunDbTableDefinition<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> = Schema[Table] extends BunDbSchemaTableContract
-    ? Schema[Table]
-    : never;
+export type BunDbTableDefinition<
+    Schema extends BunDbSchema,
+    Table extends BunDbTableName<Schema>
+> = Schema[Table] extends BunDbSchemaTableContract ? Schema[Table] : never;
 
 export type BunDbRow<Schema extends BunDbSchema, Table extends BunDbTableName<Schema>> = BunDbTableDefinition<Schema, Table>['row'];
 
@@ -113,7 +114,9 @@ type __BunDbInlineGeneratedSchema = {
     };
 };
 type __BunDbAssert<T extends true> = T;
-type __BunDbInlineGeneratedSchemaTableNameGuard = __BunDbAssert<'users' extends BunDbTableName<__BunDbInlineGeneratedSchema> ? true : false>;
+type __BunDbInlineGeneratedSchemaTableNameGuard = __BunDbAssert<
+    'users' extends BunDbTableName<__BunDbInlineGeneratedSchema> ? true : false
+>;
 
 export interface BunDbSqlExpression {
     kind: 'expression';
@@ -315,6 +318,4 @@ export type BunDbAssignmentShape<Schema extends BunDbSchema, Table extends BunDb
     }>
 >;
 
-export type BunDbUpdateShape<T extends object, ImmutableKeys extends keyof T = never> = Simplify<
-    Partial<Omit<T, ImmutableKeys>>
->;
+export type BunDbUpdateShape<T extends object, ImmutableKeys extends keyof T = never> = Simplify<Partial<Omit<T, ImmutableKeys>>>;

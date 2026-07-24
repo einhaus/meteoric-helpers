@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import type { DBConfig, DbParameters, Insertable, SelectConfigMysql, SelectReturn, WhereCondition } from './dbUtilityTypes.js';
 
 import mysql, { type Connection, type Pool, type ResultSetHeader, type PoolConnection } from 'mysql2/promise.js';
@@ -95,7 +94,6 @@ export class DBMysql {
 
             // Only reset the pool if connection-affecting config actually changed.
             if (shouldResetPool) {
-                // eslint-disable-next-line no-void
                 void instance.resetPool('config updated');
             }
         }
@@ -168,7 +166,6 @@ export class DBMysql {
 
                 if (oldPool) {
                     // Close the old pool in the background; don't block callers on draining.
-                    // eslint-disable-next-line no-void
                     void oldPool.end().catch((e: unknown) => {
                         this.handleError(e);
                     });
@@ -240,7 +237,6 @@ export class DBMysql {
         throw new Error(`Max retries (${this.maxRetries}) reached for query: ${queryString}`);
     }
 
-    // eslint-disable-next-line max-statements, complexity
     async select<T extends object, C extends (keyof T)[] | undefined = undefined>(
         config: SelectConfigMysql<T, C>
     ): Promise<SelectReturn<T, C>> {
@@ -351,7 +347,6 @@ export class DBMysql {
         return results[0];
     }
 
-    // eslint-disable-next-line complexity
     private buildWhereClause<T>(conditions: WhereCondition<T>[], joinOperator: 'AND' | 'OR'): { clause: string; values: unknown[] } {
         const parts: string[] = [];
         const values: unknown[] = [];
@@ -690,7 +685,6 @@ export class DBMysql {
     }
 
     // Helper method that builds a SELECT query string from a SelectConfig
-    // eslint-disable-next-line complexity
     private buildUnionableSelectQuery<T extends object, C extends (keyof T)[] | undefined = undefined>(
         config: SelectConfigMysql<T, C>
     ): { queryString: string; params: unknown[] } {
@@ -832,7 +826,6 @@ export class DBMysql {
                 if (e instanceof Error) {
                     const argString = process.argv.slice(1).join(' ');
 
-                    // eslint-disable-next-line max-len
                     const logEntry = `${argString}\nError Stack: ${e.stack ?? ''}\n Datetime: ${getDate({ format: 'ymdhms' })}\n${JSON.stringify(
                         e,
                         null,

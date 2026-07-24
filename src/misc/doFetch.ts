@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import { getDate } from '../date/getDate.js';
 import { appendToFile } from '../file/appendToFile.js';
 import { Logger } from './Logger.js';
@@ -428,7 +427,6 @@ const emitStructuredFetchError = (config: {
     });
 };
 
-// eslint-disable-next-line complexity
 export const doFetch = async <T>(requestUrl: string, config?: RequestConfig): Promise<T | ErrorResponse> => {
     const { fetchConfig, urlWithParams } = configureFetchRequest(requestUrl, config);
     const timesToAttempt = (config?.timesToRetry ?? 2) + 1;
@@ -508,7 +506,6 @@ const returnError = (config: {
     return response?.status ? { isError: true, message, statusCode: response.status } : { isError: true, message };
 };
 
-// eslint-disable-next-line complexity
 const configureFetchRequest = (requestUrl: string, config?: RequestConfig) => {
     let fetchConfig: RequestInitWithTimeout = {
         method: config?.method ? config.method : 'GET',
@@ -535,7 +532,9 @@ const configureFetchRequest = (requestUrl: string, config?: RequestConfig) => {
     } else if ((fetchConfig.method === 'PUT' || fetchConfig.method === 'PATCH') && config?.params) {
         if (config.paramsFieldName === 'body') {
             fetchConfig = { ...fetchConfig, body: JSON.stringify(config.params) };
-            fetchConfig.headers = { ...fetchConfig.headers, 'Content-Type': 'application/json' };
+            const headers = new Headers(fetchConfig.headers);
+            headers.set('Content-Type', 'application/json');
+            fetchConfig.headers = headers;
         } else {
             fetchConfig.headers = { 'Content-Type': 'application/json' };
         }
@@ -551,7 +550,11 @@ const configureFetchRequest = (requestUrl: string, config?: RequestConfig) => {
             }
         }
 
-        if (config?.headers) fetchConfig.headers = { ...fetchConfig.headers, ...config.headers };
+        if (config?.headers) {
+            const headers = new Headers(fetchConfig.headers);
+            new Headers(config.headers).forEach((value, key) => headers.set(key, value));
+            fetchConfig.headers = headers;
+        }
 
         return { fetchConfig, urlWithParams };
     } catch (error: unknown) {

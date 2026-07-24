@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import { SendRawEmailCommand, SESClient, type SendRawEmailCommandInput } from '@aws-sdk/client-ses';
 import * as fs from 'fs';
 import * as mime from 'mime-types';

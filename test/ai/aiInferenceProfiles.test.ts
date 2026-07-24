@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-    getAiInferenceProfile,
-    listAiInferenceProfiles,
-    serializeAiInferenceProfile
-} from '../../src/ai/aiInferenceProfiles.js';
+import { getAiInferenceProfile, listAiInferenceProfiles, serializeAiInferenceProfile } from '../../src/ai/aiInferenceProfiles.js';
 
 describe('AI inference profile helpers', () => {
     it('lists the shared reasoning profiles in sort order', () => {

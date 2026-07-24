@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import { createClient, type ClickHouseClient } from '@clickhouse/client';
 
 import { msg } from '../misc/msg.js';
@@ -80,7 +79,6 @@ export class DBClickhouse {
             // If config is provided and instance exists, update the config
             instance.config = config;
             // Close existing connection to apply new config on next getClient call
-            // eslint-disable-next-line no-void
             void instance.closeConnection();
         }
 
@@ -181,7 +179,6 @@ export class DBClickhouse {
         const errorMessage = error instanceof Error ? error.message : String(error);
         const timestamp = new Date().toISOString();
 
-        // eslint-disable-next-line max-len
         const logMessage = `ERROR: ${errorMessage}\nQuery: ${query ?? 'N/A'}\nParams: ${params ? JSON.stringify(params) : 'N/A'} \nTimestamp: ${timestamp}\n\n`;
 
         if (this.logFolder) {
@@ -257,14 +254,12 @@ export class DBClickhouse {
         }
 
         if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
-        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         return `'${String(value).replace(/'/g, "''")}'`;
     }
 
     /**
      * Build a SELECT query string from the config.
      */
-    // eslint-disable-next-line complexity
     private buildSelectQuery<T extends object, C extends (keyof T)[] | undefined>(config: SelectConfigClickhouse<T, C>): string {
         // Determine plain columns part.
         let plainColumnsPart: string;
@@ -317,7 +312,6 @@ export class DBClickhouse {
         // Build the rest of the query.
         let queryString = `SELECT ${columnsPart} FROM \`${config.table}\``;
 
-        // eslint-disable-next-line no-nested-ternary
         const conditions: WhereCondition<T>[] = config.where ? (Array.isArray(config.where) ? config.where : [config.where]) : [];
 
         if (conditions.length > 0) {
@@ -405,7 +399,6 @@ export class DBClickhouse {
     async insert<T extends object>(config: { table: string; params: T; verbose?: boolean }): Promise<boolean> {
         const columns = Object.keys(config.params);
         const columnList = columns.map((col) => `\`${col}\``).join(', ');
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const valuesList = columns.map((col) => this.escape((config.params as any)[col])).join(', ');
         const query = `INSERT INTO \`${config.table}\` (${columnList}) VALUES (${valuesList})`;
         const client = this.getOrThrowClient();
@@ -442,7 +435,6 @@ export class DBClickhouse {
         const updateColumns = Object.keys(config.params);
         if (updateColumns.length === 0) return false;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const setClause = updateColumns.map((col) => `\`${col}\` = ${this.escape((config.params as any)[col])}`).join(', ');
 
         let query = `ALTER TABLE \`${config.table}\` UPDATE ${setClause}`;

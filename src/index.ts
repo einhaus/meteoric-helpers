@@ -92,6 +92,7 @@ export * from './ai/aiModelCatalog.js';
 export * from './ai/aiModelSelectors.js';
 export * from './ai/aiRequestPresets.js';
 export * from './ai/aiInferenceProfiles.js';
+export * from './db/parseJsonColumn.js';
 export * from './db/bunDbTypes.js';
 export * from './db/dbUtilityTypes.js';
 export * from './string/getStringBetween.js';

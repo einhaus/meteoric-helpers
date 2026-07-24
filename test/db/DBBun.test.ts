@@ -51,18 +51,11 @@ interface TestSchema {
 
 describe('DBBun raw SQL helpers', () => {
     const runtime = globalThis as typeof globalThis & { Bun?: MockBunGlobal };
-    const originalSqlDescriptor = runtime.Bun ? Object.getOwnPropertyDescriptor(runtime.Bun, 'SQL') : undefined;
+    const originalBun = runtime.Bun;
+    const originalSqlDescriptor = originalBun ? Object.getOwnPropertyDescriptor(originalBun, 'SQL') : undefined;
     const openDbs: Array<DBBun> = [];
 
     afterEach(async () => {
-        if (runtime.Bun) {
-            if (originalSqlDescriptor) {
-                Object.defineProperty(runtime.Bun, 'SQL', originalSqlDescriptor);
-            } else {
-                Reflect.deleteProperty(runtime.Bun, 'SQL');
-            }
-        }
-
         while (openDbs.length > 0) {
             const db = openDbs.pop();
 
@@ -71,8 +64,37 @@ describe('DBBun raw SQL helpers', () => {
             }
         }
 
+        if (originalBun) {
+            if (originalSqlDescriptor) {
+                Object.defineProperty(originalBun, 'SQL', originalSqlDescriptor);
+            } else {
+                Reflect.deleteProperty(originalBun, 'SQL');
+            }
+
+            runtime.Bun = originalBun;
+        } else {
+            Reflect.deleteProperty(runtime, 'Bun');
+        }
+
         vi.restoreAllMocks();
     });
+
+    function installMockSql(MockSQL: MockBunGlobal['SQL']): void {
+        if (!runtime.Bun) {
+            Object.defineProperty(runtime, 'Bun', {
+                configurable: true,
+                writable: true,
+                value: { SQL: MockSQL }
+            });
+            return;
+        }
+
+        Object.defineProperty(runtime.Bun, 'SQL', {
+            configurable: true,
+            writable: true,
+            value: MockSQL
+        });
+    }
 
     function registerDb(key: string, client: MockRuntimeSqlClient): DBBun {
         class MockSQL implements MockRuntimeSqlClient {
@@ -85,13 +107,7 @@ describe('DBBun raw SQL helpers', () => {
             constructor(_options?: Record<string, unknown> | string | URL, _optionsOverride?: Record<string, unknown>) {}
         }
 
-        if (!runtime.Bun) {
-            throw new Error('Expected Bun runtime to be available during DBBun tests.');
-        }
-
-        Object.defineProperty(runtime.Bun, 'SQL', {
-            value: MockSQL
-        });
+        installMockSql(MockSQL);
 
         const db = DBBun.getInstance({ adapter: 'postgres' }, key);
         openDbs.push(db);
@@ -142,18 +158,18 @@ describe('DBBun raw SQL helpers', () => {
         const transactionUnsafe = vi.fn(async (_queryString: string, _values?: readonly unknown[]) => [{ value: 3 }]);
         const transactionClient: MockRuntimeTransactionSqlClient = {
             unsafe: transactionUnsafe,
-            begin: async <T>(fn: (sql: MockRuntimeTransactionSqlClient) => Promise<T> | T) => await fn(transactionClient),
+            begin: async <T>(fn: (sql: MockRuntimeTransactionSqlClient) => Promise<T> | T) => fn(transactionClient),
             close: vi.fn(async () => {}),
             reserve: async () => {
                 throw new Error('reserve should not be called in this test');
             },
-            savepoint: async <T>(fn: (sql: MockRuntimeTransactionSqlClient) => Promise<T> | T) => await fn(transactionClient),
+            savepoint: async <T>(fn: (sql: MockRuntimeTransactionSqlClient) => Promise<T> | T) => fn(transactionClient),
             options: { adapter: 'postgres' }
         };
 
         const rootClient: MockRuntimeSqlClient = {
             unsafe: vi.fn(async () => []),
-            begin: vi.fn(async <T>(fn: (sql: MockRuntimeTransactionSqlClient) => Promise<T> | T) => await fn(transactionClient)),
+            begin: vi.fn(async <T>(fn: (sql: MockRuntimeTransactionSqlClient) => Promise<T> | T) => fn(transactionClient)),
             close: vi.fn(async () => {}),
             reserve: vi.fn(async () => reservedClient),
             options: { adapter: 'postgres' }
@@ -218,13 +234,7 @@ describe('DBBun raw SQL helpers', () => {
             constructor(_options?: Record<string, unknown> | string | URL, _optionsOverride?: Record<string, unknown>) {}
         }
 
-        if (!runtime.Bun) {
-            throw new Error('Expected Bun runtime to be available during DBBun tests.');
-        }
-
-        Object.defineProperty(runtime.Bun, 'SQL', {
-            value: MockSQL
-        });
+        installMockSql(MockSQL);
 
         const db = DBBun.create<TestSchema>({
             adapter: 'postgres',
@@ -275,13 +285,7 @@ describe('DBBun raw SQL helpers', () => {
             constructor(_options?: Record<string, unknown> | string | URL, _optionsOverride?: Record<string, unknown>) {}
         }
 
-        if (!runtime.Bun) {
-            throw new Error('Expected Bun runtime to be available during DBBun tests.');
-        }
-
-        Object.defineProperty(runtime.Bun, 'SQL', {
-            value: MockSQL
-        });
+        installMockSql(MockSQL);
 
         const db = DBBun.create<TestSchema>({
             adapter: 'postgres',
@@ -291,16 +295,20 @@ describe('DBBun raw SQL helpers', () => {
         });
         openDbs.push(db);
 
-        await db.insert('users', {
-            email: 'test@example.com'
-        }, {
-            upsert: {
-                conflictTarget: ['email'],
-                update: {
-                    login_count: bunDbExpr('"users"."login_count" + 1')
+        await db.insert(
+            'users',
+            {
+                email: 'test@example.com'
+            },
+            {
+                upsert: {
+                    conflictTarget: ['email'],
+                    update: {
+                        login_count: bunDbExpr('"users"."login_count" + 1')
+                    }
                 }
             }
-        });
+        );
 
         expect(rootUnsafe).toHaveBeenCalledWith(
             'INSERT INTO "users" ("email") VALUES ($1) ON CONFLICT ("email") DO UPDATE SET "login_count" = "users"."login_count" + 1 RETURNING "id" AS "__insert_id"',

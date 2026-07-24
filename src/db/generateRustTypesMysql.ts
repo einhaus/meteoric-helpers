@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import type { ResultSetHeader } from 'mysql2/promise';
 import fs from 'fs';
 import path from 'path';

@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/naming-convention */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* oxlint-disable typescript/no-unused-vars */
 import { getDate } from '../date/getDate.js';
 import { checkTimezoneIsEst } from '../date/checkTimezoneIsEst.js';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
@@ -822,7 +821,6 @@ export class Logger {
         }
     }
 
-    // eslint-disable-next-line max-statements, complexity
     log(config: LogEntry): void {
         // Prevent infinite recursion
         if (this.isLogging) {

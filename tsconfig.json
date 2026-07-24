@@ -1,12 +1,7 @@
 {
     "compilerOptions": {
-        "lib": [
-            "es2022",
-            "dom"
-        ],
-        "types": [
-            "node"
-        ],
+        "lib": ["es2022", "dom"],
+        "types": ["node"],
         "resolveJsonModule": true,
         "rootDir": "./src",
         "outDir": "./dist",
@@ -38,12 +33,6 @@
         "alwaysStrict": true,
         "noImplicitThis": true
     },
-    "exclude": [
-        "./node_modules/**/*",
-        "node_modules",
-        "dist"
-    ],
-    "include": [
-        "./src/**/*"
-    ]
+    "exclude": ["./node_modules/**/*", "node_modules", "dist"],
+    "include": ["./src/**/*"]
 }

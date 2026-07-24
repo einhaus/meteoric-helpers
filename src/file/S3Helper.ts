@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import {
     CompleteMultipartUploadCommand,
     CreateMultipartUploadCommand,
@@ -260,86 +259,87 @@ export class S3Helper {
             highWaterMark: ONE_HUNDRED_MB_IN_BYTES
         });
 
-        return new Promise<CompletedPart[]>(async (resolve, reject) => {
-            try {
-                let partNumber = 1;
-                let bytesProcessed = 0;
+        return new Promise<CompletedPart[]>((resolve, reject) => {
+            void (async () => {
+                try {
+                    let partNumber = 1;
+                    let bytesProcessed = 0;
 
-                // Manual chunk reading to ensure proper sequencing
-                const chunks: Buffer[] = [];
+                    // Manual chunk reading to ensure proper sequencing
+                    const chunks: Buffer[] = [];
 
-                // Collect all chunks first
-                for await (const chunk of fileStream) {
-                    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-                }
+                    // Collect all chunks first
+                    for await (const chunk of fileStream) {
+                        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+                    }
 
-                // Then process them sequentially
-                for (const chunk of chunks) {
-                    if (this.verbose) console.log(`Uploading part ${partNumber} (${chunk.length} bytes)`);
+                    // Then process them sequentially
+                    for (const chunk of chunks) {
+                        if (this.verbose) console.log(`Uploading part ${partNumber} (${chunk.length} bytes)`);
 
-                    let uploadSuccessful = false;
-                    let retries = 0;
-                    const MAX_RETRIES = 3;
+                        let uploadSuccessful = false;
+                        let retries = 0;
+                        const MAX_RETRIES = 3;
 
-                    while (!uploadSuccessful && retries < MAX_RETRIES) {
-                        try {
-                            const result = await this.uploadFilePart(chunk, key, uploadId, partNumber);
+                        while (!uploadSuccessful && retries < MAX_RETRIES) {
+                            try {
+                                const result = await this.uploadFilePart(chunk, key, uploadId, partNumber);
 
-                            if (result.ETag) {
-                                completedParts.push({
-                                    PartNumber: result.partNumber,
-                                    ETag: result.ETag
-                                });
+                                if (result.ETag) {
+                                    completedParts.push({
+                                        PartNumber: result.partNumber,
+                                        ETag: result.ETag
+                                    });
 
-                                bytesProcessed += chunk.length;
+                                    bytesProcessed += chunk.length;
 
-                                // eslint-disable-next-line max-depth
-                                if (this.verbose) {
-                                    const percentComplete = ((bytesProcessed / fileSize) * 100).toFixed(2);
+                                    if (this.verbose) {
+                                        const percentComplete = ((bytesProcessed / fileSize) * 100).toFixed(2);
 
-                                    console.log(
-                                        `Part ${partNumber} uploaded successfully.
+                                        console.log(
+                                            `Part ${partNumber} uploaded successfully.
                                          Progress: ${percentComplete}% (${bytesProcessed}/${fileSize} bytes)`
-                                    );
+                                        );
+                                    }
+
+                                    uploadSuccessful = true;
+                                } else {
+                                    retries++;
+                                    if (this.verbose) console.log(`Retrying part ${partNumber} (attempt ${retries}/${MAX_RETRIES})`);
+                                }
+                            } catch (error) {
+                                retries++;
+                                if (this.verbose)
+                                    console.log(`Error uploading part ${partNumber} (attempt ${retries}/${MAX_RETRIES}):`, error);
+
+                                if (retries >= MAX_RETRIES) {
+                                    throw error;
                                 }
 
-                                uploadSuccessful = true;
-                            } else {
-                                retries++;
-                                // eslint-disable-next-line max-depth
-                                if (this.verbose) console.log(`Retrying part ${partNumber} (attempt ${retries}/${MAX_RETRIES})`);
+                                // Wait before retrying
+                                const currentRetryCount = retries; // Capture the current value to avoid closure issues
+                                await new Promise((res) => setTimeout(res, 1000 * currentRetryCount));
                             }
-                        } catch (error) {
-                            retries++;
-                            if (this.verbose) console.log(`Error uploading part ${partNumber} (attempt ${retries}/${MAX_RETRIES}):`, error);
-
-                            if (retries >= MAX_RETRIES) {
-                                throw error;
-                            }
-
-                            // Wait before retrying
-                            const currentRetryCount = retries; // Capture the current value to avoid closure issues
-                            await new Promise((res) => setTimeout(res, 1000 * currentRetryCount));
                         }
+
+                        if (!uploadSuccessful) {
+                            throw new Error(`Failed to upload part ${partNumber} after ${MAX_RETRIES} attempts`);
+                        }
+
+                        partNumber++;
                     }
 
-                    if (!uploadSuccessful) {
-                        throw new Error(`Failed to upload part ${partNumber} after ${MAX_RETRIES} attempts`);
+                    if (completedParts.length > 0) {
+                        if (this.verbose) console.log(`All parts uploaded successfully. Total: ${completedParts.length} parts`);
+                        resolve(completedParts);
+                    } else {
+                        reject(new Error('No parts were uploaded successfully'));
                     }
-
-                    partNumber++;
+                } catch (error) {
+                    console.error(error);
+                    reject(error);
                 }
-
-                if (completedParts.length > 0) {
-                    if (this.verbose) console.log(`All parts uploaded successfully. Total: ${completedParts.length} parts`);
-                    resolve(completedParts);
-                } else {
-                    reject(new Error('No parts were uploaded successfully'));
-                }
-            } catch (error) {
-                console.error(error);
-                reject(error);
-            }
+            })();
         });
     }
 
