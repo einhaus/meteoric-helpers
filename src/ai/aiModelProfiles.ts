@@ -68,13 +68,13 @@ export const AI_PROVIDER_MODEL_PROFILE_DEFAULTS: Readonly<Record<AiProvider, AiP
             inferenceProfileKey: 'reasoning_medium'
         },
         deepResearch: {
-            modelKey: 'openai:o3-deep-research',
+            modelKey: 'openai:gpt-5.6-sol',
             inferenceProfileKey: 'reasoning_high'
         }
     },
     anthropic: {
         reasoning: {
-            modelKey: 'anthropic:claude-opus-4-8',
+            modelKey: 'anthropic:claude-opus-5',
             inferenceProfileKey: 'reasoning_high'
         },
         balanced: {
@@ -229,8 +229,14 @@ export const AI_PROVIDER_MODEL_PROFILE_COST_POLICIES: Readonly<Record<AiProvider
             maxCachedInputPriceMultiplier: 1.01,
             maxOutputPriceMultiplier: 1.01,
             maxCacheWritePriceMultiplier: null,
-            approvedHigherCostModels: [],
-            notes: 'Deep-research defaults use dedicated deep-research models; generic premium replacements require explicit review.'
+            approvedHigherCostModels: [
+                {
+                    modelKey: 'openai:gpt-5.6-sol',
+                    approvedAt: '2026-07-27',
+                    reason: 'Official replacement for the retired dedicated deep-research models. Standard input, cached-input, and output rates are lower; long-context output is 1.125x and cache writes are newly billed.'
+                }
+            ],
+            notes: 'Use a dedicated deep-research model while one remains available. GPT-5.6 Sol is the approved official replacement after the dedicated models shut down.'
         })
     },
     anthropic: {

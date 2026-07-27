@@ -60,6 +60,19 @@ describe('AI request preset helpers', () => {
         expect(config.warnings.some((warning) => warning.includes('does not advertise extended-thinking support'))).toBe(false);
     });
 
+    it('uses Claude Opus 5 as the cost-gated Anthropic reasoning default', () => {
+        const config = resolveAiRequestConfig({
+            preset: 'agentChat',
+            provider: 'anthropic'
+        });
+
+        expect(config.provider).toBe('anthropic');
+        expect(config.modelKey).toBe('anthropic:claude-opus-5');
+        expect(config.inferenceProfileKey).toBe('reasoning_high');
+        expect(config.anthropicThinkingBudgetTokens).toBeNull();
+        expect(config.temperature).toBeNull();
+    });
+
     it('uses the Anthropic Sonnet 5 balanced default without legacy thinking budgets', () => {
         const config = resolveAiRequestConfig({
             preset: 'analysis',
@@ -93,7 +106,7 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.provider).toBe('openai');
-        expect(config.modelKey).toBe('openai:o3-deep-research');
+        expect(config.modelKey).toBe('openai:gpt-5.6-sol');
         expect(config.inferenceProfileKey).toBe('reasoning_high');
         expect(config.maxOutputTokens).toBe(100_000);
         expect(config.useBuiltInWebSearch).toBe(true);

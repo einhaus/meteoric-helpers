@@ -1,6 +1,6 @@
 {
     "name": "@einhaus/meteoric-helpers",
-    "version": "1.0.137",
+    "version": "1.0.138",
     "files": [
         "dist",
         "README.md"
@@ -72,7 +72,7 @@
         "@types/mime-types": "^3.0.1",
         "@types/node": "^26.1.1",
         "@types/pg": "^8.20.0",
-        "concurrently": "^10.0.3",
+        "concurrently": "^10.0.4",
         "oxfmt": "^0.60.0",
         "oxlint": "^1.75.0",
         "oxlint-tsgolint": "^7.0.2001",
@@ -85,9 +85,9 @@
     },
     "private": false,
     "dependencies": {
-        "@aws-sdk/client-s3": "^3.1094.0",
-        "@aws-sdk/client-ses": "^3.1094.0",
-        "@aws-sdk/s3-request-presigner": "^3.1094.0",
+        "@aws-sdk/client-s3": "^3.1095.0",
+        "@aws-sdk/client-ses": "^3.1095.0",
+        "@aws-sdk/s3-request-presigner": "^3.1095.0",
         "@clickhouse/client": "^1.23.1",
         "@redis/client": "^6.1.0",
         "bcrypt": "^6.0.0",
