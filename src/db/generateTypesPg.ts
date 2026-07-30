@@ -21,6 +21,10 @@ interface EnumType {
     values: string[] | string;
 }
 
+// Aggregated identifier lists come back through string_agg on a separator that cannot
+// appear in a valid Postgres identifier.
+const LIST_SEPARATOR = String.fromCharCode(31);
+
 const isImmutableAutoManagedColumn = (columnName: string) => columnName === 'created_at' || columnName === 'createdAt';
 
 export interface GenerateTypesPgOptions {
@@ -90,9 +94,9 @@ interface TableMetadata {
     }[];
     foreignKeys: {
         constraint_name: string;
-        column_name: string;
+        column_names: string[];
         referenced_table: string;
-        referenced_column: string;
+        referenced_column_names: string[];
         update_rule: string;
         delete_rule: string;
     }[];
@@ -122,7 +126,7 @@ async function fetchAllTablesMetadata(DB: DBPostgres, tables: string[]): Promise
             FROM pg_catalog.pg_class c
             JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
             LEFT JOIN pg_catalog.pg_description ON pg_description.objoid = c.oid AND pg_description.objsubid = 0
-            WHERE n.nspname = 'public' AND c.relkind = 'r'
+            WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND NOT c.relispartition
         `
     })) as QueryResult<{ table_name: string; description: string }>;
 
@@ -142,7 +146,7 @@ async function fetchAllTablesMetadata(DB: DBPostgres, tables: string[]): Promise
             JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
             JOIN pg_catalog.pg_attribute a ON c.oid = a.attrelid
             LEFT JOIN pg_catalog.pg_description ON pg_description.objoid = c.oid AND pg_description.objsubid = a.attnum
-            WHERE n.nspname = 'public' AND c.relkind = 'r' AND a.attnum > 0 AND NOT a.attisdropped
+            WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND NOT c.relispartition AND a.attnum > 0 AND NOT a.attisdropped
         `
     })) as QueryResult<{ table_name: string; column_name: string; description: string }>;
 
@@ -168,7 +172,7 @@ async function fetchAllTablesMetadata(DB: DBPostgres, tables: string[]): Promise
             JOIN pg_class i ON i.oid = ix.indexrelid
             JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(ix.indkey)
             JOIN pg_namespace n ON n.oid = t.relnamespace
-            WHERE n.nspname = 'public' AND t.relkind = 'r'
+            WHERE n.nspname = 'public' AND t.relkind IN ('r', 'p') AND NOT t.relispartition
             ORDER BY t.relname, i.relname, a.attnum
         `
     })) as QueryResult<{
@@ -217,38 +221,58 @@ async function fetchAllTablesMetadata(DB: DBPostgres, tables: string[]): Promise
     // 4. Fetch all foreign keys
     console.log('Fetching all foreign key constraints...');
 
+    // Read from pg_constraint at conparentid = 0, never the information_schema views:
+    // those views join on constraint_name, which Postgres duplicates across every
+    // partition clone of a partitioned FK, so a name-only join cross-products cubically
+    // with partition count. The top-level constraint row alone carries the true
+    // parent-to-parent relationship with correctly ordered column pairs.
     const foreignKeysResult = (await DB.doQuery({
         queryString: `
             SELECT
-                tc.table_name,
-                tc.constraint_name,
-                kcu.column_name,
-                ccu.table_name AS referenced_table,
-                ccu.column_name AS referenced_column,
-                rc.update_rule,
-                rc.delete_rule
-            FROM information_schema.table_constraints tc
-            JOIN information_schema.key_column_usage kcu
-                ON tc.constraint_name = kcu.constraint_name
-                AND tc.table_schema = kcu.table_schema
-            JOIN information_schema.constraint_column_usage ccu
-                ON ccu.constraint_name = tc.constraint_name
-                AND ccu.table_schema = tc.table_schema
-            JOIN information_schema.referential_constraints rc
-                ON rc.constraint_name = tc.constraint_name
-                AND rc.constraint_schema = tc.table_schema
-            WHERE tc.constraint_type = 'FOREIGN KEY'
-                AND tc.table_schema = 'public'
-            ORDER BY tc.table_name, tc.constraint_name
+                source_table.relname AS table_name,
+                fk.conname AS constraint_name,
+                referenced_table.relname AS referenced_table,
+                (
+                    SELECT string_agg(source_column.attname::text, chr(31) ORDER BY source_key.ordinality)
+                    FROM unnest(fk.conkey) WITH ORDINALITY AS source_key(attnum, ordinality)
+                    JOIN pg_catalog.pg_attribute source_column
+                        ON source_column.attrelid = fk.conrelid AND source_column.attnum = source_key.attnum
+                ) AS column_names,
+                (
+                    SELECT string_agg(referenced_column.attname::text, chr(31) ORDER BY referenced_key.ordinality)
+                    FROM unnest(fk.confkey) WITH ORDINALITY AS referenced_key(attnum, ordinality)
+                    JOIN pg_catalog.pg_attribute referenced_column
+                        ON referenced_column.attrelid = fk.confrelid AND referenced_column.attnum = referenced_key.attnum
+                ) AS referenced_column_names,
+                CASE fk.confupdtype
+                    WHEN 'a' THEN 'NO ACTION'
+                    WHEN 'r' THEN 'RESTRICT'
+                    WHEN 'c' THEN 'CASCADE'
+                    WHEN 'n' THEN 'SET NULL'
+                    WHEN 'd' THEN 'SET DEFAULT'
+                END AS update_rule,
+                CASE fk.confdeltype
+                    WHEN 'a' THEN 'NO ACTION'
+                    WHEN 'r' THEN 'RESTRICT'
+                    WHEN 'c' THEN 'CASCADE'
+                    WHEN 'n' THEN 'SET NULL'
+                    WHEN 'd' THEN 'SET DEFAULT'
+                END AS delete_rule
+            FROM pg_catalog.pg_constraint fk
+            JOIN pg_catalog.pg_class source_table ON source_table.oid = fk.conrelid
+            JOIN pg_catalog.pg_namespace n ON n.oid = source_table.relnamespace
+            JOIN pg_catalog.pg_class referenced_table ON referenced_table.oid = fk.confrelid
+            WHERE fk.contype = 'f' AND fk.conparentid = 0 AND n.nspname = 'public'
+            ORDER BY source_table.relname, fk.conname
         `
     })) as QueryResult<{
         table_name: string;
         constraint_name: string;
-        column_name: string;
         referenced_table: string;
-        referenced_column: string;
-        update_rule: string;
-        delete_rule: string;
+        column_names: string;
+        referenced_column_names: string;
+        update_rule: string | null;
+        delete_rule: string | null;
     }>;
 
     // Create a map of foreign key constraint names for each table
@@ -259,12 +283,16 @@ async function fetchAllTablesMetadata(DB: DBPostgres, tables: string[]): Promise
             continue;
         }
 
+        if (row.update_rule === null || row.delete_rule === null) {
+            throw new Error(`Unknown foreign key action code on constraint ${row.constraint_name} (${row.table_name})`);
+        }
+
         // Add foreign key to the table's metadata
         tableMetadataMap.get(row.table_name)!.foreignKeys.push({
             constraint_name: row.constraint_name,
-            column_name: row.column_name,
+            column_names: row.column_names.split(LIST_SEPARATOR),
             referenced_table: row.referenced_table,
-            referenced_column: row.referenced_column,
+            referenced_column_names: row.referenced_column_names.split(LIST_SEPARATOR),
             update_rule: row.update_rule,
             delete_rule: row.delete_rule
         });
@@ -323,15 +351,21 @@ export const generateTypesPg = async (options: GenerateTypesPgOptions) => {
         // Fetch all enum types and their values
         const enumTypesMap = await fetchEnumTypes(DB);
 
-        // Get all tables in the public schema
+        // Get all tables in the public schema. Enumerate pg_class rather than
+        // information_schema.tables: BASE TABLE includes every declarative-partition
+        // child, so output grew without bound as partitions accumulated. Regular
+        // tables ('r') and partitioned parents ('p') that are not themselves
+        // partitions are the only relations code addresses directly.
         const tablesResult = (await DB.doQuery({
             queryString: `
-      SELECT table_name
-      FROM information_schema.tables
-      WHERE table_schema = 'public'
-      AND table_type = 'BASE TABLE'
-      ORDER BY table_name;
-    `
+                SELECT c.relname AS table_name
+                FROM pg_catalog.pg_class c
+                JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'public'
+                    AND c.relkind IN ('r', 'p')
+                    AND NOT c.relispartition
+                ORDER BY c.relname;
+            `
         })) as QueryResult<{ table_name: string }>;
 
         const tables = tablesResult.rows.map((row) => row.table_name);
@@ -590,76 +624,23 @@ type WithOptional<T, K extends keyof T> =
                     typesFileContent += `${indexesOutput}\n`;
                 }
 
-                // Add foreign keys
+                // Add foreign keys (one row per constraint, column lists already paired in order)
                 if (foreignKeys.length > 0) {
                     typesFileContent += ` *\n * Foreign Keys:\n`;
 
-                    // Group foreign keys by constraint name
-                    const groupForeignKeysByConstraint = (fks: typeof foreignKeys) => {
-                        const result = new Map<
-                            string,
-                            {
-                                constraint_name: string;
-                                columns: string[];
-                                referenced_table: string;
-                                referenced_columns: string[];
-                                update_rule: string;
-                                delete_rule: string;
-                            }
-                        >();
+                    const fkOutput = foreignKeys
+                        .map((fk) => {
+                            // Format column lists
+                            const sourceColumns = fk.column_names.map((col) => `\`${col}\``).join(', ');
+                            const targetColumns = fk.referenced_column_names.map((col) => `\`${col}\``).join(', ');
 
-                        // Process each foreign key
-                        fks.forEach((fk) => {
-                            // Create new constraint entry if it doesn't exist
-                            if (!result.has(fk.constraint_name)) {
-                                result.set(fk.constraint_name, {
-                                    constraint_name: fk.constraint_name,
-                                    columns: [],
-                                    referenced_table: fk.referenced_table,
-                                    referenced_columns: [],
-                                    update_rule: fk.update_rule,
-                                    delete_rule: fk.delete_rule
-                                });
-                            }
-
-                            // Add column information to the constraint
-                            const constraint = result.get(fk.constraint_name)!;
-                            constraint.columns.push(fk.column_name);
-                            constraint.referenced_columns.push(fk.referenced_column);
-                        });
-
-                        return result;
-                    };
-
-                    // Group the foreign keys
-                    const fkMap = groupForeignKeysByConstraint(foreignKeys);
-
-                    // Format foreign key constraints as output
-                    const formatForeignKeyConstraint = (
-                        constraintName: string,
-                        fk: {
-                            columns: string[];
-                            referenced_table: string;
-                            referenced_columns: string[];
-                            update_rule: string;
-                            delete_rule: string;
-                        }
-                    ) => {
-                        // Format column lists
-                        const sourceColumns = fk.columns.map((col) => `\`${col}\``).join(', ');
-                        const targetColumns = fk.referenced_columns.map((col) => `\`${col}\``).join(', ');
-
-                        // Build the constraint description
-                        return [
-                            ` * - CONSTRAINT \`${constraintName}\` FOREIGN KEY (${sourceColumns})`,
-                            `REFERENCES \`${fk.referenced_table}\` (${targetColumns})`,
-                            `ON UPDATE ${fk.update_rule} ON DELETE ${fk.delete_rule}`
-                        ].join(' ');
-                    };
-
-                    // Generate the foreign key output
-                    const fkOutput = Array.from(fkMap.entries())
-                        .map(([constraintName, fk]) => formatForeignKeyConstraint(constraintName, fk))
+                            // Build the constraint description
+                            return [
+                                ` * - CONSTRAINT \`${fk.constraint_name}\` FOREIGN KEY (${sourceColumns})`,
+                                `REFERENCES \`${fk.referenced_table}\` (${targetColumns})`,
+                                `ON UPDATE ${fk.update_rule} ON DELETE ${fk.delete_rule}`
+                            ].join(' ');
+                        })
                         .join('\n');
 
                     typesFileContent += `${fkOutput}\n`;
