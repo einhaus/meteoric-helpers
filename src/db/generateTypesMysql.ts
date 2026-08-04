@@ -440,9 +440,7 @@ export const generateTypesMysql = async (options: GenerateTypesMysqlOptions) => 
         // Fetch all metadata for all tables at once
         const tableMetadataMap = await fetchAllTablesMetadata(DB, options.db, Array.from(tableMap.values()));
 
-        let typesFileContent = `/* oxlint-disable max-len */
-/* oxlint-disable typescript/naming-convention */
-/**
+        let typesFileContent = `/**
  * Auto-generated TypeScript interfaces for MySQL database schema
  * Generated on: ${new Date().toISOString()}
  *
