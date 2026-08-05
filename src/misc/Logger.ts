@@ -1044,9 +1044,11 @@ export class Logger {
             }
 
             try {
-                // Safe JSON serialization for log entry
+                // Safe JSON serialization for log entry. The trailing newline terminates the
+                // record for line-based tailers (CloudWatch agent buffers an unterminated
+                // line forever); JSON.parse ingestion is unaffected.
                 const logEntryJson = JSON.stringify(boundedLogEntry);
-                writeFileSync(filename, logEntryJson);
+                writeFileSync(filename, `${logEntryJson}\n`);
 
                 if (severity >= this.outputSeverity) {
                     this.originalConsoleLog(boundedLogEntry);
