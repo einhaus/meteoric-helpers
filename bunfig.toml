@@ -1,0 +1,2 @@
+[install.scopes]
+"@einhaus" = { token = "$GITHUB_PACKAGES_TOKEN", url = "https://npm.pkg.github.com/" }
