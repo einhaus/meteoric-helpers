@@ -100,4 +100,109 @@ describe('Logger', () => {
             rmSync(tempRoot, { recursive: true, force: true });
         }
     });
+
+    it('reduces AWS SDK-shaped errors so signed request internals never reach the serialized record', () => {
+        const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'meteoric-logger-aws-sdk-'));
+        const logDir = path.join(tempRoot, 'logs');
+        const sessionToken = 'IQoJb3JpZ2luX2VjSYNTHETICSESSIONTOKENf4k3f4k3f4k3';
+        const signature = 'd34db33fd34db33fd34db33fd34db33fd34db33fd34db33f';
+
+        const buildAwsSdkShapedError = (): Error => {
+            const awsError = new Error(
+                'User: arn:aws:sts::123456789012:assumed-role/core-host/i-0abc is not authorized to perform: autoscaling:TerminateInstanceInAutoScalingGroup'
+            );
+
+            awsError.name = 'AccessDenied';
+
+            Object.assign(awsError, {
+                Code: 'AccessDenied',
+                $fault: 'client',
+                $metadata: {
+                    httpStatusCode: 403,
+                    requestId: '6c0e9f2a-1111-2222-3333-444455556666',
+                    attempts: 1,
+                    totalRetryDelay: 0
+                },
+                $response: {
+                    statusCode: 403,
+                    body: '<ErrorResponse><Error><Code>AccessDenied</Code></Error></ErrorResponse>',
+                    req: {
+                        _header:
+                            'POST / HTTP/1.1\r\n' +
+                            'Host: autoscaling.us-east-1.amazonaws.com\r\n' +
+                            `authorization: AWS4-HMAC-SHA256 Credential=ASIAFAKEFAKEFAKEFAKE/20260807/us-east-1/autoscaling/aws4_request, SignedHeaders=host;x-amz-date;x-amz-security-token, Signature=${signature}\r\n` +
+                            `x-amz-security-token: ${sessionToken}\r\n\r\n`,
+                        socket: { remoteAddress: '10.0.12.34', remotePort: 443 }
+                    }
+                }
+            });
+
+            return awsError;
+        };
+
+        try {
+            const logger = Logger.getInstance({
+                logDir,
+                jobLogDir: path.join(logDir, 'jobLogs'),
+                enableDuplicateSuppression: false,
+                outputSeverity: 99
+            });
+
+            logger.log({
+                level: 'error',
+                severity: 8,
+                service: 'test-service',
+                category: 'aws-sdk-error-test',
+                message: 'Failed to terminate drained elastic worker w-123; continuing with capacity apply',
+                error: buildAwsSdkShapedError(),
+                extraData: { nested: { failure: buildAwsSdkShapedError() } }
+            });
+
+            const filesDir = path.join(logDir, 'files');
+            const logFiles = readdirSync(filesDir);
+            expect(logFiles).toHaveLength(1);
+
+            const recordJson = readFileSync(path.join(filesDir, logFiles[0]!), 'utf8');
+
+            // The signed request must be dropped entirely, on the top-level error and on
+            // AWS-shaped errors nested anywhere in extraData.
+            expect(recordJson).not.toContain(sessionToken);
+            expect(recordJson).not.toContain(signature);
+            expect(recordJson).not.toContain('x-amz-security-token');
+            expect(recordJson).not.toContain('AWS4-HMAC-SHA256');
+            expect(recordJson).not.toContain('$response');
+            expect(recordJson).not.toContain('_header');
+            expect(recordJson).not.toContain('remoteAddress');
+
+            const record = JSON.parse(recordJson) as {
+                error?: {
+                    name?: string;
+                    message?: string;
+                    stack?: string;
+                    Code?: string;
+                    $fault?: string;
+                    $metadata?: { attempts?: number; httpStatusCode?: number; requestId?: string; totalRetryDelay?: number };
+                };
+                extra_data: string;
+            };
+
+            // Safe diagnostic fields must survive.
+            expect(record.error?.name).toBe('AccessDenied');
+            expect(record.error?.message).toContain('not authorized to perform: autoscaling:TerminateInstanceInAutoScalingGroup');
+            expect(record.error?.stack).toBeTruthy();
+            expect(record.error?.Code).toBe('AccessDenied');
+            expect(record.error?.$fault).toBe('client');
+            expect(record.error?.$metadata).toEqual({
+                httpStatusCode: 403,
+                requestId: '6c0e9f2a-1111-2222-3333-444455556666',
+                attempts: 1
+            });
+
+            // The nested extraData copy is reduced to the same allowlist.
+            expect(record.extra_data).toContain('AccessDenied');
+            expect(record.extra_data).toContain('$metadata');
+        } finally {
+            rmSync(tempRoot, { recursive: true, force: true });
+        }
+    });
 });

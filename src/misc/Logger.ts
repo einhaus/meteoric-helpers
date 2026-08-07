@@ -141,6 +141,12 @@ export class Logger {
 
     verbose = false;
     debug = false;
+    // AWS SDK v3 (smithy) error markers. Errors carrying any of these may hold a raw
+    // `$response.req._header` string with the complete signed HTTP request, including the
+    // live x-amz-security-token and SigV4 authorization headers, so they are reduced to an
+    // allowlist of diagnostic fields instead of being serialized property-by-property.
+    private static readonly awsSdkErrorMarkerKeys = ['$metadata', '$fault', '$response'];
+    private static readonly awsSdkMetadataAllowedKeys = ['attempts', 'httpStatusCode', 'requestId'];
     private static readonly sensitiveKeyFragments = [
         'token',
         'secret',
@@ -331,6 +337,75 @@ export class Logger {
         return args.map((arg) => this.sanitizeConsoleArg(arg));
     }
 
+    private isAwsSdkShapedError(value: object): boolean {
+        return Logger.awsSdkErrorMarkerKeys.some((markerKey) => markerKey in value);
+    }
+
+    private reduceAwsSdkError(value: object, seen: WeakSet<object>): LoggerError {
+        const name = Reflect.get(value, 'name');
+        const message = Reflect.get(value, 'message');
+        const stack = Reflect.get(value, 'stack');
+        const code = Reflect.get(value, 'Code') ?? Reflect.get(value, 'code');
+        const fault = Reflect.get(value, '$fault');
+        const metadata = Reflect.get(value, '$metadata');
+        const cause = Reflect.get(value, 'cause');
+
+        const reducedError: LoggerError = {
+            name: typeof name === 'string' && name ? name : 'AwsSdkError',
+            message: this.sanitizeStringForLog(typeof message === 'string' ? message : ''),
+            stack: typeof stack === 'string' && stack ? this.sanitizeStringForLog(stack) : undefined
+        };
+
+        if (typeof code === 'string' && code) {
+            reducedError.Code = code;
+        }
+
+        if (fault === 'client' || fault === 'server') {
+            reducedError.$fault = fault;
+        }
+
+        if (metadata !== null && typeof metadata === 'object') {
+            const reducedMetadata: { [key: string]: JsonValue } = {};
+
+            for (const metadataKey of Logger.awsSdkMetadataAllowedKeys) {
+                const metadataValue = Reflect.get(metadata, metadataKey);
+
+                if (typeof metadataValue === 'number' || typeof metadataValue === 'boolean') {
+                    reducedMetadata[metadataKey] = metadataValue;
+                } else if (typeof metadataValue === 'string' && metadataValue) {
+                    reducedMetadata[metadataKey] = this.sanitizeStringForLog(metadataValue);
+                }
+            }
+
+            if (Object.keys(reducedMetadata).length > 0) {
+                reducedError.$metadata = reducedMetadata;
+            }
+        }
+
+        if (cause !== undefined && cause !== null) {
+            const normalizedCause = this.normalizeForJson(cause, seen, 'cause');
+
+            if (normalizedCause !== undefined) {
+                reducedError.cause = normalizedCause;
+            }
+        }
+
+        return reducedError;
+    }
+
+    private normalizeReducedAwsSdkError(value: object, seen: WeakSet<object>): { [key: string]: JsonValue } {
+        const reducedError = this.reduceAwsSdkError(value, seen);
+        const normalizedError: { [key: string]: JsonValue } = {};
+
+        for (const [reducedKey, reducedValue] of Object.entries(reducedError)) {
+            if (reducedValue !== undefined) {
+                normalizedError[reducedKey] = reducedValue;
+            }
+        }
+
+        return normalizedError;
+    }
+
     private normalizeForJson(value: unknown, seen: WeakSet<object> = new WeakSet<object>(), key = ''): JsonValue | undefined {
         if (key && this.isSensitiveKey(key)) {
             return '[REDACTED]';
@@ -362,6 +437,10 @@ export class Logger {
             }
 
             seen.add(value);
+
+            if (this.isAwsSdkShapedError(value)) {
+                return this.normalizeReducedAwsSdkError(value, seen);
+            }
 
             const normalizedError: { [key: string]: JsonValue } = {
                 name: value.name,
@@ -402,6 +481,10 @@ export class Logger {
             }
 
             seen.add(value);
+
+            if (this.isAwsSdkShapedError(value)) {
+                return this.normalizeReducedAwsSdkError(value, seen);
+            }
 
             const normalizedObject: { [key: string]: JsonValue } = {};
 
@@ -909,38 +992,50 @@ export class Logger {
 
             if (error) {
                 try {
-                    const baseErrorDetails: LoggerError = {
-                        name: error.name,
-                        message: this.sanitizeStringForLog(error.message),
-                        stack: error.stack ? this.sanitizeStringForLog(error.stack) : undefined
-                    };
+                    if (this.isAwsSdkShapedError(error)) {
+                        // AWS SDK errors may carry the full signed HTTP request under
+                        // `$response`; only the allowlisted diagnostic fields may be logged.
+                        const seenErrorObjects = new WeakSet<object>();
+                        seenErrorObjects.add(error);
+                        errorDetails = this.reduceAwsSdkError(error, seenErrorObjects);
+                    } else {
+                        const baseErrorDetails: LoggerError = {
+                            name: error.name,
+                            message: this.sanitizeStringForLog(error.message),
+                            stack: error.stack ? this.sanitizeStringForLog(error.stack) : undefined
+                        };
 
-                    // Only add cause if it exists
-                    if (error.cause) {
-                        const normalizedCause = this.normalizeForJson(error.cause);
+                        // Only add cause if it exists
+                        if (error.cause) {
+                            const normalizedCause = this.normalizeForJson(error.cause);
 
-                        if (normalizedCause !== undefined) {
-                            baseErrorDetails.cause = normalizedCause;
-                        }
-                    }
-
-                    const loggedError = error;
-
-                    errorDetails = {
-                        ...baseErrorDetails,
-                        // Capture any custom properties on the error object
-                        ...Object.getOwnPropertyNames(loggedError).reduce((acc: Record<string, JsonValue>, key) => {
-                            if (!['name', 'message', 'stack'].includes(key)) {
-                                const normalizedValue = this.normalizeForJson(Reflect.get(loggedError, key), new WeakSet<object>(), key);
-
-                                if (normalizedValue !== undefined) {
-                                    acc[key] = normalizedValue;
-                                }
+                            if (normalizedCause !== undefined) {
+                                baseErrorDetails.cause = normalizedCause;
                             }
+                        }
 
-                            return acc;
-                        }, {})
-                    };
+                        const loggedError = error;
+
+                        errorDetails = {
+                            ...baseErrorDetails,
+                            // Capture any custom properties on the error object
+                            ...Object.getOwnPropertyNames(loggedError).reduce((acc: Record<string, JsonValue>, key) => {
+                                if (!['name', 'message', 'stack'].includes(key)) {
+                                    const normalizedValue = this.normalizeForJson(
+                                        Reflect.get(loggedError, key),
+                                        new WeakSet<object>(),
+                                        key
+                                    );
+
+                                    if (normalizedValue !== undefined) {
+                                        acc[key] = normalizedValue;
+                                    }
+                                }
+
+                                return acc;
+                            }, {})
+                        };
+                    }
                 } catch (_err) {
                     // Fallback if error serialization fails
                     errorDetails = {
