@@ -25,8 +25,8 @@ describe('AI model catalog helpers', () => {
     });
 
     it('resolves preferred model ids and uses snapshot ids when requested', () => {
-        expect(getPreferredAiModelId({ provider: 'openai', profile: 'reasoning' })).toBe('gpt-5.4');
-        expect(getPreferredAiModelId({ provider: 'openai', profile: 'balanced' })).toBe('gpt-5.4');
+        expect(getPreferredAiModelId({ provider: 'openai', profile: 'reasoning' })).toBe('gpt-5.6-terra');
+        expect(getPreferredAiModelId({ provider: 'openai', profile: 'balanced' })).toBe('gpt-5.6-terra');
         expect(getPreferredAiModelId({ provider: 'anthropic', profile: 'reasoning' })).toBe('claude-opus-5');
         expect(getPreferredAiModelId({ provider: 'anthropic', profile: 'balanced' })).toBe('claude-sonnet-5');
         expect(getPreferredAiModelId({ provider: 'anthropic', profile: 'fast', preferSnapshot: true })).toBe('claude-haiku-4-5-20251001');
@@ -38,10 +38,10 @@ describe('AI model catalog helpers', () => {
         const anthropicReasoningProfile = getPreferredAiModelProfileConfig({ provider: 'anthropic', profile: 'reasoning' });
         const anthropicBalancedProfile = getPreferredAiModelProfileConfig({ provider: 'anthropic', profile: 'balanced' });
 
-        expect(openAiReasoningProfile?.modelKey).toBe('openai:gpt-5.4');
+        expect(openAiReasoningProfile?.modelKey).toBe('openai:gpt-5.6-terra');
         expect(openAiReasoningProfile?.inferenceProfileKey).toBe('reasoning_high');
-        expect(openAiReasoningProfile?.model?.modelId).toBe('gpt-5.4');
-        expect(openAiBalancedProfile?.modelKey).toBe('openai:gpt-5.4');
+        expect(openAiReasoningProfile?.model?.modelId).toBe('gpt-5.6-terra');
+        expect(openAiBalancedProfile?.modelKey).toBe('openai:gpt-5.6-terra');
         expect(openAiBalancedProfile?.inferenceProfileKey).toBe('reasoning_medium');
         expect(anthropicReasoningProfile?.modelKey).toBe('anthropic:claude-opus-5');
         expect(anthropicReasoningProfile?.model?.modelId).toBe('claude-opus-5');
@@ -99,26 +99,26 @@ describe('AI model catalog helpers', () => {
         });
 
         expect(unapprovedGpt55Promotion.isWithinPolicy).toBe(false);
-        expect(unapprovedGpt55Promotion.inputPriceMultiplier).toBe(2);
-        expect(unapprovedGpt55Promotion.outputPriceMultiplier).toBe(2);
+        expect(unapprovedGpt55Promotion.inputPriceMultiplier).toBe(2.5);
+        expect(unapprovedGpt55Promotion.outputPriceMultiplier).toBe(2.5);
         expect(unapprovedGpt55Promotion.violations).toEqual(
             expect.arrayContaining([
-                expect.stringContaining('input price 5 exceeds profile budget 2.5'),
-                expect.stringContaining('output price 30 exceeds profile budget 15')
+                expect.stringContaining('input price 5 exceeds profile budget 2'),
+                expect.stringContaining('output price 30 exceeds profile budget 12')
             ])
         );
 
-        const modeledSamePriceTerraCandidate = evaluateAiModelProfileCostPolicy({
+        const defaultTerraCandidate = evaluateAiModelProfileCostPolicy({
             provider: 'openai',
             profile: 'balanced',
             candidateModelKey: 'openai:gpt-5.6-terra'
         });
 
-        expect(modeledSamePriceTerraCandidate.isWithinPolicy).toBe(true);
-        expect(modeledSamePriceTerraCandidate.inputPriceMultiplier).toBe(1);
-        expect(modeledSamePriceTerraCandidate.cachedInputPriceMultiplier).toBe(1);
-        expect(modeledSamePriceTerraCandidate.outputPriceMultiplier).toBe(1);
-        expect(getAiModelById('gpt-5.6-terra')?.pricing.cacheWriteUsdPerMillionTokens).toBe(3.125);
+        expect(defaultTerraCandidate.isWithinPolicy).toBe(true);
+        expect(defaultTerraCandidate.inputPriceMultiplier).toBe(1);
+        expect(defaultTerraCandidate.cachedInputPriceMultiplier).toBe(1);
+        expect(defaultTerraCandidate.outputPriceMultiplier).toBe(1);
+        expect(getAiModelById('gpt-5.6-terra')?.pricing.cacheWriteUsdPerMillionTokens).toBe(2.5);
         expect(getAiModelById('gpt-5.4')?.pricing.cacheWriteUsdPerMillionTokens).toBeUndefined();
 
         const unapprovedSolPromotion = evaluateAiModelProfileCostPolicy({
@@ -128,34 +128,34 @@ describe('AI model catalog helpers', () => {
         });
 
         expect(unapprovedSolPromotion.isWithinPolicy).toBe(false);
-        expect(unapprovedSolPromotion.inputPriceMultiplier).toBe(2);
-        expect(unapprovedSolPromotion.cachedInputPriceMultiplier).toBe(2);
-        expect(unapprovedSolPromotion.outputPriceMultiplier).toBe(2);
+        expect(unapprovedSolPromotion.inputPriceMultiplier).toBe(2.5);
+        expect(unapprovedSolPromotion.cachedInputPriceMultiplier).toBe(2.5);
+        expect(unapprovedSolPromotion.outputPriceMultiplier).toBe(2.5);
 
-        const unapprovedLunaFastPromotion = evaluateAiModelProfileCostPolicy({
+        const defaultLunaFastCandidate = evaluateAiModelProfileCostPolicy({
             provider: 'openai',
             profile: 'fast',
             candidateModelKey: 'openai:gpt-5.6-luna'
         });
 
-        expect(unapprovedLunaFastPromotion.isWithinPolicy).toBe(false);
-        expect(unapprovedLunaFastPromotion.inputPriceMultiplier).toBe(1.333333333333);
-        expect(unapprovedLunaFastPromotion.cachedInputPriceMultiplier).toBe(1.333333333333);
-        expect(unapprovedLunaFastPromotion.outputPriceMultiplier).toBe(1.333333333333);
+        expect(defaultLunaFastCandidate.isWithinPolicy).toBe(true);
+        expect(defaultLunaFastCandidate.inputPriceMultiplier).toBe(1);
+        expect(defaultLunaFastCandidate.cachedInputPriceMultiplier).toBe(1);
+        expect(defaultLunaFastCandidate.outputPriceMultiplier).toBe(1);
 
-        const approvedDeepResearchReplacement = evaluateAiModelProfileCostPolicy({
+        const defaultDeepResearchModel = evaluateAiModelProfileCostPolicy({
             provider: 'openai',
             profile: 'deepResearch',
             candidateModelKey: 'openai:gpt-5.6-sol'
         });
 
-        expect(approvedDeepResearchReplacement.isWithinPolicy).toBe(true);
-        expect(approvedDeepResearchReplacement.isApprovedHigherCost).toBe(true);
-        expect(approvedDeepResearchReplacement.inputPriceMultiplier).toBe(0.5);
-        expect(approvedDeepResearchReplacement.cachedInputPriceMultiplier).toBe(0.2);
-        expect(approvedDeepResearchReplacement.outputPriceMultiplier).toBe(0.75);
-        expect(approvedDeepResearchReplacement.cacheWrite5mPriceMultiplier).toBeNull();
-        expect(approvedDeepResearchReplacement.cacheWrite1hPriceMultiplier).toBeNull();
+        expect(defaultDeepResearchModel.isWithinPolicy).toBe(true);
+        expect(defaultDeepResearchModel.isApprovedHigherCost).toBe(false);
+        expect(defaultDeepResearchModel.inputPriceMultiplier).toBe(1);
+        expect(defaultDeepResearchModel.cachedInputPriceMultiplier).toBe(1);
+        expect(defaultDeepResearchModel.outputPriceMultiplier).toBe(1);
+        expect(defaultDeepResearchModel.cacheWrite5mPriceMultiplier).toBeNull();
+        expect(defaultDeepResearchModel.cacheWrite1hPriceMultiplier).toBeNull();
         expect(getAiModelById('gpt-5.6-sol')?.pricing.longContextInputUsdPerMillionTokens).toBe(10);
         expect(getAiModelById('gpt-5.6-sol')?.pricing.longContextCachedInputUsdPerMillionTokens).toBe(1);
         expect(getAiModelById('gpt-5.6-sol')?.pricing.longContextOutputUsdPerMillionTokens).toBe(45);
@@ -206,8 +206,8 @@ describe('AI model catalog helpers', () => {
             cacheWriteInputTokens: 1_000
         });
 
-        expect(standardEstimate?.cacheWriteCostUsd).toBe(0.003125);
-        expect(standardEstimate?.totalCostUsd).toBe(0.007125);
+        expect(standardEstimate?.cacheWriteCostUsd).toBe(0.0025);
+        expect(standardEstimate?.totalCostUsd).toBe(0.0057);
 
         const longContextEstimate = estimateAiModelCostUsd({
             model: 'gpt-5.6-terra',
@@ -217,16 +217,16 @@ describe('AI model catalog helpers', () => {
         });
 
         expect(longContextEstimate?.longContextApplied).toBe(true);
-        expect(longContextEstimate?.cacheWriteCostUsd).toBe(0.00625);
-        expect(longContextEstimate?.totalCostUsd).toBe(3.75625);
+        expect(longContextEstimate?.cacheWriteCostUsd).toBe(0.005);
+        expect(longContextEstimate?.totalCostUsd).toBe(3.005);
     });
 
     it('can still resolve legacy models used by current apps', () => {
         expect(getAiModelById('gpt-5.6')?.modelKey).toBe('openai:gpt-5.6-sol');
         expect(getAiModelById('gpt-5.6-sol')?.capabilities.reasoningEffortLevels).toContain('max');
         expect(getAiModelById('gpt-5.6-sol')?.pricing.inputUsdPerMillionTokens).toBe(5);
-        expect(getAiModelById('gpt-5.6-terra')?.pricing.longContextOutputUsdPerMillionTokens).toBe(22.5);
-        expect(getAiModelById('gpt-5.6-luna')?.pricing.outputUsdPerMillionTokens).toBe(6);
+        expect(getAiModelById('gpt-5.6-terra')?.pricing.longContextOutputUsdPerMillionTokens).toBe(18);
+        expect(getAiModelById('gpt-5.6-luna')?.pricing.outputUsdPerMillionTokens).toBe(1.2);
         expect(getAiModelById('gpt-4o-mini')?.modelKey).toBe('openai:gpt-4o-mini');
         expect(getAiModelById('chatgpt-4o-latest')?.modelKey).toBe('openai:chatgpt-4o-latest');
         expect(getAiModelById('chat-latest')?.modelKey).toBe('openai:chat-latest');

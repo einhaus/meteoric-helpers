@@ -9,7 +9,7 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.provider).toBe('openai');
-        expect(config.modelKey).toBe('openai:gpt-5.4');
+        expect(config.modelKey).toBe('openai:gpt-5.6-terra');
         expect(config.inferenceProfileKey).toBe('reasoning_high');
         expect(config.reasoningEffort).toBe('high');
         expect(config.maxOutputTokens).toBe(8_000);
@@ -26,7 +26,7 @@ describe('AI request preset helpers', () => {
             maxOutputTokens: 200_000
         });
 
-        expect(config.modelKey).toBe('openai:gpt-5.4-nano');
+        expect(config.modelKey).toBe('openai:gpt-5.6-luna');
         expect(config.inferenceProfileKey).toBe('reasoning_none');
         expect(config.requestedMaxOutputTokens).toBe(200_000);
         expect(config.maxOutputTokens).toBe(128_000);
@@ -120,7 +120,7 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.provider).toBe('openai');
-        expect(config.modelKey).toBe('openai:gpt-5.4');
+        expect(config.modelKey).toBe('openai:gpt-5.6-terra');
         expect(config.inferenceProfileKey).toBe('reasoning_medium');
         expect(config.reasoningEffort).toBe('medium');
         expect(config.temperature).toBeNull();
@@ -134,7 +134,7 @@ describe('AI request preset helpers', () => {
             temperature: 0.35
         });
 
-        expect(config.modelKey).toBe('openai:gpt-5.4');
+        expect(config.modelKey).toBe('openai:gpt-5.6-terra');
         expect(config.inferenceProfileKey).toBe('reasoning_medium');
         expect(config.temperature).toBeNull();
         expect(config.warnings.some((warning) => warning.includes('does not support the temperature parameter'))).toBe(true);
@@ -148,7 +148,7 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.modelProfile).toBe('fast');
-        expect(config.modelKey).toBe('openai:gpt-5.4-mini');
+        expect(config.modelKey).toBe('openai:gpt-5.6-luna');
         expect(config.inferenceProfileKey).toBe('reasoning_low');
         expect(config.reasoningEffort).toBe('low');
         expect(config.overridesApplied).toContain('modelProfile');
@@ -162,7 +162,7 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.modelProfile).toBe('balanced');
-        expect(config.modelKey).toBe('openai:gpt-5.4');
+        expect(config.modelKey).toBe('openai:gpt-5.6-terra');
         expect(config.inferenceProfileKey).toBe('reasoning_high');
         expect(config.reasoningEffort).toBe('high');
         expect(config.overridesApplied).toContain('inferenceProfileKey');

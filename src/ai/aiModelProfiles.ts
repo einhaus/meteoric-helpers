@@ -44,27 +44,27 @@ const createCostPolicy = (policy: AiModelProfileCostPolicy): AiModelProfileCostP
 export const AI_PROVIDER_MODEL_PROFILE_DEFAULTS: Readonly<Record<AiProvider, AiProviderModelProfileDefaultMap>> = {
     openai: {
         reasoning: {
-            modelKey: 'openai:gpt-5.4',
+            modelKey: 'openai:gpt-5.6-terra',
             inferenceProfileKey: 'reasoning_high'
         },
         balanced: {
-            modelKey: 'openai:gpt-5.4',
+            modelKey: 'openai:gpt-5.6-terra',
             inferenceProfileKey: 'reasoning_medium'
         },
         fast: {
-            modelKey: 'openai:gpt-5.4-mini',
+            modelKey: 'openai:gpt-5.6-luna',
             inferenceProfileKey: 'reasoning_low'
         },
         cheap: {
-            modelKey: 'openai:gpt-5.4-nano',
+            modelKey: 'openai:gpt-5.6-luna',
             inferenceProfileKey: 'reasoning_none'
         },
         title: {
-            modelKey: 'openai:gpt-5.4-nano',
+            modelKey: 'openai:gpt-5.6-luna',
             inferenceProfileKey: 'reasoning_none'
         },
         webSearch: {
-            modelKey: 'openai:gpt-5.5',
+            modelKey: 'openai:gpt-5.6-terra',
             inferenceProfileKey: 'reasoning_medium'
         },
         deepResearch: {
@@ -108,33 +108,33 @@ export const AI_PROVIDER_MODEL_PROFILE_COST_POLICIES: Readonly<Record<AiProvider
     openai: {
         reasoning: createCostPolicy({
             costTier: 'premium',
-            referenceModelKey: 'openai:gpt-5.4',
-            maxInputUsdPerMillionTokens: 2.5,
-            maxCachedInputUsdPerMillionTokens: 0.25,
-            maxOutputUsdPerMillionTokens: 15,
+            referenceModelKey: 'openai:gpt-5.6-terra',
+            maxInputUsdPerMillionTokens: 2,
+            maxCachedInputUsdPerMillionTokens: 0.2,
+            maxOutputUsdPerMillionTokens: 12,
             maxCacheWrite5mUsdPerMillionTokens: null,
             maxCacheWrite1hUsdPerMillionTokens: null,
-            maxLongContextInputUsdPerMillionTokens: 5,
-            maxLongContextCachedInputUsdPerMillionTokens: 0.5,
-            maxLongContextOutputUsdPerMillionTokens: 22.5,
+            maxLongContextInputUsdPerMillionTokens: 4,
+            maxLongContextCachedInputUsdPerMillionTokens: 0.4,
+            maxLongContextOutputUsdPerMillionTokens: 18,
             maxInputPriceMultiplier: 1.01,
             maxCachedInputPriceMultiplier: 1.01,
             maxOutputPriceMultiplier: 1.01,
             maxCacheWritePriceMultiplier: null,
             approvedHigherCostModels: [],
-            notes: 'Reasoning defaults may move to same-tier or cheaper flagship models, but premium jumps require an explicit approval entry.'
+            notes: 'Reasoning defaults use Terra for strong reasoning at the standard GPT-5.6 price tier; Sol promotions require explicit approval.'
         }),
         balanced: createCostPolicy({
             costTier: 'standard',
-            referenceModelKey: 'openai:gpt-5.4',
-            maxInputUsdPerMillionTokens: 2.5,
-            maxCachedInputUsdPerMillionTokens: 0.25,
-            maxOutputUsdPerMillionTokens: 15,
+            referenceModelKey: 'openai:gpt-5.6-terra',
+            maxInputUsdPerMillionTokens: 2,
+            maxCachedInputUsdPerMillionTokens: 0.2,
+            maxOutputUsdPerMillionTokens: 12,
             maxCacheWrite5mUsdPerMillionTokens: null,
             maxCacheWrite1hUsdPerMillionTokens: null,
-            maxLongContextInputUsdPerMillionTokens: 5,
-            maxLongContextCachedInputUsdPerMillionTokens: 0.5,
-            maxLongContextOutputUsdPerMillionTokens: 22.5,
+            maxLongContextInputUsdPerMillionTokens: 4,
+            maxLongContextCachedInputUsdPerMillionTokens: 0.4,
+            maxLongContextOutputUsdPerMillionTokens: 18,
             maxInputPriceMultiplier: 1.01,
             maxCachedInputPriceMultiplier: 1.01,
             maxOutputPriceMultiplier: 1.01,
@@ -144,61 +144,79 @@ export const AI_PROVIDER_MODEL_PROFILE_COST_POLICIES: Readonly<Record<AiProvider
         }),
         fast: createCostPolicy({
             costTier: 'economy',
-            referenceModelKey: 'openai:gpt-5.4-mini',
-            maxInputUsdPerMillionTokens: 0.75,
-            maxCachedInputUsdPerMillionTokens: 0.075,
-            maxOutputUsdPerMillionTokens: 4.5,
+            referenceModelKey: 'openai:gpt-5.6-luna',
+            maxInputUsdPerMillionTokens: 0.2,
+            maxCachedInputUsdPerMillionTokens: 0.02,
+            maxOutputUsdPerMillionTokens: 1.2,
             maxCacheWrite5mUsdPerMillionTokens: null,
             maxCacheWrite1hUsdPerMillionTokens: null,
-            maxLongContextInputUsdPerMillionTokens: null,
-            maxLongContextCachedInputUsdPerMillionTokens: null,
-            maxLongContextOutputUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: 0.4,
+            maxLongContextCachedInputUsdPerMillionTokens: 0.04,
+            maxLongContextOutputUsdPerMillionTokens: 1.8,
             maxInputPriceMultiplier: 1.01,
             maxCachedInputPriceMultiplier: 1.01,
             maxOutputPriceMultiplier: 1.01,
             maxCacheWritePriceMultiplier: null,
             approvedHigherCostModels: [],
-            notes: 'Fast defaults are high-volume routes and should stay at the mini-model price tier.'
+            notes: 'Fast defaults use Luna for low-latency, high-volume workloads and must remain at the Luna price tier.'
         }),
         cheap: createCostPolicy({
             costTier: 'economy',
-            referenceModelKey: 'openai:gpt-5.4-nano',
+            referenceModelKey: 'openai:gpt-5.6-luna',
             maxInputUsdPerMillionTokens: 0.2,
             maxCachedInputUsdPerMillionTokens: 0.02,
-            maxOutputUsdPerMillionTokens: 1.25,
+            maxOutputUsdPerMillionTokens: 1.2,
             maxCacheWrite5mUsdPerMillionTokens: null,
             maxCacheWrite1hUsdPerMillionTokens: null,
-            maxLongContextInputUsdPerMillionTokens: null,
-            maxLongContextCachedInputUsdPerMillionTokens: null,
-            maxLongContextOutputUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: 0.4,
+            maxLongContextCachedInputUsdPerMillionTokens: 0.04,
+            maxLongContextOutputUsdPerMillionTokens: 1.8,
             maxInputPriceMultiplier: 1.01,
             maxCachedInputPriceMultiplier: 1.01,
             maxOutputPriceMultiplier: 1.01,
             maxCacheWritePriceMultiplier: null,
             approvedHigherCostModels: [],
-            notes: 'Cheap defaults must remain at the nano/high-volume background-task tier.'
+            notes: 'Cheap defaults use Luna and must remain at its high-volume background-task price tier.'
         }),
         title: createCostPolicy({
             costTier: 'economy',
-            referenceModelKey: 'openai:gpt-5.4-nano',
+            referenceModelKey: 'openai:gpt-5.6-luna',
             maxInputUsdPerMillionTokens: 0.2,
             maxCachedInputUsdPerMillionTokens: 0.02,
-            maxOutputUsdPerMillionTokens: 1.25,
+            maxOutputUsdPerMillionTokens: 1.2,
             maxCacheWrite5mUsdPerMillionTokens: null,
             maxCacheWrite1hUsdPerMillionTokens: null,
-            maxLongContextInputUsdPerMillionTokens: null,
-            maxLongContextCachedInputUsdPerMillionTokens: null,
-            maxLongContextOutputUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: 0.4,
+            maxLongContextCachedInputUsdPerMillionTokens: 0.04,
+            maxLongContextOutputUsdPerMillionTokens: 1.8,
             maxInputPriceMultiplier: 1.01,
             maxCachedInputPriceMultiplier: 1.01,
             maxOutputPriceMultiplier: 1.01,
             maxCacheWritePriceMultiplier: null,
             approvedHigherCostModels: [],
-            notes: 'Title-generation defaults are latency/cost sensitive and should stay in the nano tier.'
+            notes: 'Title-generation defaults are latency/cost sensitive and should stay at the Luna price tier.'
         }),
         webSearch: createCostPolicy({
             costTier: 'premium',
-            referenceModelKey: 'openai:gpt-5.5',
+            referenceModelKey: 'openai:gpt-5.6-terra',
+            maxInputUsdPerMillionTokens: 2,
+            maxCachedInputUsdPerMillionTokens: 0.2,
+            maxOutputUsdPerMillionTokens: 12,
+            maxCacheWrite5mUsdPerMillionTokens: null,
+            maxCacheWrite1hUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: 4,
+            maxLongContextCachedInputUsdPerMillionTokens: 0.4,
+            maxLongContextOutputUsdPerMillionTokens: 18,
+            maxInputPriceMultiplier: 1.01,
+            maxCachedInputPriceMultiplier: 1.01,
+            maxOutputPriceMultiplier: 1.01,
+            maxCacheWritePriceMultiplier: null,
+            approvedHigherCostModels: [],
+            notes: 'Web-search defaults use search-capable Terra for broad production traffic; Sol promotions require approval.'
+        }),
+        deepResearch: createCostPolicy({
+            costTier: 'specialized',
+            referenceModelKey: 'openai:gpt-5.6-sol',
             maxInputUsdPerMillionTokens: 5,
             maxCachedInputUsdPerMillionTokens: 0.5,
             maxOutputUsdPerMillionTokens: 30,
@@ -212,31 +230,7 @@ export const AI_PROVIDER_MODEL_PROFILE_COST_POLICIES: Readonly<Record<AiProvider
             maxOutputPriceMultiplier: 1.01,
             maxCacheWritePriceMultiplier: null,
             approvedHigherCostModels: [],
-            notes: 'Web-search defaults intentionally use a search-capable premium model; pro-tier jumps require approval.'
-        }),
-        deepResearch: createCostPolicy({
-            costTier: 'specialized',
-            referenceModelKey: 'openai:o3-deep-research',
-            maxInputUsdPerMillionTokens: 10,
-            maxCachedInputUsdPerMillionTokens: 2.5,
-            maxOutputUsdPerMillionTokens: 40,
-            maxCacheWrite5mUsdPerMillionTokens: null,
-            maxCacheWrite1hUsdPerMillionTokens: null,
-            maxLongContextInputUsdPerMillionTokens: null,
-            maxLongContextCachedInputUsdPerMillionTokens: null,
-            maxLongContextOutputUsdPerMillionTokens: null,
-            maxInputPriceMultiplier: 1.01,
-            maxCachedInputPriceMultiplier: 1.01,
-            maxOutputPriceMultiplier: 1.01,
-            maxCacheWritePriceMultiplier: null,
-            approvedHigherCostModels: [
-                {
-                    modelKey: 'openai:gpt-5.6-sol',
-                    approvedAt: '2026-07-27',
-                    reason: 'Official replacement for the retired dedicated deep-research models. Standard input, cached-input, and output rates are lower; long-context output is 1.125x and cache writes are newly billed.'
-                }
-            ],
-            notes: 'Use a dedicated deep-research model while one remains available. GPT-5.6 Sol is the approved official replacement after the dedicated models shut down.'
+            notes: 'Deep research intentionally uses quality-first Sol; other profiles should remain on Terra or Luna unless separately approved.'
         })
     },
     anthropic: {

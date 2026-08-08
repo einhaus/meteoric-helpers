@@ -1,6 +1,7 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
 const VERIFIED_AT = '2026-07-27';
+const GPT_5_6_VERIFIED_AT = '2026-08-08';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -148,10 +149,10 @@ const createPricing = (pricing: AiModelPricing): AiModelPricing => pricing;
 
 const createCapabilities = (capabilities: AiModelCapabilities): AiModelCapabilities => capabilities;
 
-const createOpenAiModelSource = (modelId: string): AiModelSource => ({
+const createOpenAiModelSource = (modelId: string, verifiedAt = VERIFIED_AT): AiModelSource => ({
     label: `OpenAI model doc: ${modelId}`,
     url: `https://developers.openai.com/api/docs/models/${modelId}`,
-    verifiedAt: VERIFIED_AT
+    verifiedAt
 });
 
 export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
@@ -206,7 +207,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: 'Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
         }),
         sources: [
-            createOpenAiModelSource('gpt-5.6-sol'),
+            createOpenAiModelSource('gpt-5.6-sol', GPT_5_6_VERIFIED_AT),
             OPENAI_MODELS_SOURCE,
             OPENAI_ALL_MODELS_SOURCE,
             OPENAI_PRICING_SOURCE,
@@ -252,21 +253,21 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         maxOutputTokens: 128_000,
         knowledgeCutoff: '2026-02-16',
         pricing: createPricing({
-            inputUsdPerMillionTokens: 2.5,
-            cachedInputUsdPerMillionTokens: 0.25,
-            outputUsdPerMillionTokens: 15,
-            cacheWriteUsdPerMillionTokens: 3.125,
+            inputUsdPerMillionTokens: 2,
+            cachedInputUsdPerMillionTokens: 0.2,
+            outputUsdPerMillionTokens: 12,
+            cacheWriteUsdPerMillionTokens: 2.5,
             cacheWrite5mUsdPerMillionTokens: null,
             cacheWrite1hUsdPerMillionTokens: null,
             longContextThresholdInputTokens: 272_000,
-            longContextInputUsdPerMillionTokens: 5,
-            longContextCachedInputUsdPerMillionTokens: 0.5,
-            longContextCacheWriteUsdPerMillionTokens: 6.25,
-            longContextOutputUsdPerMillionTokens: 22.5,
+            longContextInputUsdPerMillionTokens: 4,
+            longContextCachedInputUsdPerMillionTokens: 0.4,
+            longContextCacheWriteUsdPerMillionTokens: 5,
+            longContextOutputUsdPerMillionTokens: 18,
             notes: 'Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
         }),
         sources: [
-            createOpenAiModelSource('gpt-5.6-terra'),
+            createOpenAiModelSource('gpt-5.6-terra', GPT_5_6_VERIFIED_AT),
             OPENAI_MODELS_SOURCE,
             OPENAI_ALL_MODELS_SOURCE,
             OPENAI_PRICING_SOURCE,
@@ -312,27 +313,27 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         maxOutputTokens: 128_000,
         knowledgeCutoff: '2026-02-16',
         pricing: createPricing({
-            inputUsdPerMillionTokens: 1,
-            cachedInputUsdPerMillionTokens: 0.1,
-            outputUsdPerMillionTokens: 6,
-            cacheWriteUsdPerMillionTokens: 1.25,
+            inputUsdPerMillionTokens: 0.2,
+            cachedInputUsdPerMillionTokens: 0.02,
+            outputUsdPerMillionTokens: 1.2,
+            cacheWriteUsdPerMillionTokens: 0.25,
             cacheWrite5mUsdPerMillionTokens: null,
             cacheWrite1hUsdPerMillionTokens: null,
             longContextThresholdInputTokens: 272_000,
-            longContextInputUsdPerMillionTokens: 2,
-            longContextCachedInputUsdPerMillionTokens: 0.2,
-            longContextCacheWriteUsdPerMillionTokens: 2.5,
-            longContextOutputUsdPerMillionTokens: 9,
+            longContextInputUsdPerMillionTokens: 0.4,
+            longContextCachedInputUsdPerMillionTokens: 0.04,
+            longContextCacheWriteUsdPerMillionTokens: 0.5,
+            longContextOutputUsdPerMillionTokens: 1.8,
             notes: 'Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
         }),
         sources: [
-            createOpenAiModelSource('gpt-5.6-luna'),
+            createOpenAiModelSource('gpt-5.6-luna', GPT_5_6_VERIFIED_AT),
             OPENAI_MODELS_SOURCE,
             OPENAI_ALL_MODELS_SOURCE,
             OPENAI_PRICING_SOURCE,
             OPENAI_LATEST_MODEL_GUIDE_SOURCE
         ],
-        tags: ['active', 'reasoning', 'fast', 'cheap', 'high-volume'],
+        tags: ['recommended', 'reasoning', 'fast', 'cheap', 'high-volume'],
         parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
