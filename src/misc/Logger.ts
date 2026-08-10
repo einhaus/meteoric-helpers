@@ -438,41 +438,55 @@ export class Logger {
 
             seen.add(value);
 
-            if (this.isAwsSdkShapedError(value)) {
-                return this.normalizeReducedAwsSdkError(value, seen);
-            }
-
-            const normalizedError: { [key: string]: JsonValue } = {
-                name: value.name,
-                message: this.sanitizeStringForLog(value.message),
-                ...(value.stack ? { stack: this.sanitizeStringForLog(value.stack) } : {})
-            };
-
-            if (value.cause !== undefined) {
-                const normalizedCause = this.normalizeForJson(value.cause, seen, 'cause');
-
-                if (normalizedCause !== undefined) {
-                    normalizedError.cause = normalizedCause;
-                }
-            }
-
-            for (const propertyName of Object.getOwnPropertyNames(value)) {
-                if (['name', 'message', 'stack', 'cause'].includes(propertyName)) {
-                    continue;
+            try {
+                if (this.isAwsSdkShapedError(value)) {
+                    return this.normalizeReducedAwsSdkError(value, seen);
                 }
 
-                const propertyValue = this.normalizeForJson(Reflect.get(value, propertyName), seen, propertyName);
+                const normalizedError: { [key: string]: JsonValue } = {
+                    name: value.name,
+                    message: this.sanitizeStringForLog(value.message),
+                    ...(value.stack ? { stack: this.sanitizeStringForLog(value.stack) } : {})
+                };
 
-                if (propertyValue !== undefined) {
-                    normalizedError[propertyName] = propertyValue;
+                if (value.cause !== undefined) {
+                    const normalizedCause = this.normalizeForJson(value.cause, seen, 'cause');
+
+                    if (normalizedCause !== undefined) {
+                        normalizedError.cause = normalizedCause;
+                    }
                 }
-            }
 
-            return normalizedError;
+                for (const propertyName of Object.getOwnPropertyNames(value)) {
+                    if (['name', 'message', 'stack', 'cause'].includes(propertyName)) {
+                        continue;
+                    }
+
+                    const propertyValue = this.normalizeForJson(Reflect.get(value, propertyName), seen, propertyName);
+
+                    if (propertyValue !== undefined) {
+                        normalizedError[propertyName] = propertyValue;
+                    }
+                }
+
+                return normalizedError;
+            } finally {
+                seen.delete(value);
+            }
         }
 
         if (Array.isArray(value)) {
-            return value.map((item) => this.normalizeForJson(item, seen) ?? null);
+            if (seen.has(value)) {
+                return '[Circular]';
+            }
+
+            seen.add(value);
+
+            try {
+                return value.map((item) => this.normalizeForJson(item, seen) ?? null);
+            } finally {
+                seen.delete(value);
+            }
         }
 
         if (typeof value === 'object') {
@@ -482,21 +496,25 @@ export class Logger {
 
             seen.add(value);
 
-            if (this.isAwsSdkShapedError(value)) {
-                return this.normalizeReducedAwsSdkError(value, seen);
-            }
-
-            const normalizedObject: { [key: string]: JsonValue } = {};
-
-            for (const [propertyName, propertyValue] of Object.entries(value)) {
-                const normalizedValue = this.normalizeForJson(propertyValue, seen, propertyName);
-
-                if (normalizedValue !== undefined) {
-                    normalizedObject[propertyName] = normalizedValue;
+            try {
+                if (this.isAwsSdkShapedError(value)) {
+                    return this.normalizeReducedAwsSdkError(value, seen);
                 }
-            }
 
-            return normalizedObject;
+                const normalizedObject: { [key: string]: JsonValue } = {};
+
+                for (const [propertyName, propertyValue] of Object.entries(value)) {
+                    const normalizedValue = this.normalizeForJson(propertyValue, seen, propertyName);
+
+                    if (normalizedValue !== undefined) {
+                        normalizedObject[propertyName] = normalizedValue;
+                    }
+                }
+
+                return normalizedObject;
+            } finally {
+                seen.delete(value);
+            }
         }
 
         if (typeof value === 'symbol') {

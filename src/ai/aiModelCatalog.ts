@@ -1,7 +1,7 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-07-27';
-const GPT_5_6_VERIFIED_AT = '2026-08-08';
+const VERIFIED_AT = '2026-08-10';
+const GPT_5_6_VERIFIED_AT = '2026-08-10';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -3040,8 +3040,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'Claude Opus 4.1 (20250805)',
         family: 'claude-opus-4',
-        description: 'Deprecated Anthropic Opus 4.1 snapshot retained primarily for compatibility with existing deployments.',
-        status: 'deprecated',
+        description: 'Retired Anthropic Opus 4.1 snapshot retained for compatibility (requests now error on the Claude API).',
+        status: 'retired',
         recommendedReplacementModelKey: 'anthropic:claude-opus-4-8',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
@@ -3080,8 +3080,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextOutputUsdPerMillionTokens: null,
             notes: null
         }),
-        sources: [ANTHROPIC_MODEL_DEPRECATIONS_SOURCE, ANTHROPIC_PRICING_SOURCE, ANTHROPIC_OPUS_4_8_SOURCE],
-        tags: ['deprecated', 'reasoning', 'compatibility']
+        sources: [ANTHROPIC_MODEL_DEPRECATIONS_SOURCE, ANTHROPIC_PRICING_SOURCE, ANTHROPIC_RELEASE_NOTES_SOURCE, ANTHROPIC_OPUS_4_8_SOURCE],
+        tags: ['retired', 'reasoning', 'compatibility']
     },
     {
         modelKey: 'anthropic:claude-opus-4-20250514',

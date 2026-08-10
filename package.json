@@ -1,6 +1,6 @@
 {
     "name": "@einhaus/meteoric-helpers",
-    "version": "1.0.144",
+    "version": "1.0.145",
     "files": [
         "dist",
         "README.md"
@@ -73,8 +73,8 @@
         "@types/node": "^26.2.0",
         "@types/pg": "^8.21.0",
         "concurrently": "^10.0.4",
-        "oxfmt": "^0.62.0",
-        "oxlint": "^1.77.0",
+        "oxfmt": "^0.63.0",
+        "oxlint": "^1.78.0",
         "oxlint-tsgolint": "^7.0.2001",
         "typescript": "^7.0.2",
         "vitest": "^4.1.10"
@@ -93,10 +93,10 @@
         "bcrypt": "^6.0.0",
         "dayjs": "^1.11.21",
         "mime-types": "^3.0.2",
-        "mysql2": "^3.23.2",
+        "mysql2": "^3.23.3",
         "nanoid": "^6.0.1",
         "node-cache": "^5.1.2",
-        "pg": "^8.22.0"
+        "pg": "^8.23.0"
     },
     "overrides": {
         "fast-xml-parser": "5.3.6",

@@ -205,4 +205,61 @@ describe('Logger', () => {
             rmSync(tempRoot, { recursive: true, force: true });
         }
     });
+
+    it('serializes repeated references while still bounding true object and array cycles', () => {
+        const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'meteoric-logger-cycles-'));
+        const logDir = path.join(tempRoot, 'logs');
+        const sharedCgroup = {
+            cgroupLabel: 'clickhouse-server',
+            memoryCurrentBytes: 3_221_225_472,
+            memorySwapCurrentBytes: 536_870_912
+        };
+        const cyclicObject: { label: string; self?: unknown } = { label: 'cyclic-object' };
+        cyclicObject.self = cyclicObject;
+        const cyclicArray: unknown[] = [];
+        cyclicArray.push(cyclicArray);
+
+        try {
+            const logger = Logger.getInstance({
+                logDir,
+                jobLogDir: path.join(logDir, 'jobLogs'),
+                enableDuplicateSuppression: false,
+                outputSeverity: 99
+            });
+
+            logger.log({
+                level: 'warn',
+                severity: 7,
+                service: 'memory-monitor-test',
+                category: 'serverMemoryCheck',
+                message: 'cycle normalization test',
+                extraData: {
+                    topCgroupsByMemory: [sharedCgroup],
+                    topCgroupsBySwap: [sharedCgroup],
+                    cyclicObject,
+                    cyclicArray
+                }
+            });
+
+            const filesDir = path.join(logDir, 'files');
+            const logFiles = readdirSync(filesDir);
+            expect(logFiles).toHaveLength(1);
+
+            const recordJson = readFileSync(path.join(filesDir, logFiles[0]!), 'utf8');
+            const record = JSON.parse(recordJson) as { extra_data: string };
+            const extraData = JSON.parse(record.extra_data) as {
+                topCgroupsByMemory: Array<typeof sharedCgroup>;
+                topCgroupsBySwap: Array<typeof sharedCgroup>;
+                cyclicObject: { label: string; self: string };
+                cyclicArray: string[];
+            };
+
+            expect(extraData.topCgroupsByMemory).toEqual([sharedCgroup]);
+            expect(extraData.topCgroupsBySwap).toEqual([sharedCgroup]);
+            expect(extraData.cyclicObject).toEqual({ label: 'cyclic-object', self: '[Circular]' });
+            expect(extraData.cyclicArray).toEqual(['[Circular]']);
+        } finally {
+            rmSync(tempRoot, { recursive: true, force: true });
+        }
+    });
 });
