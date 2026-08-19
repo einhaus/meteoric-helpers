@@ -1,7 +1,7 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-08-10';
-const GPT_5_6_VERIFIED_AT = '2026-08-10';
+const VERIFIED_AT = '2026-08-17';
+const GPT_5_6_VERIFIED_AT = '2026-08-17';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -36,6 +36,12 @@ const OPENAI_LATEST_MODEL_GUIDE_SOURCE: AiModelSource = {
 const OPENAI_DEEP_RESEARCH_GUIDE_SOURCE: AiModelSource = {
     label: 'OpenAI deep research guide',
     url: 'https://developers.openai.com/api/docs/guides/deep-research',
+    verifiedAt: VERIFIED_AT
+};
+
+const OPENAI_CYBER_SAFETY_SOURCE: AiModelSource = {
+    label: 'OpenAI Daybreak models and Trusted Access',
+    url: 'https://learn.chatgpt.com/docs/cyber-safety',
     verifiedAt: VERIFIED_AT
 };
 
@@ -161,7 +167,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         provider: 'openai',
         modelId: 'gpt-5.6-sol',
         snapshotModelId: 'gpt-5.6-sol',
-        aliases: ['gpt-5.6'],
+        aliases: ['gpt-5.6', 'daybreak-blue-latest'],
         displayName: 'GPT-5.6 Sol',
         family: 'gpt-5.6',
         description: 'Frontier GPT-5.6 model for complex professional, coding, reasoning, and agentic workflows.',
@@ -208,13 +214,75 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         }),
         sources: [
             createOpenAiModelSource('gpt-5.6-sol', GPT_5_6_VERIFIED_AT),
+            createOpenAiModelSource('daybreak-blue-latest', GPT_5_6_VERIFIED_AT),
             OPENAI_MODELS_SOURCE,
             OPENAI_ALL_MODELS_SOURCE,
             OPENAI_PRICING_SOURCE,
-            OPENAI_LATEST_MODEL_GUIDE_SOURCE
+            OPENAI_LATEST_MODEL_GUIDE_SOURCE,
+            OPENAI_CYBER_SAFETY_SOURCE
         ],
         tags: ['recommended', 'reasoning', 'coding', 'agent', 'flagship'],
         parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
+    },
+    {
+        modelKey: 'openai:gpt-5.6-cyber',
+        provider: 'openai',
+        modelId: 'gpt-5.6-cyber',
+        snapshotModelId: 'gpt-5.6-cyber',
+        aliases: ['daybreak-red-latest'],
+        displayName: 'GPT-5.6 Cyber',
+        family: 'gpt-5.6',
+        description:
+            'Restricted-access cybersecurity model for approved defenders conducting authorized vulnerability research, exploit validation, and security testing.',
+        status: 'specialized',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: true,
+            supportsMcp: true,
+            supportsReasoningEffort: null,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 400_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-02-16',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 12.5,
+            cachedInputUsdPerMillionTokens: 1.25,
+            outputUsdPerMillionTokens: 75,
+            cacheWriteUsdPerMillionTokens: 15.625,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 272_000,
+            longContextInputUsdPerMillionTokens: 25,
+            longContextCachedInputUsdPerMillionTokens: 2.5,
+            longContextCacheWriteUsdPerMillionTokens: 31.25,
+            longContextOutputUsdPerMillionTokens: 112.5,
+            notes: 'Requires separate Daybreak approval and provisioning. Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
+        }),
+        sources: [
+            createOpenAiModelSource('gpt-5.6-cyber', GPT_5_6_VERIFIED_AT),
+            createOpenAiModelSource('daybreak-red-latest', GPT_5_6_VERIFIED_AT),
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_CYBER_SAFETY_SOURCE
+        ],
+        tags: ['specialized', 'reasoning', 'cybersecurity', 'restricted-access', 'agent']
     },
     {
         modelKey: 'openai:gpt-5.6-terra',
@@ -729,8 +797,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'GPT-5.3 Chat (latest)',
         family: 'gpt-5.3',
-        description: 'Deprecated chat-oriented GPT-5.3 Instant model retained for compatibility with older ChatGPT-style integrations.',
-        status: 'deprecated',
+        description: 'Retired chat-oriented GPT-5.3 Instant model retained for compatibility with older ChatGPT-style integrations.',
+        status: 'retired',
         recommendedReplacementModelKey: 'openai:gpt-5.6-sol',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
@@ -995,8 +1063,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'GPT-5.2 Chat (latest)',
         family: 'gpt-5.2',
-        description: 'Deprecated chat-oriented GPT-5.2 model used in ChatGPT, kept mainly for compatibility with older integrations.',
-        status: 'deprecated',
+        description: 'Retired chat-oriented GPT-5.2 model used in ChatGPT, kept mainly for compatibility with older integrations.',
+        status: 'retired',
         recommendedReplacementModelKey: 'openai:gpt-5.6-sol',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
@@ -2734,7 +2802,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextInputUsdPerMillionTokens: null,
             longContextCachedInputUsdPerMillionTokens: null,
             longContextOutputUsdPerMillionTokens: null,
-            notes: 'Introductory pricing applies through August 31, 2026; standard Sonnet pricing becomes $3 input, $0.30 cached input, $3.75 5m cache write, $6 1h cache write, and $15 output per MTok on September 1, 2026. Full 1M context is included at standard pricing. The new tokenizer can produce about 30% more tokens for the same text compared with Sonnet 4.6.'
+            notes: 'The launch pricing of $2 input, $0.20 cached input, $2.50 5m cache write, $4 1h cache write, and $10 output per MTok is now the standard price; the previously scheduled September 1, 2026 increase will not occur. Full 1M context is included at standard pricing. The new tokenizer can produce about 30% more tokens for the same text compared with Sonnet 4.6.'
         }),
         sources: [
             ANTHROPIC_MODELS_SOURCE,

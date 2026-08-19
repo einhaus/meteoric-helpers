@@ -17,6 +17,8 @@ import {
 describe('AI model catalog helpers', () => {
     it('normalizes provider-prefixed and raw model identifiers into shared model keys', () => {
         expect(normalizeAiModelKey('gpt-5.6')).toBe('openai:gpt-5.6-sol');
+        expect(normalizeAiModelKey('daybreak-blue-latest')).toBe('openai:gpt-5.6-sol');
+        expect(normalizeAiModelKey('daybreak-red-latest')).toBe('openai:gpt-5.6-cyber');
         expect(normalizeAiModelKey('gpt-5.6-terra')).toBe('openai:gpt-5.6-terra');
         expect(normalizeAiModelKey('openai:gpt-5.5')).toBe('openai:gpt-5.5');
         expect(normalizeAiModelKey('claude-opus-5')).toBe('anthropic:claude-opus-5');
@@ -225,6 +227,9 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('gpt-5.6')?.modelKey).toBe('openai:gpt-5.6-sol');
         expect(getAiModelById('gpt-5.6-sol')?.capabilities.reasoningEffortLevels).toContain('max');
         expect(getAiModelById('gpt-5.6-sol')?.pricing.inputUsdPerMillionTokens).toBe(5);
+        expect(getAiModelById('gpt-5.6-cyber')?.status).toBe('specialized');
+        expect(getAiModelById('gpt-5.6-cyber')?.pricing.inputUsdPerMillionTokens).toBe(12.5);
+        expect(getAiModelById('gpt-5.6-cyber')?.pricing.longContextOutputUsdPerMillionTokens).toBe(112.5);
         expect(getAiModelById('gpt-5.6-terra')?.pricing.longContextOutputUsdPerMillionTokens).toBe(18);
         expect(getAiModelById('gpt-5.6-luna')?.pricing.outputUsdPerMillionTokens).toBe(1.2);
         expect(getAiModelById('gpt-4o-mini')?.modelKey).toBe('openai:gpt-4o-mini');
@@ -232,7 +237,8 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('chat-latest')?.modelKey).toBe('openai:chat-latest');
         expect(getAiModelById('chat-latest')?.maxOutputTokens).toBe(128_000);
         expect(getAiModelById('chat-latest')?.recommendedReplacementModelKey).toBe('openai:gpt-5.6-sol');
-        expect(getAiModelById('gpt-5.3-chat-latest')?.status).toBe('deprecated');
+        expect(getAiModelById('gpt-5.3-chat-latest')?.status).toBe('retired');
+        expect(getAiModelById('gpt-5.2-chat-latest')?.status).toBe('retired');
         expect(getAiModelById('gpt-5-chat-latest')?.status).toBe('retired');
         expect(getAiModelById('gpt-5-chat-latest')?.recommendedReplacementModelKey).toBe('openai:gpt-5.6-sol');
         expect(getAiModelById('gpt-5.5-pro')?.modelKey).toBe('openai:gpt-5.5-pro');
