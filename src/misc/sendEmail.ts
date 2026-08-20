@@ -45,7 +45,7 @@ export const sendEmail = async (config: {
 
     try {
         await sesClient.send<SendEmailCommandInput, SendEmailCommandOutput>(sendEmailCommand);
-    } catch (e) {
-        console.error(e);
+    } finally {
+        sesClient.destroy();
     }
 };
