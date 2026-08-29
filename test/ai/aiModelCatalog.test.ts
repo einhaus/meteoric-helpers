@@ -130,9 +130,9 @@ describe('AI model catalog helpers', () => {
         });
 
         expect(unapprovedSolPromotion.isWithinPolicy).toBe(false);
-        expect(unapprovedSolPromotion.inputPriceMultiplier).toBe(2.5);
-        expect(unapprovedSolPromotion.cachedInputPriceMultiplier).toBe(2.5);
-        expect(unapprovedSolPromotion.outputPriceMultiplier).toBe(2.5);
+        expect(unapprovedSolPromotion.inputPriceMultiplier).toBe(2);
+        expect(unapprovedSolPromotion.cachedInputPriceMultiplier).toBe(2);
+        expect(unapprovedSolPromotion.outputPriceMultiplier).toBe(1.666666666667);
 
         const defaultLunaFastCandidate = evaluateAiModelProfileCostPolicy({
             provider: 'openai',
@@ -158,9 +158,9 @@ describe('AI model catalog helpers', () => {
         expect(defaultDeepResearchModel.outputPriceMultiplier).toBe(1);
         expect(defaultDeepResearchModel.cacheWrite5mPriceMultiplier).toBeNull();
         expect(defaultDeepResearchModel.cacheWrite1hPriceMultiplier).toBeNull();
-        expect(getAiModelById('gpt-5.6-sol')?.pricing.longContextInputUsdPerMillionTokens).toBe(10);
-        expect(getAiModelById('gpt-5.6-sol')?.pricing.longContextCachedInputUsdPerMillionTokens).toBe(1);
-        expect(getAiModelById('gpt-5.6-sol')?.pricing.longContextOutputUsdPerMillionTokens).toBe(45);
+        expect(getAiModelById('gpt-5.6-sol')?.pricing.longContextInputUsdPerMillionTokens).toBe(8);
+        expect(getAiModelById('gpt-5.6-sol')?.pricing.longContextCachedInputUsdPerMillionTokens).toBe(0.8);
+        expect(getAiModelById('gpt-5.6-sol')?.pricing.longContextOutputUsdPerMillionTokens).toBe(30);
         expect(getAiModelById('o3-deep-research')?.pricing.inputUsdPerMillionTokens).toBe(10);
         expect(getAiModelById('o3-deep-research')?.pricing.cachedInputUsdPerMillionTokens).toBe(2.5);
         expect(getAiModelById('o3-deep-research')?.pricing.outputUsdPerMillionTokens).toBe(40);
@@ -226,7 +226,7 @@ describe('AI model catalog helpers', () => {
     it('can still resolve legacy models used by current apps', () => {
         expect(getAiModelById('gpt-5.6')?.modelKey).toBe('openai:gpt-5.6-sol');
         expect(getAiModelById('gpt-5.6-sol')?.capabilities.reasoningEffortLevels).toContain('max');
-        expect(getAiModelById('gpt-5.6-sol')?.pricing.inputUsdPerMillionTokens).toBe(5);
+        expect(getAiModelById('gpt-5.6-sol')?.pricing.inputUsdPerMillionTokens).toBe(4);
         expect(getAiModelById('gpt-5.6-cyber')?.status).toBe('specialized');
         expect(getAiModelById('gpt-5.6-cyber')?.pricing.inputUsdPerMillionTokens).toBe(12.5);
         expect(getAiModelById('gpt-5.6-cyber')?.pricing.longContextOutputUsdPerMillionTokens).toBe(112.5);
@@ -254,7 +254,13 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('o4-mini-deep-research-2025-06-26')?.recommendedReplacementModelKey).toBe('openai:gpt-5.6-sol');
         expect(getAiModelById('claude-fable-5')?.modelKey).toBe('anthropic:claude-fable-5');
         expect(getAiModelById('claude-fable-5')?.maxOutputTokens).toBe(128_000);
+        expect(getAiModelById('claude-fable-5')?.knowledgeCutoff).toBe('2026-01');
+        expect(getAiModelById('claude-fable-5')?.capabilities.supportsWebSearch).toBe(true);
+        expect(getAiModelById('claude-fable-5')?.capabilities.supportsComputerUse).toBe(true);
         expect(getAiModelById('claude-mythos-5')?.status).toBe('specialized');
+        expect(getAiModelById('claude-mythos-5')?.knowledgeCutoff).toBe('2026-01');
+        expect(getAiModelById('claude-mythos-5')?.capabilities.supportsWebSearch).toBe(true);
+        expect(getAiModelById('claude-mythos-5')?.capabilities.supportsComputerUse).toBe(true);
         expect(getAiModelById('claude-mythos-preview')?.status).toBe('deprecated');
         expect(getAiModelById('claude-mythos-preview')?.recommendedReplacementModelKey).toBe('anthropic:claude-mythos-5');
         expect(getAiModelById('claude-mythos-preview')?.contextWindowTokens).toBe(1_000_000);

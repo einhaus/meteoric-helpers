@@ -1,7 +1,7 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-08-17';
-const GPT_5_6_VERIFIED_AT = '2026-08-17';
+const VERIFIED_AT = '2026-08-24';
+const GPT_5_6_VERIFIED_AT = '2026-08-24';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -199,18 +199,18 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         maxOutputTokens: 128_000,
         knowledgeCutoff: '2026-02-16',
         pricing: createPricing({
-            inputUsdPerMillionTokens: 5,
-            cachedInputUsdPerMillionTokens: 0.5,
-            outputUsdPerMillionTokens: 30,
-            cacheWriteUsdPerMillionTokens: 6.25,
+            inputUsdPerMillionTokens: 4,
+            cachedInputUsdPerMillionTokens: 0.4,
+            outputUsdPerMillionTokens: 20,
+            cacheWriteUsdPerMillionTokens: 5,
             cacheWrite5mUsdPerMillionTokens: null,
             cacheWrite1hUsdPerMillionTokens: null,
             longContextThresholdInputTokens: 272_000,
-            longContextInputUsdPerMillionTokens: 10,
-            longContextCachedInputUsdPerMillionTokens: 1,
-            longContextCacheWriteUsdPerMillionTokens: 12.5,
-            longContextOutputUsdPerMillionTokens: 45,
-            notes: 'Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
+            longContextInputUsdPerMillionTokens: 8,
+            longContextCachedInputUsdPerMillionTokens: 0.8,
+            longContextCacheWriteUsdPerMillionTokens: 10,
+            longContextOutputUsdPerMillionTokens: 30,
+            notes: 'Promotional pricing is available at least through November 21, 2026. Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
         }),
         sources: [
             createOpenAiModelSource('gpt-5.6-sol', GPT_5_6_VERIFIED_AT),
@@ -2393,9 +2393,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsToolCalling: true,
             supportsStructuredOutputs: true,
             supportsPromptCaching: true,
-            supportsWebSearch: null,
+            supportsWebSearch: true,
             supportsFileSearch: null,
-            supportsComputerUse: null,
+            supportsComputerUse: true,
             supportsMcp: null,
             supportsReasoningEffort: false,
             reasoningEffortLevels: [],
@@ -2404,7 +2404,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         }),
         contextWindowTokens: 1_000_000,
         maxOutputTokens: 128_000,
-        knowledgeCutoff: null,
+        knowledgeCutoff: '2026-01',
         pricing: createPricing({
             inputUsdPerMillionTokens: 10,
             cachedInputUsdPerMillionTokens: 1,
@@ -2425,7 +2425,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             ANTHROPIC_FABLE_5_SOURCE,
             ANTHROPIC_MIGRATION_GUIDE_SOURCE,
             ANTHROPIC_ADAPTIVE_THINKING_SOURCE,
-            ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE
+            ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE,
+            ANTHROPIC_WEB_SEARCH_SOURCE,
+            ANTHROPIC_COMPUTER_USE_SOURCE
         ],
         tags: ['recommended', 'reasoning', 'coding', 'agent'],
         parameterPolicies: {
@@ -2456,9 +2458,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsToolCalling: true,
             supportsStructuredOutputs: true,
             supportsPromptCaching: true,
-            supportsWebSearch: null,
+            supportsWebSearch: true,
             supportsFileSearch: null,
-            supportsComputerUse: null,
+            supportsComputerUse: true,
             supportsMcp: null,
             supportsReasoningEffort: false,
             reasoningEffortLevels: [],
@@ -2467,7 +2469,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         }),
         contextWindowTokens: 1_000_000,
         maxOutputTokens: 128_000,
-        knowledgeCutoff: null,
+        knowledgeCutoff: '2026-01',
         pricing: createPricing({
             inputUsdPerMillionTokens: 10,
             cachedInputUsdPerMillionTokens: 1,
@@ -2488,7 +2490,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             ANTHROPIC_FABLE_5_SOURCE,
             ANTHROPIC_MIGRATION_GUIDE_SOURCE,
             ANTHROPIC_ADAPTIVE_THINKING_SOURCE,
-            ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE
+            ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE,
+            ANTHROPIC_WEB_SEARCH_SOURCE,
+            ANTHROPIC_COMPUTER_USE_SOURCE
         ],
         tags: ['specialized', 'reasoning', 'coding', 'agent', 'limited-availability'],
         parameterPolicies: {

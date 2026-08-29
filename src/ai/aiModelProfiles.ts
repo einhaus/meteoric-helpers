@@ -217,20 +217,20 @@ export const AI_PROVIDER_MODEL_PROFILE_COST_POLICIES: Readonly<Record<AiProvider
         deepResearch: createCostPolicy({
             costTier: 'specialized',
             referenceModelKey: 'openai:gpt-5.6-sol',
-            maxInputUsdPerMillionTokens: 5,
-            maxCachedInputUsdPerMillionTokens: 0.5,
-            maxOutputUsdPerMillionTokens: 30,
+            maxInputUsdPerMillionTokens: 4,
+            maxCachedInputUsdPerMillionTokens: 0.4,
+            maxOutputUsdPerMillionTokens: 20,
             maxCacheWrite5mUsdPerMillionTokens: null,
             maxCacheWrite1hUsdPerMillionTokens: null,
-            maxLongContextInputUsdPerMillionTokens: 10,
-            maxLongContextCachedInputUsdPerMillionTokens: 1,
-            maxLongContextOutputUsdPerMillionTokens: 45,
+            maxLongContextInputUsdPerMillionTokens: 8,
+            maxLongContextCachedInputUsdPerMillionTokens: 0.8,
+            maxLongContextOutputUsdPerMillionTokens: 30,
             maxInputPriceMultiplier: 1.01,
             maxCachedInputPriceMultiplier: 1.01,
             maxOutputPriceMultiplier: 1.01,
             maxCacheWritePriceMultiplier: null,
             approvedHigherCostModels: [],
-            notes: 'Deep research intentionally uses quality-first Sol; other profiles should remain on Terra or Luna unless separately approved.'
+            notes: 'Deep research intentionally uses quality-first Sol at promotional rates available at least through November 21, 2026; other profiles should remain on Terra or Luna unless separately approved.'
         })
     },
     anthropic: {
