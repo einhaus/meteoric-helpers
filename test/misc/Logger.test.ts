@@ -21,6 +21,88 @@ describe('Logger', () => {
         expect(formatLoggerTimestampForClickHouse(unixTimestampMs)).toBe('2026-04-08 14:05:04.809');
     });
 
+    it.each([
+        {
+            label: 'websocket ErrorEvent',
+            error: { message: 'WebSocket connection failed', type: 'error' },
+            message: 'WebSocket connection failed'
+        },
+        { label: 'missing fields', error: {}, message: 'Transport failed' },
+        { label: 'non-string fields', error: { name: 123, message: null, stack: 456 }, message: 'Transport failed' },
+        {
+            label: 'throwing diagnostic getters',
+            error: Object.defineProperties(
+                {},
+                {
+                    name: {
+                        get() {
+                            throw new Error('unreadable name');
+                        }
+                    },
+                    stack: {
+                        get() {
+                            throw new Error('unreadable stack');
+                        }
+                    },
+                    message: { value: 'Original transport failure' }
+                }
+            ),
+            message: 'Original transport failure'
+        }
+    ])('logs and deduplicates $label without throwing', ({ error, message }) => {
+        const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'meteoric-logger-error-fields-'));
+        const logDir = path.join(tempRoot, 'logs');
+
+        try {
+            const logger = Logger.getInstance({ logDir, outputSeverity: 99 });
+            // Exercise the JS/runtime boundary: ws on Bun supplies a non-Error even
+            // though the TypeScript callback declares Error. Do not assert that type.
+            const log = () =>
+                Reflect.apply(logger.log, logger, [
+                    {
+                        level: 'error',
+                        severity: 8,
+                        message: 'Transport failed',
+                        error
+                    }
+                ]);
+
+            expect(log).not.toThrow();
+            expect(log).not.toThrow();
+            const filesDir = path.join(logDir, 'files');
+            const files = readdirSync(filesDir);
+            expect(files).toHaveLength(1);
+            const record = JSON.parse(readFileSync(path.join(filesDir, files[0]!), 'utf8'));
+            expect(record.error.name).toBe('Error');
+            expect(record.error.message).toBe(message);
+            expect(record.error.stack).toBeUndefined();
+        } finally {
+            rmSync(tempRoot, { recursive: true, force: true });
+        }
+    });
+
+    it('bounds and redacts a nameless runtime error without discarding its original message', () => {
+        const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'meteoric-logger-nameless-'));
+        const logDir = path.join(tempRoot, 'logs');
+        const error = new Error(`Authorization=synthetic-secret-value ${'x'.repeat(40_000)}`);
+        Object.defineProperty(error, 'name', { value: undefined });
+
+        try {
+            const logger = Logger.getInstance({ logDir, outputSeverity: 99 });
+            expect(() => logger.log({ level: 'error', severity: 8, error })).not.toThrow();
+            const filesDir = path.join(logDir, 'files');
+            const recordJson = readFileSync(path.join(filesDir, readdirSync(filesDir)[0]!), 'utf8');
+            const record = JSON.parse(recordJson);
+            expect(record.error.name).toBe('Error');
+            expect(record.error.message).toContain('[REDACTED]');
+            expect(record.error.message).toContain('[TRUNCATED');
+            expect(recordJson).not.toContain('synthetic-secret-value');
+            expect(Buffer.byteLength(record.error.message)).toBeLessThanOrEqual(16 * 1024);
+        } finally {
+            rmSync(tempRoot, { recursive: true, force: true });
+        }
+    });
+
     it('writes log records with UTC timestamps aligned to unix_timestamp', () => {
         const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'meteoric-logger-'));
         const logDir = path.join(tempRoot, 'logs');

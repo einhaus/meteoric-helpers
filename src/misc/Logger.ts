@@ -337,6 +337,22 @@ export class Logger {
         return args.map((arg) => this.sanitizeConsoleArg(arg));
     }
 
+    private getErrorText(error: unknown, key: 'name' | 'message' | 'stack', fallback = ''): string {
+        // Runtime callbacks can supply ErrorEvent/plain objects despite an Error annotation.
+        // Read each field independently so a missing field or throwing getter cannot mask
+        // the original failure (or crash while compacting/deduplicating its log record).
+        try {
+            if (typeof error === 'object' && error !== null) {
+                const value: unknown = Reflect.get(error, key);
+                if (typeof value === 'string' && value) return this.sanitizeStringForLog(value);
+            }
+        } catch {
+            // An unreadable diagnostic field uses the caller's safe fallback.
+        }
+
+        return fallback;
+    }
+
     private isAwsSdkShapedError(value: object): boolean {
         return Logger.awsSdkErrorMarkerKeys.some((markerKey) => markerKey in value);
     }
@@ -444,9 +460,9 @@ export class Logger {
                 }
 
                 const normalizedError: { [key: string]: JsonValue } = {
-                    name: value.name,
-                    message: this.sanitizeStringForLog(value.message),
-                    ...(value.stack ? { stack: this.sanitizeStringForLog(value.stack) } : {})
+                    name: this.getErrorText(value, 'name', 'Error'),
+                    message: this.getErrorText(value, 'message', 'Unknown error'),
+                    ...(this.getErrorText(value, 'stack') ? { stack: this.getErrorText(value, 'stack') } : {})
                 };
 
                 if (value.cause !== undefined) {
@@ -601,10 +617,18 @@ export class Logger {
         if (!errorDetails) return undefined;
 
         const boundedErrorDetails: LoggerError = {
-            name: this.truncateStringToMaxBytes(errorDetails.name, 512, 'error.name'),
-            message: this.truncateStringToMaxBytes(errorDetails.message, aggressive ? 1024 : Logger.maxErrorFieldBytes, 'error.message'),
-            stack: errorDetails.stack
-                ? this.truncateStringToMaxBytes(errorDetails.stack, aggressive ? 2048 : Logger.maxErrorStackBytes, 'error.stack')
+            name: this.truncateStringToMaxBytes(this.getErrorText(errorDetails, 'name', 'Error'), 512, 'error.name'),
+            message: this.truncateStringToMaxBytes(
+                this.getErrorText(errorDetails, 'message', 'Unknown error'),
+                aggressive ? 1024 : Logger.maxErrorFieldBytes,
+                'error.message'
+            ),
+            stack: this.getErrorText(errorDetails, 'stack')
+                ? this.truncateStringToMaxBytes(
+                      this.getErrorText(errorDetails, 'stack'),
+                      aggressive ? 2048 : Logger.maxErrorStackBytes,
+                      'error.stack'
+                  )
                 : undefined
         };
 
@@ -884,10 +908,16 @@ export class Logger {
      */
     private generateErrorHash(config: LogEntry): string {
         const { error, message, service, category, level } = config;
-        const topStackFrame = error?.stack?.split('\n')[1]?.trim() ?? '';
+        const topStackFrame = this.getErrorText(error, 'stack').split('\n')[1]?.trim() ?? '';
 
         // Include more context in the hash to reduce false positives
-        const parts = [level, service || '', category || '', error ? `${error.name}:${error.message}` : message || '', topStackFrame];
+        const parts = [
+            level,
+            service || '',
+            category || '',
+            error ? `${this.getErrorText(error, 'name', 'Error')}:${this.getErrorText(error, 'message', message || '')}` : message || '',
+            topStackFrame
+        ];
 
         return parts.join('|');
     }
@@ -1018,9 +1048,9 @@ export class Logger {
                         errorDetails = this.reduceAwsSdkError(error, seenErrorObjects);
                     } else {
                         const baseErrorDetails: LoggerError = {
-                            name: error.name,
-                            message: this.sanitizeStringForLog(error.message),
-                            stack: error.stack ? this.sanitizeStringForLog(error.stack) : undefined
+                            name: this.getErrorText(error, 'name', 'Error'),
+                            message: this.getErrorText(error, 'message', boundedMessage || 'Unknown error'),
+                            stack: this.getErrorText(error, 'stack') || undefined
                         };
 
                         // Only add cause if it exists
@@ -1057,9 +1087,9 @@ export class Logger {
                 } catch (_err) {
                     // Fallback if error serialization fails
                     errorDetails = {
-                        name: error.name || 'Unknown',
-                        message: this.sanitizeStringForLog(error.message || 'Unknown error'),
-                        stack: this.sanitizeStringForLog(error.stack || 'No stack trace available')
+                        name: this.getErrorText(error, 'name', 'Error'),
+                        message: this.getErrorText(error, 'message', boundedMessage || 'Unknown error'),
+                        stack: this.getErrorText(error, 'stack') || undefined
                     };
                 }
             }
