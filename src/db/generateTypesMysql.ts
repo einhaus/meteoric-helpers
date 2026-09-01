@@ -64,6 +64,18 @@ export interface GenerateTypesMysqlOptions {
 
 const isImmutableAutoManagedColumn = (columnName: string) => columnName === 'created_at' || columnName === 'createdAt';
 
+// MariaDB marks generated columns with EXTRA 'VIRTUAL GENERATED' / 'STORED GENERATED' (legacy 10.1 used bare
+// 'VIRTUAL' / 'PERSISTENT'); MySQL 8 uses the same '... GENERATED' forms. MySQL's 'DEFAULT_GENERATED' (an
+// expression default) deliberately does not match — those columns accept supplied values. generation_expression
+// is the authoritative cross-server signal: NULL (MariaDB) or '' (MySQL) for non-generated columns.
+const GENERATED_COLUMN_EXTRA_PATTERN = /\b(?:VIRTUAL|STORED|PERSISTENT)\b/i;
+
+function isGeneratedColumn(extra: string | null, generationExpression: string | null): boolean {
+    if (generationExpression !== null && generationExpression.trim().length > 0) return true;
+
+    return extra !== null && GENERATED_COLUMN_EXTRA_PATTERN.test(extra);
+}
+
 // Helper function to check if a table is sharded (ends with _number)
 function isShardedTable(tableName: string): boolean {
     return /^.+_\d+$/.test(tableName);
@@ -95,7 +107,6 @@ interface TableMetadata {
         column_names: string[];
         is_unique: boolean;
         is_primary: boolean;
-        is_foreign_key: boolean;
     }[];
     foreignKeys: {
         constraint_name: string;
@@ -211,90 +222,16 @@ async function fetchAllTablesMetadata(DB: DBMysql, dbName: string, tables: strin
         }
     }
 
-    // 3. Fetch all foreign key constraints
-    console.log('Fetching all foreign key constraints...');
-
-    const fkConstraintsResult = await DB.doQuery({
-        queryString: `
-            SELECT
-                tc.table_name AS \`table_name\`,
-                tc.constraint_name AS \`constraint_name\`,
-                kcu.column_name AS \`column_name\`
-            FROM information_schema.table_constraints tc
-            JOIN information_schema.key_column_usage kcu
-                ON tc.constraint_name = kcu.constraint_name
-                AND tc.table_schema = kcu.table_schema
-                AND tc.table_name = kcu.table_name
-            WHERE tc.table_schema = ?
-            AND tc.constraint_type = 'FOREIGN KEY'
-        `,
-        parameters: [dbName]
-    });
-
-    // Create a map of foreign key constraint names and their columns for each table
-    const fkConstraintMap = new Map<string, Map<string, string[]>>();
-
-    if (fkConstraintsResult && Array.isArray(fkConstraintsResult) && fkConstraintsResult.length > 0) {
-        const fkRows = fkConstraintsResult as ResultSetHeader &
-            {
-                table_name: string;
-                constraint_name: string;
-                column_name: string;
-            }[];
-
-        for (const row of fkRows) {
-            if (!tableMetadataMap.has(row.table_name)) {
-                continue; // Skip tables we're not processing
-            }
-
-            if (!fkConstraintMap.has(row.table_name)) {
-                fkConstraintMap.set(row.table_name, new Map());
-            }
-
-            const tableFkMap = fkConstraintMap.get(row.table_name)!;
-
-            if (!tableFkMap.has(row.constraint_name)) {
-                tableFkMap.set(row.constraint_name, []);
-            }
-
-            tableFkMap.get(row.constraint_name)!.push(row.column_name);
-        }
-    }
-
-    // Now process the index data and mark foreign key indexes
+    // Materialize the grouped index data onto each table's metadata
     for (const [tableName, tableIndexMap] of indexColumnsMap.entries()) {
         const indexes = [];
-        const tableFkMap = fkConstraintMap.get(tableName);
 
         for (const [indexName, indexData] of tableIndexMap.entries()) {
-            // Check if this index is for a foreign key
-            let isForeignKey = false;
-
-            if (tableFkMap) {
-                // Check if index name matches a foreign key constraint name
-                if (tableFkMap.has(indexName)) {
-                    isForeignKey = true;
-                } else {
-                    // Check if any column in this index is part of a foreign key
-                    for (const fkColumns of tableFkMap.values()) {
-                        for (const column of indexData.columns) {
-                            if (fkColumns.includes(column)) {
-                                isForeignKey = true;
-                                break;
-                            }
-                        }
-
-                        if (isForeignKey) break;
-                    }
-                }
-            }
-
             indexes.push({
                 index_name: indexName,
                 column_names: indexData.columns,
                 is_unique: indexData.is_unique,
-                is_primary: indexName === 'PRIMARY',
-                is_foreign_key: isForeignKey
+                is_primary: indexName === 'PRIMARY'
             });
         }
 
@@ -303,7 +240,7 @@ async function fetchAllTablesMetadata(DB: DBMysql, dbName: string, tables: strin
         }
     }
 
-    // 4. Fetch all foreign key details
+    // 3. Fetch all foreign key details
     console.log('Fetching all foreign key details...');
 
     const foreignKeysResult = await DB.doQuery({
@@ -497,7 +434,9 @@ type WithOptional<T, K extends keyof T> =
                   is_nullable AS \`is_nullable\`,
                   column_default AS \`column_default\`,
                   character_maximum_length AS \`character_maximum_length\`,
-                  column_comment AS \`column_comment\`
+                  column_comment AS \`column_comment\`,
+                  extra AS \`extra\`,
+                  generation_expression AS \`generation_expression\`
                 FROM information_schema.columns
                 WHERE table_schema = ?
                 AND table_name = ?
@@ -520,6 +459,8 @@ type WithOptional<T, K extends keyof T> =
                     column_default: string;
                     character_maximum_length: number | null;
                     column_comment: string;
+                    extra: string | null;
+                    generation_expression: string | null;
                 }[];
 
             // Generate TypeScript interface for the table
@@ -530,6 +471,10 @@ type WithOptional<T, K extends keyof T> =
 
             // Track columns with default values for the Insert interface
             const columnsWithDefaults: string[] = [];
+
+            // Generated columns are always computed by the database; supplying a value in an INSERT or UPDATE
+            // is a hard error, so they are omitted from the Insert type entirely.
+            const generatedColumns: string[] = [];
 
             // Always add a comment with the table name
             if (tableComment) {
@@ -558,16 +503,29 @@ type WithOptional<T, K extends keyof T> =
                 // Example: 'qqqBarS\n  tate' instead of 'qqqBarState'
                 const columnType = column.column_type.replace(/(?:\\n|\r?\n)\s*/g, '');
 
-                // Common auto-generated columns
-                const isAutoGenerated = columnName === 'id' || columnName === 'createdAt' || columnName === 'updatedAt' || hasDefaultToOmit;
+                const isGenerated = isGeneratedColumn(column.extra, column.generation_expression);
 
-                if (isAutoGenerated) {
+                if (isGenerated) {
+                    generatedColumns.push(columnName);
+                }
+
+                // Common auto-managed columns become optional in the Insert type. Generated columns are handled
+                // above instead: they are excluded from the Insert type, not merely optional.
+                const isAutoManaged =
+                    !isGenerated && (columnName === 'id' || columnName === 'createdAt' || columnName === 'updatedAt' || hasDefaultToOmit);
+
+                if (isAutoManaged) {
                     columnsWithDefaults.push(columnName);
                 }
 
                 // Add column type as a comment
                 const nullableText = isNullable ? 'NULL' : 'NOT NULL';
-                const columnTypeComment = `${columnType} ${nullableText}`;
+                const generatedText = isGenerated
+                    ? /\b(?:STORED|PERSISTENT)\b/i.test(column.extra ?? '')
+                        ? ' STORED GENERATED'
+                        : ' VIRTUAL GENERATED'
+                    : '';
+                const columnTypeComment = `${columnType} ${nullableText}${generatedText}`;
                 typesFileContent += `  /** ${columnTypeComment}`;
 
                 // Add column comment if it exists and isn't just a "boolean" marker for tinyint
@@ -664,24 +622,23 @@ type WithOptional<T, K extends keyof T> =
             const foreignKeys = tableMetadata?.foreignKeys || [];
             const primaryKeyColumns = indexes.find((index) => index.is_primary)?.column_names ?? [];
 
+            // Generated columns are already absent from the Insert type, so they cannot appear in the update
+            // shape's immutable-key union either.
             const immutableUpdateColumns = Array.from(
                 new Set([
                     ...primaryKeyColumns,
                     ...columns.filter((column) => isImmutableAutoManagedColumn(column.column_name)).map((column) => column.column_name)
                 ])
-            );
+            ).filter((columnName) => !generatedColumns.includes(columnName));
 
             // Add indexes and foreign keys as comments below the interface
             if (indexes.length > 0 || foreignKeys.length > 0) {
                 typesFileContent += `/**\n * Database metadata for ${pascalCaseTableName}Row:\n`;
 
-                // Add indexes (excluding foreign key indexes which will be shown in the Foreign Keys section)
-                const regularIndexes = indexes.filter((index: { is_foreign_key: boolean }) => !index.is_foreign_key);
-
-                if (regularIndexes.length > 0) {
+                if (indexes.length > 0) {
                     typesFileContent += ` *\n * Indexes:\n`;
 
-                    for (const index of regularIndexes) {
+                    for (const index of indexes) {
                         let indexType = 'INDEX';
 
                         if (index.is_primary) {
@@ -752,13 +709,23 @@ type WithOptional<T, K extends keyof T> =
                 insertComment += ` * This represents all shards of ${interfaceName}\n`;
             }
 
+            if (generatedColumns.length > 0) {
+                const formattedGeneratedColumns = generatedColumns.map((col) => `\`${col}\``).join(', ');
+                insertComment += ` * Omits ${formattedGeneratedColumns}: the database always computes generated columns and rejects supplied values\n`;
+            }
+
             insertComment += ` */\n`;
+
+            const insertBaseType =
+                generatedColumns.length > 0
+                    ? `Omit<${pascalCaseTableName}Row, ${generatedColumns.map((col) => `'${col}'`).join(' | ')}>`
+                    : `${pascalCaseTableName}Row`;
 
             if (columnsWithDefaults.length > 0) {
                 const formattedColumns = columnsWithDefaults.map((col) => `'${col}'`);
-                typesFileContent += `${insertComment}export type ${pascalCaseTableName}RowInsert = WithOptional<${pascalCaseTableName}Row, ${formattedColumns.join(' | ')}>\n\n`;
+                typesFileContent += `${insertComment}export type ${pascalCaseTableName}RowInsert = WithOptional<${insertBaseType}, ${formattedColumns.join(' | ')}>\n\n`;
             } else {
-                typesFileContent += `${insertComment}export type ${pascalCaseTableName}RowInsert = ${pascalCaseTableName}Row\n\n`;
+                typesFileContent += `${insertComment}export type ${pascalCaseTableName}RowInsert = ${insertBaseType}\n\n`;
             }
 
             if (shouldEmitBunSchema) {

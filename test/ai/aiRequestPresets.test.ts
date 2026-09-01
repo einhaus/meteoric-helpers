@@ -47,6 +47,21 @@ describe('AI request preset helpers', () => {
         expect(config.warnings.some((warning) => warning.includes('Reasoning effort was cleared'))).toBe(false);
     });
 
+    it.each(['claude-opus-4-5', 'claude-sonnet-4-5'])('caps explicit legacy %s requests to the documented output limit', (model) => {
+        const config = resolveAiRequestConfig({ preset: 'analysis', model, maxOutputTokens: 100_000 });
+
+        expect(config.provider).toBe('anthropic');
+        expect(config.requestedMaxOutputTokens).toBe(100_000);
+        expect(config.maxOutputTokens).toBe(64_000);
+        expect(config.warnings.some((warning) => warning.includes('capped'))).toBe(true);
+    });
+
+    it('uses the current GPT-4o snapshot when a pinned request is requested', () => {
+        const config = resolveAiRequestConfig({ preset: 'analysis', model: 'gpt-4o', preferSnapshot: true });
+
+        expect(config.modelId).toBe('gpt-4o-2024-08-06');
+    });
+
     it('supports explicit adaptive-only Anthropic reasoning models without adding legacy thinking budgets', () => {
         const config = resolveAiRequestConfig({
             preset: 'agentChat',

@@ -17,6 +17,8 @@ import {
 describe('AI model catalog helpers', () => {
     it('normalizes provider-prefixed and raw model identifiers into shared model keys', () => {
         expect(normalizeAiModelKey('gpt-5.6')).toBe('openai:gpt-5.6-sol');
+        expect(normalizeAiModelKey('gpt-daybreak-blue-latest')).toBe('openai:gpt-5.6-sol');
+        expect(normalizeAiModelKey('gpt-daybreak-red-latest')).toBe('openai:gpt-5.6-cyber');
         expect(normalizeAiModelKey('daybreak-blue-latest')).toBe('openai:gpt-5.6-sol');
         expect(normalizeAiModelKey('daybreak-red-latest')).toBe('openai:gpt-5.6-cyber');
         expect(normalizeAiModelKey('gpt-5.6-terra')).toBe('openai:gpt-5.6-terra');
@@ -175,7 +177,33 @@ describe('AI model catalog helpers', () => {
 
         const defaultAnthropicModels = listAiModels({ provider: 'anthropic' });
         expect(defaultAnthropicModels.some((model) => model.modelKey === 'anthropic:claude-3-7-sonnet-20250219')).toBe(false);
+
+        for (const modelId of [
+            'claude-opus-4-8',
+            'claude-opus-4-7',
+            'claude-opus-4-6',
+            'claude-opus-4-5',
+            'claude-sonnet-4-6',
+            'claude-sonnet-4-5'
+        ]) {
+            const model = getAiModelById(modelId);
+            expect(model?.status).toBe('legacy');
+            expect(defaultAnthropicModels).not.toContain(model);
+            expect(listAiModels({ provider: 'anthropic', includeLegacy: true })).toContain(model);
+        }
     });
+
+    it.each(['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'o3'])(
+        'preserves deprecated %s snapshots without offering them for agent chat',
+        (modelId) => {
+            const model = getAiModelById(modelId);
+
+            expect(model?.status).toBe('deprecated');
+            expect(getAiModelById(model?.snapshotModelId ?? '')).toBe(model);
+            expect(listAiModels({ provider: 'openai', includeLegacy: true })).toContain(model);
+            expect(isAiAgentChatCandidate(modelId)).toBe(false);
+        }
+    );
 
     it('estimates model cost using curated pricing metadata', () => {
         const estimate = estimateAiModelCostUsd({
@@ -233,6 +261,8 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('gpt-5.6-terra')?.pricing.longContextOutputUsdPerMillionTokens).toBe(18);
         expect(getAiModelById('gpt-5.6-luna')?.pricing.outputUsdPerMillionTokens).toBe(1.2);
         expect(getAiModelById('gpt-4o-mini')?.modelKey).toBe('openai:gpt-4o-mini');
+        expect(getAiModelById('gpt-4o-mini')?.capabilities.supportsMcp).toBe(true);
+        expect(getAiModelById('gpt-4o-2024-11-20')?.modelKey).toBe('openai:gpt-4o');
         expect(getAiModelById('chatgpt-4o-latest')?.modelKey).toBe('openai:chatgpt-4o-latest');
         expect(getAiModelById('chat-latest')?.modelKey).toBe('openai:chat-latest');
         expect(getAiModelById('chat-latest')?.maxOutputTokens).toBe(128_000);
@@ -265,6 +295,7 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('claude-mythos-preview')?.recommendedReplacementModelKey).toBe('anthropic:claude-mythos-5');
         expect(getAiModelById('claude-mythos-preview')?.contextWindowTokens).toBe(1_000_000);
         expect(getAiModelById('claude-mythos-preview')?.maxOutputTokens).toBeNull();
+        expect(getAiModelById('claude-mythos-preview')?.capabilities.supportsStructuredOutputs).toBe(true);
         expect(getAiModelById('claude-opus-5')?.status).toBe('active');
         expect(getAiModelById('claude-opus-5')?.snapshotModelId).toBe('claude-opus-5');
         expect(getAiModelById('claude-opus-5')?.contextWindowTokens).toBe(1_000_000);
@@ -275,7 +306,11 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('claude-opus-5')?.capabilities.supportsComputerUse).toBe(true);
         expect(getAiModelById('claude-opus-4-8')?.modelKey).toBe('anthropic:claude-opus-4-8');
         expect(getAiModelById('claude-opus-4-8')?.recommendedReplacementModelKey).toBe('anthropic:claude-opus-5');
-        expect(getAiModelById('claude-opus-4-7')?.recommendedReplacementModelKey).toBe('anthropic:claude-opus-4-8');
+        expect(getAiModelById('claude-opus-4-7')?.recommendedReplacementModelKey).toBe('anthropic:claude-opus-5');
+        expect(getAiModelById('claude-opus-4-5')?.contextWindowTokens).toBe(200_000);
+        expect(getAiModelById('claude-opus-4-5')?.capabilities.supportsExtendedThinking).toBe(true);
+        expect(getAiModelById('claude-opus-4-5')?.capabilities.supportsComputerUse).toBe(true);
+        expect(getAiModelById('claude-opus-4-6')?.capabilities.supportsComputerUse).toBe(true);
         expect(getAiModelById('claude-opus-4-1-20250805')?.status).toBe('retired');
         expect(getAiModelById('claude-opus-4-1-20250805')?.recommendedReplacementModelKey).toBe('anthropic:claude-opus-4-8');
         expect(getAiModelById('claude-sonnet-5')?.modelKey).toBe('anthropic:claude-sonnet-5');
