@@ -4,6 +4,7 @@ import {
     estimateAiModelCostUsd,
     evaluateAiModelProfileCostPolicy,
     getAiModelById,
+    getAiModelCatalog,
     getPreferredAiModelId,
     getPreferredAiModelInferenceProfileKey,
     getPreferredAiModelProfileConfig,
@@ -16,6 +17,7 @@ import {
 
 describe('AI model catalog helpers', () => {
     it('normalizes provider-prefixed and raw model identifiers into shared model keys', () => {
+        expect(normalizeAiModelKey('gpt-6-astra')).toBe('openai:gpt-6-astra');
         expect(normalizeAiModelKey('gpt-5.6')).toBe('openai:gpt-5.6-sol');
         expect(normalizeAiModelKey('gpt-daybreak-blue-latest')).toBe('openai:gpt-5.6-sol');
         expect(normalizeAiModelKey('gpt-daybreak-red-latest')).toBe('openai:gpt-5.6-cyber');
@@ -24,6 +26,8 @@ describe('AI model catalog helpers', () => {
         expect(normalizeAiModelKey('gpt-5.6-terra')).toBe('openai:gpt-5.6-terra');
         expect(normalizeAiModelKey('openai:gpt-5.5')).toBe('openai:gpt-5.5');
         expect(normalizeAiModelKey('claude-opus-5')).toBe('anthropic:claude-opus-5');
+        expect(normalizeAiModelKey('claude-fable-5-1')).toBe('anthropic:claude-fable-5-1');
+        expect(normalizeAiModelKey('claude-mythos-5-1')).toBe('anthropic:claude-mythos-5-1');
         expect(normalizeAiModelKey('claude-sonnet-4-6')).toBe('anthropic:claude-sonnet-4-6');
         expect(normalizeAiModelKey('gpt-5.4-mini')).toBe('openai:gpt-5.4-mini');
     });
@@ -83,7 +87,7 @@ describe('AI model catalog helpers', () => {
         const unapprovedFablePromotion = evaluateAiModelProfileCostPolicy({
             provider: 'anthropic',
             profile: 'reasoning',
-            candidateModelKey: 'anthropic:claude-fable-5'
+            candidateModelKey: 'anthropic:claude-fable-5-1'
         });
 
         expect(unapprovedFablePromotion.isWithinPolicy).toBe(false);
@@ -136,6 +140,17 @@ describe('AI model catalog helpers', () => {
         expect(unapprovedSolPromotion.cachedInputPriceMultiplier).toBe(2);
         expect(unapprovedSolPromotion.outputPriceMultiplier).toBe(1.666666666667);
 
+        const unapprovedAstraPromotion = evaluateAiModelProfileCostPolicy({
+            provider: 'openai',
+            profile: 'reasoning',
+            candidateModelKey: 'openai:gpt-6-astra'
+        });
+
+        expect(unapprovedAstraPromotion.isWithinPolicy).toBe(false);
+        expect(unapprovedAstraPromotion.inputPriceMultiplier).toBe(5);
+        expect(unapprovedAstraPromotion.cachedInputPriceMultiplier).toBe(5);
+        expect(unapprovedAstraPromotion.outputPriceMultiplier).toBe(4.166666666667);
+
         const defaultLunaFastCandidate = evaluateAiModelProfileCostPolicy({
             provider: 'openai',
             profile: 'fast',
@@ -183,6 +198,7 @@ describe('AI model catalog helpers', () => {
             'claude-opus-4-7',
             'claude-opus-4-6',
             'claude-opus-4-5',
+            'claude-fable-5',
             'claude-sonnet-4-6',
             'claude-sonnet-4-5'
         ]) {
@@ -190,6 +206,32 @@ describe('AI model catalog helpers', () => {
             expect(model?.status).toBe('legacy');
             expect(defaultAnthropicModels).not.toContain(model);
             expect(listAiModels({ provider: 'anthropic', includeLegacy: true })).toContain(model);
+        }
+    });
+
+    it('keeps every outdated model on an acyclic same-provider replacement path to a current model', () => {
+        const outdatedStatuses = new Set(['legacy', 'deprecated', 'retired']);
+
+        for (const catalogModel of getAiModelCatalog()) {
+            if (!outdatedStatuses.has(catalogModel.status)) continue;
+
+            const visitedModelKeys = new Set([catalogModel.modelKey]);
+            let currentModel = catalogModel;
+
+            while (outdatedStatuses.has(currentModel.status)) {
+                expect(currentModel.recommendedReplacementModelKey, currentModel.modelKey).not.toBeNull();
+
+                const replacementModel = getAiModelById(currentModel.recommendedReplacementModelKey ?? '');
+                expect(replacementModel, currentModel.recommendedReplacementModelKey ?? currentModel.modelKey).not.toBeNull();
+                expect(replacementModel?.provider).toBe(catalogModel.provider);
+                expect(visitedModelKeys.has(replacementModel?.modelKey ?? '')).toBe(false);
+
+                if (!replacementModel) break;
+                visitedModelKeys.add(replacementModel.modelKey);
+                currentModel = replacementModel;
+            }
+
+            expect(['active', 'specialized']).toContain(currentModel.status);
         }
     });
 
@@ -228,7 +270,7 @@ describe('AI model catalog helpers', () => {
         expect(estimate?.totalCostUsd).toBe(7.5);
     });
 
-    it('charges generic cache-write pricing for GPT-5.6 models', () => {
+    it('charges generic cache-write pricing for current OpenAI models', () => {
         const standardEstimate = estimateAiModelCostUsd({
             model: 'gpt-5.6-terra',
             inputTokens: 1_000,
@@ -249,9 +291,23 @@ describe('AI model catalog helpers', () => {
         expect(longContextEstimate?.longContextApplied).toBe(true);
         expect(longContextEstimate?.cacheWriteCostUsd).toBe(0.005);
         expect(longContextEstimate?.totalCostUsd).toBe(3.005);
+
+        const astraEstimate = estimateAiModelCostUsd({
+            model: 'gpt-6-astra',
+            inputTokens: 300_000,
+            outputTokens: 100_000,
+            cacheWriteInputTokens: 1_000
+        });
+
+        expect(astraEstimate?.longContextApplied).toBe(true);
+        expect(astraEstimate?.cacheWriteCostUsd).toBe(0.025);
+        expect(astraEstimate?.totalCostUsd).toBe(13.525);
     });
 
     it('can still resolve legacy models used by current apps', () => {
+        expect(getAiModelById('gpt-6-astra')?.contextWindowTokens).toBe(1_050_000);
+        expect(getAiModelById('gpt-6-astra')?.capabilities.reasoningEffortLevels).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
+        expect(getAiModelById('gpt-6-astra')?.pricing.longContextCacheWriteUsdPerMillionTokens).toBe(25);
         expect(getAiModelById('gpt-5.6')?.modelKey).toBe('openai:gpt-5.6-sol');
         expect(getAiModelById('gpt-5.6-sol')?.capabilities.reasoningEffortLevels).toContain('max');
         expect(getAiModelById('gpt-5.6-sol')?.pricing.inputUsdPerMillionTokens).toBe(4);
@@ -266,7 +322,7 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('chatgpt-4o-latest')?.modelKey).toBe('openai:chatgpt-4o-latest');
         expect(getAiModelById('chat-latest')?.modelKey).toBe('openai:chat-latest');
         expect(getAiModelById('chat-latest')?.maxOutputTokens).toBe(128_000);
-        expect(getAiModelById('chat-latest')?.recommendedReplacementModelKey).toBe('openai:gpt-5.6-sol');
+        expect(getAiModelById('chat-latest')?.recommendedReplacementModelKey).toBe('openai:gpt-6-astra');
         expect(getAiModelById('gpt-5.3-chat-latest')?.status).toBe('retired');
         expect(getAiModelById('gpt-5.2-chat-latest')?.status).toBe('retired');
         expect(getAiModelById('gpt-5-chat-latest')?.status).toBe('retired');
@@ -282,17 +338,26 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('o3-deep-research')?.recommendedReplacementModelKey).toBe('openai:gpt-5.6-sol');
         expect(getAiModelById('o4-mini-deep-research-2025-06-26')?.status).toBe('retired');
         expect(getAiModelById('o4-mini-deep-research-2025-06-26')?.recommendedReplacementModelKey).toBe('openai:gpt-5.6-sol');
+        expect(getAiModelById('claude-fable-5-1')?.modelKey).toBe('anthropic:claude-fable-5-1');
+        expect(getAiModelById('claude-fable-5-1')?.knowledgeCutoff).toBe('2026-06');
+        expect(getAiModelById('claude-fable-5-1')?.pricing.cachedInputUsdPerMillionTokens).toBe(0.25);
+        expect(getAiModelById('claude-fable-5-1')?.capabilities.supportsWebSearch).toBeNull();
         expect(getAiModelById('claude-fable-5')?.modelKey).toBe('anthropic:claude-fable-5');
+        expect(getAiModelById('claude-fable-5')?.status).toBe('legacy');
+        expect(getAiModelById('claude-fable-5')?.recommendedReplacementModelKey).toBe('anthropic:claude-fable-5-1');
         expect(getAiModelById('claude-fable-5')?.maxOutputTokens).toBe(128_000);
         expect(getAiModelById('claude-fable-5')?.knowledgeCutoff).toBe('2026-01');
         expect(getAiModelById('claude-fable-5')?.capabilities.supportsWebSearch).toBe(true);
         expect(getAiModelById('claude-fable-5')?.capabilities.supportsComputerUse).toBe(true);
         expect(getAiModelById('claude-mythos-5')?.status).toBe('specialized');
+        expect(getAiModelById('claude-mythos-5')?.recommendedReplacementModelKey).toBe('anthropic:claude-mythos-5-1');
+        expect(getAiModelById('claude-mythos-5-1')?.status).toBe('specialized');
+        expect(getAiModelById('claude-mythos-5-1')?.knowledgeCutoff).toBe('2026-06');
         expect(getAiModelById('claude-mythos-5')?.knowledgeCutoff).toBe('2026-01');
         expect(getAiModelById('claude-mythos-5')?.capabilities.supportsWebSearch).toBe(true);
         expect(getAiModelById('claude-mythos-5')?.capabilities.supportsComputerUse).toBe(true);
         expect(getAiModelById('claude-mythos-preview')?.status).toBe('deprecated');
-        expect(getAiModelById('claude-mythos-preview')?.recommendedReplacementModelKey).toBe('anthropic:claude-mythos-5');
+        expect(getAiModelById('claude-mythos-preview')?.recommendedReplacementModelKey).toBe('anthropic:claude-mythos-5-1');
         expect(getAiModelById('claude-mythos-preview')?.contextWindowTokens).toBe(1_000_000);
         expect(getAiModelById('claude-mythos-preview')?.maxOutputTokens).toBeNull();
         expect(getAiModelById('claude-mythos-preview')?.capabilities.supportsStructuredOutputs).toBe(true);
@@ -335,6 +400,7 @@ describe('AI model catalog helpers', () => {
     });
 
     it('filters shared agent-chat candidates using catalog capabilities and status', () => {
+        expect(isAiAgentChatCandidate('gpt-6-astra')).toBe(true);
         expect(isAiAgentChatCandidate('gpt-5.6-sol')).toBe(true);
         expect(isAiAgentChatCandidate('gpt-5.6-terra')).toBe(true);
         expect(isAiAgentChatCandidate('gpt-5.6-luna')).toBe(true);
@@ -342,12 +408,14 @@ describe('AI model catalog helpers', () => {
         expect(isAiAgentChatCandidate('chat-latest')).toBe(true);
         expect(isAiAgentChatCandidate('o3-deep-research')).toBe(false);
         expect(isAiAgentChatCandidate('gpt-5.5-pro')).toBe(false);
-        expect(isAiAgentChatCandidate('claude-fable-5')).toBe(true);
+        expect(isAiAgentChatCandidate('claude-fable-5-1')).toBe(true);
+        expect(isAiAgentChatCandidate('claude-fable-5')).toBe(false);
+        expect(isAiAgentChatCandidate('claude-mythos-5-1')).toBe(true);
         expect(isAiAgentChatCandidate('claude-mythos-5')).toBe(true);
         expect(isAiAgentChatCandidate('claude-opus-5')).toBe(true);
-        expect(isAiAgentChatCandidate('claude-opus-4-8')).toBe(true);
+        expect(isAiAgentChatCandidate('claude-opus-4-8')).toBe(false);
         expect(isAiAgentChatCandidate('claude-sonnet-5')).toBe(true);
-        expect(isAiAgentChatCandidate('claude-sonnet-4-6')).toBe(true);
+        expect(isAiAgentChatCandidate('claude-sonnet-4-6')).toBe(false);
         expect(isAiAgentChatCandidate('claude-3-7-sonnet-20250219')).toBe(false);
     });
 });

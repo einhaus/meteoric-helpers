@@ -1,6 +1,6 @@
 {
     "name": "@einhaus/meteoric-helpers",
-    "version": "1.0.149",
+    "version": "1.0.150",
     "files": [
         "dist",
         "README.md"
@@ -70,14 +70,14 @@
     "devDependencies": {
         "@types/bcrypt": "^6.0.0",
         "@types/mime-types": "^3.0.1",
-        "@types/node": "^26.4.0",
+        "@types/node": "^26.5.0",
         "@types/pg": "^8.23.1",
         "concurrently": "^10.0.5",
-        "oxfmt": "^0.65.0",
-        "oxlint": "^1.80.0",
+        "oxfmt": "^0.67.0",
+        "oxlint": "^1.82.0",
         "oxlint-tsgolint": "^7.0.2001",
         "typescript": "^7.0.2",
-        "vitest": "^4.1.11"
+        "vitest": "^5.0.0"
     },
     "publishConfig": {
         "registry": "https://npm.pkg.github.com/",
@@ -85,15 +85,15 @@
     },
     "private": false,
     "dependencies": {
-        "@aws-sdk/client-s3": "^3.1123.0",
-        "@aws-sdk/client-ses": "^3.1123.0",
-        "@aws-sdk/s3-request-presigner": "^3.1123.0",
+        "@aws-sdk/client-s3": "^3.1127.0",
+        "@aws-sdk/client-ses": "^3.1127.0",
+        "@aws-sdk/s3-request-presigner": "^3.1127.0",
         "@clickhouse/client": "^1.23.1",
         "@redis/client": "^6.2.1",
         "bcrypt": "^6.0.0",
         "dayjs": "^1.11.23",
         "mime-types": "^3.0.2",
-        "mysql2": "^3.24.2",
+        "mysql2": "^3.24.3",
         "nanoid": "^6.0.1",
         "node-cache": "^5.1.2",
         "pg": "^8.23.0"

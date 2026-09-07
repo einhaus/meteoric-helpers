@@ -1,0 +1,56 @@
+name: Publish AI catalog updates
+
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - 'src/ai/**'
+            - '.github/workflows/publish-ai-catalog.yml'
+    workflow_dispatch:
+
+concurrency:
+    group: publish-ai-catalog
+    cancel-in-progress: false
+
+permissions:
+    contents: read
+    packages: write
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v6
+
+            - uses: oven-sh/setup-bun@v2
+
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: '24'
+                  registry-url: 'https://npm.pkg.github.com'
+                  scope: '@einhaus'
+
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+
+            - name: Validate AI catalog
+              run: |
+                  bun run type-check
+                  bun run test -- aiModelCatalog aiRequestPresets
+                  bun run build
+
+            - name: Select the next package version
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  latest_version="$(npm view @einhaus/meteoric-helpers version --registry=https://npm.pkg.github.com/)"
+                  next_version="$(node -e 'const [major, minor, patch] = process.argv[1].split(".").map(Number); if (![major, minor, patch].every(Number.isInteger)) process.exit(1); process.stdout.write(`${major}.${minor}.${patch + 1}`);' "$latest_version")"
+                  npm pkg set version="$next_version"
+                  echo "Publishing @einhaus/meteoric-helpers@$next_version"
+
+            - name: Publish package
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: npm publish --registry=https://npm.pkg.github.com/

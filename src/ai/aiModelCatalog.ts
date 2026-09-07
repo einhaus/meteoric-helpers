@@ -1,7 +1,7 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-08-31';
-const GPT_5_6_VERIFIED_AT = '2026-08-31';
+const VERIFIED_AT = '2026-09-07';
+const GPT_5_6_VERIFIED_AT = '2026-09-07';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -47,13 +47,13 @@ const OPENAI_CYBER_SAFETY_SOURCE: AiModelSource = {
 
 const ANTHROPIC_MODELS_SOURCE: AiModelSource = {
     label: 'Anthropic models overview',
-    url: 'https://platform.claude.com/docs/en/about-claude/models/overview',
+    url: 'https://platform.claude.com/docs/en/models/overview',
     verifiedAt: VERIFIED_AT
 };
 
 const ANTHROPIC_PRICING_SOURCE: AiModelSource = {
     label: 'Anthropic pricing',
-    url: 'https://docs.anthropic.com/en/docs/about-claude/pricing',
+    url: 'https://platform.claude.com/docs/en/about-claude/pricing',
     verifiedAt: VERIFIED_AT
 };
 
@@ -76,8 +76,8 @@ const ANTHROPIC_RELEASE_NOTES_SOURCE: AiModelSource = {
 };
 
 const ANTHROPIC_FABLE_5_SOURCE: AiModelSource = {
-    label: 'Anthropic Claude Fable 5 and Mythos 5 launch notes',
-    url: 'https://platform.claude.com/docs/en/about-claude/models/introducing-claude-fable-5-and-claude-mythos-5',
+    label: 'Anthropic Claude Fable 5 model overview',
+    url: 'https://platform.claude.com/docs/en/models/fable-5/overview',
     verifiedAt: VERIFIED_AT
 };
 
@@ -135,6 +135,7 @@ const ANTHROPIC_CONTEXT_WINDOWS_SOURCE: AiModelSource = {
     verifiedAt: VERIFIED_AT
 };
 
+const OPENAI_GPT_6_REASONING_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
 const OPENAI_GPT_5_6_REASONING_LEVELS = ['none', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
 const OPENAI_GPT_5_5_REASONING_LEVELS = ['none', 'low', 'medium', 'high', 'xhigh'] as const;
 const OPENAI_GPT_5_4_REASONING_LEVELS = ['none', 'low', 'medium', 'high', 'xhigh'] as const;
@@ -168,6 +169,66 @@ const createAnthropicModelSource = (modelSlug: string): AiModelSource => ({
 });
 
 export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
+    {
+        modelKey: 'openai:gpt-6-astra',
+        provider: 'openai',
+        modelId: 'gpt-6-astra',
+        snapshotModelId: 'gpt-6-astra',
+        aliases: [],
+        displayName: 'GPT-6 Astra',
+        family: 'gpt-6',
+        description: 'OpenAI’s flagship model for complex reasoning, coding, computer use, research, and document creation.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: true,
+            supportsMcp: true,
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: OPENAI_GPT_6_REASONING_LEVELS,
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 1_050_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-04-30',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 10,
+            cachedInputUsdPerMillionTokens: 1,
+            outputUsdPerMillionTokens: 50,
+            cacheWriteUsdPerMillionTokens: 12.5,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 272_000,
+            longContextInputUsdPerMillionTokens: 20,
+            longContextCachedInputUsdPerMillionTokens: 2,
+            longContextCacheWriteUsdPerMillionTokens: 25,
+            longContextOutputUsdPerMillionTokens: 75,
+            notes: 'Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
+        }),
+        sources: [
+            createOpenAiModelSource('gpt-6-astra'),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_LATEST_MODEL_GUIDE_SOURCE
+        ],
+        tags: ['flagship', 'reasoning', 'coding', 'agent', 'research'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
+    },
     {
         modelKey: 'openai:gpt-5.6-sol',
         provider: 'openai',
@@ -745,9 +806,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         displayName: 'Chat Latest',
         family: 'chat-latest',
         description:
-            'Latest ChatGPT Instant model alias for ChatGPT-style integrations; OpenAI recommends GPT-5.6 Sol for production API use.',
+            'Latest ChatGPT Instant model alias for ChatGPT-style integrations; OpenAI recommends GPT-6 Astra for production API use.',
         status: 'active',
-        recommendedReplacementModelKey: 'openai:gpt-5.6-sol',
+        recommendedReplacementModelKey: 'openai:gpt-6-astra',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -783,7 +844,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextInputUsdPerMillionTokens: null,
             longContextCachedInputUsdPerMillionTokens: null,
             longContextOutputUsdPerMillionTokens: null,
-            notes: 'OpenAI recommends GPT-5.6 Sol for production API use when a stable model ID is preferable to the ChatGPT latest alias.'
+            notes: 'OpenAI recommends GPT-6 Astra for production API use when a stable model ID is preferable to the ChatGPT latest alias.'
         }),
         sources: [
             createOpenAiModelSource('chat-latest'),
@@ -2400,6 +2461,134 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         tags: ['retired', 'deep-research', 'fast', 'compatibility']
     },
     {
+        modelKey: 'anthropic:claude-fable-5-1',
+        provider: 'anthropic',
+        modelId: 'claude-fable-5-1',
+        snapshotModelId: 'claude-fable-5-1',
+        aliases: [],
+        displayName: 'Claude Fable 5.1',
+        family: 'claude-fable-5.1',
+        description: 'Anthropic’s latest Fable model for demanding reasoning, coding, and long-horizon agentic work.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: null,
+            supportsFileSearch: null,
+            supportsComputerUse: true,
+            supportsMcp: null,
+            supportsReasoningEffort: false,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: false,
+            supportsAdaptiveThinking: true
+        }),
+        contextWindowTokens: 1_000_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-06',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 10,
+            cachedInputUsdPerMillionTokens: 0.25,
+            outputUsdPerMillionTokens: 50,
+            cacheWrite5mUsdPerMillionTokens: 12.5,
+            cacheWrite1hUsdPerMillionTokens: 20,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'Full 1M context window is included at standard pricing. Claude Fable 5.1 uses 30-day data retention and is not available under zero data retention unless Anthropic has authorized an exception.'
+        }),
+        sources: [
+            createAnthropicModelSource('fable-5-1'),
+            ANTHROPIC_MODELS_SOURCE,
+            ANTHROPIC_MODEL_IDS_SOURCE,
+            ANTHROPIC_PRICING_SOURCE,
+            ANTHROPIC_MODEL_DEPRECATIONS_SOURCE,
+            ANTHROPIC_RELEASE_NOTES_SOURCE,
+            ANTHROPIC_ADAPTIVE_THINKING_SOURCE,
+            ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE,
+            ANTHROPIC_COMPUTER_USE_SOURCE
+        ],
+        tags: ['latest', 'reasoning', 'coding', 'agent'],
+        parameterPolicies: {
+            temperature: 'unsupported'
+        }
+    },
+    {
+        modelKey: 'anthropic:claude-mythos-5-1',
+        provider: 'anthropic',
+        modelId: 'claude-mythos-5-1',
+        snapshotModelId: 'claude-mythos-5-1',
+        aliases: [],
+        displayName: 'Claude Mythos 5.1',
+        family: 'claude-mythos-5.1',
+        description: 'Invite-only Project Glasswing model with Claude Fable 5.1 capabilities and modified safety classifications.',
+        status: 'specialized',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: null,
+            supportsFileSearch: null,
+            supportsComputerUse: true,
+            supportsMcp: null,
+            supportsReasoningEffort: false,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: false,
+            supportsAdaptiveThinking: true
+        }),
+        contextWindowTokens: 1_000_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-06',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 10,
+            cachedInputUsdPerMillionTokens: 0.25,
+            outputUsdPerMillionTokens: 50,
+            cacheWrite5mUsdPerMillionTokens: 12.5,
+            cacheWrite1hUsdPerMillionTokens: 20,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'Invite-only availability through Project Glasswing. Full 1M context window is included at standard pricing. Claude Mythos 5.1 uses 30-day data retention and is not available under zero data retention unless Anthropic has authorized an exception.'
+        }),
+        sources: [
+            createAnthropicModelSource('mythos-5-1'),
+            ANTHROPIC_MODELS_SOURCE,
+            ANTHROPIC_MODEL_IDS_SOURCE,
+            ANTHROPIC_PRICING_SOURCE,
+            ANTHROPIC_MODEL_DEPRECATIONS_SOURCE,
+            ANTHROPIC_RELEASE_NOTES_SOURCE,
+            ANTHROPIC_ADAPTIVE_THINKING_SOURCE,
+            ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE,
+            ANTHROPIC_COMPUTER_USE_SOURCE
+        ],
+        tags: ['latest', 'specialized', 'reasoning', 'coding', 'agent', 'limited-availability'],
+        parameterPolicies: {
+            temperature: 'unsupported'
+        }
+    },
+    {
         modelKey: 'anthropic:claude-fable-5',
         provider: 'anthropic',
         modelId: 'claude-fable-5',
@@ -2407,9 +2596,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'Claude Fable 5',
         family: 'claude-fable-5',
-        description: 'Anthropic’s most capable widely released model for the most demanding reasoning and long-horizon agentic work.',
-        status: 'active',
-        recommendedReplacementModelKey: null,
+        description: 'Legacy Fable model retained for compatibility while integrations migrate to Claude Fable 5.1.',
+        status: 'legacy',
+        recommendedReplacementModelKey: 'anthropic:claude-fable-5-1',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -2460,7 +2649,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             ANTHROPIC_WEB_SEARCH_SOURCE,
             ANTHROPIC_COMPUTER_USE_SOURCE
         ],
-        tags: ['recommended', 'reasoning', 'coding', 'agent'],
+        tags: ['legacy', 'reasoning', 'coding', 'agent'],
         parameterPolicies: {
             temperature: 'unsupported'
         }
@@ -2475,7 +2664,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         family: 'claude-mythos-5',
         description: 'Limited-availability Project Glasswing model with Claude Fable 5 capabilities and no Fable safety classifiers.',
         status: 'specialized',
-        recommendedReplacementModelKey: null,
+        recommendedReplacementModelKey: 'anthropic:claude-mythos-5-1',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -2541,7 +2730,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         family: 'claude-mythos',
         description: 'Deprecated invitation-only Project Glasswing research preview retained for compatibility until retirement.',
         status: 'deprecated',
-        recommendedReplacementModelKey: 'anthropic:claude-mythos-5',
+        recommendedReplacementModelKey: 'anthropic:claude-mythos-5-1',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({

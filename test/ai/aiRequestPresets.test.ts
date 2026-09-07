@@ -33,43 +33,49 @@ describe('AI request preset helpers', () => {
         expect(config.warnings.some((warning) => warning.includes('capped'))).toBe(true);
     });
 
-    it('keeps anthropic thinking defaults on models that advertise extended-thinking support', () => {
+    it('automatically upgrades legacy Anthropic overrides before applying inference defaults', () => {
         const config = resolveAiRequestConfig({
             preset: 'analysis',
             model: 'anthropic:claude-sonnet-4-6'
         });
 
         expect(config.provider).toBe('anthropic');
-        expect(config.modelKey).toBe('anthropic:claude-sonnet-4-6');
+        expect(config.modelKey).toBe('anthropic:claude-sonnet-5');
         expect(config.inferenceProfileKey).toBe('reasoning_medium');
         expect(config.reasoningEffort).toBeNull();
-        expect(config.anthropicThinkingBudgetTokens).toBe(2_048);
-        expect(config.warnings.some((warning) => warning.includes('Reasoning effort was cleared'))).toBe(false);
+        expect(config.anthropicThinkingBudgetTokens).toBeNull();
+        expect(config.warnings.some((warning) => warning.includes('was automatically upgraded'))).toBe(true);
     });
 
-    it.each(['claude-opus-4-5', 'claude-sonnet-4-5'])('caps explicit legacy %s requests to the documented output limit', (model) => {
+    it.each([
+        ['claude-opus-4-5', 'anthropic:claude-opus-5'],
+        ['claude-sonnet-4-5', 'anthropic:claude-sonnet-5']
+    ])('upgrades explicit legacy %s requests to %s', (model, expectedModelKey) => {
         const config = resolveAiRequestConfig({ preset: 'analysis', model, maxOutputTokens: 100_000 });
 
         expect(config.provider).toBe('anthropic');
+        expect(config.modelKey).toBe(expectedModelKey);
         expect(config.requestedMaxOutputTokens).toBe(100_000);
-        expect(config.maxOutputTokens).toBe(64_000);
-        expect(config.warnings.some((warning) => warning.includes('capped'))).toBe(true);
+        expect(config.maxOutputTokens).toBe(100_000);
+        expect(config.warnings.some((warning) => warning.includes('was automatically upgraded'))).toBe(true);
     });
 
-    it('uses the current GPT-4o snapshot when a pinned request is requested', () => {
+    it('upgrades a legacy OpenAI request before snapshot selection', () => {
         const config = resolveAiRequestConfig({ preset: 'analysis', model: 'gpt-4o', preferSnapshot: true });
 
-        expect(config.modelId).toBe('gpt-4o-2024-08-06');
+        expect(config.modelKey).toBe('openai:gpt-5.6-sol');
+        expect(config.modelId).toBe('gpt-5.6-sol');
+        expect(config.warnings.some((warning) => warning.includes('was automatically upgraded'))).toBe(true);
     });
 
     it('supports explicit adaptive-only Anthropic reasoning models without adding legacy thinking budgets', () => {
         const config = resolveAiRequestConfig({
             preset: 'agentChat',
-            model: 'anthropic:claude-fable-5'
+            model: 'anthropic:claude-fable-5-1'
         });
 
         expect(config.provider).toBe('anthropic');
-        expect(config.modelKey).toBe('anthropic:claude-fable-5');
+        expect(config.modelKey).toBe('anthropic:claude-fable-5-1');
         expect(config.inferenceProfileKey).toBe('reasoning_high');
         expect(config.anthropicThinkingBudgetTokens).toBeNull();
         expect(config.warnings.some((warning) => warning.includes('does not advertise extended-thinking support'))).toBe(false);
@@ -102,7 +108,7 @@ describe('AI request preset helpers', () => {
         expect(config.warnings.some((warning) => warning.includes('does not support the temperature parameter'))).toBe(true);
     });
 
-    it('clears anthropic temperature automatically when a thinking budget is active', () => {
+    it('applies current-model temperature policy after upgrading a legacy Anthropic override', () => {
         const config = resolveAiRequestConfig({
             preset: 'analysis',
             model: 'anthropic:claude-sonnet-4-6',
@@ -110,9 +116,10 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.provider).toBe('anthropic');
-        expect(config.anthropicThinkingBudgetTokens).toBe(2_048);
+        expect(config.modelKey).toBe('anthropic:claude-sonnet-5');
+        expect(config.anthropicThinkingBudgetTokens).toBeNull();
         expect(config.temperature).toBeNull();
-        expect(config.warnings.some((warning) => warning.includes('Anthropic thinking budgets are incompatible'))).toBe(true);
+        expect(config.warnings.some((warning) => warning.includes('does not support the temperature parameter'))).toBe(true);
     });
 
     it('prefers openai automatically for deep-research presets', () => {
@@ -155,6 +162,20 @@ describe('AI request preset helpers', () => {
         expect(config.warnings.some((warning) => warning.includes('does not support the temperature parameter'))).toBe(true);
     });
 
+    it('supports explicit GPT-6 Astra requests without changing the cost-gated defaults', () => {
+        const config = resolveAiRequestConfig({
+            preset: 'agentChat',
+            model: 'openai:gpt-6-astra',
+            temperature: 0.35
+        });
+
+        expect(config.provider).toBe('openai');
+        expect(config.modelKey).toBe('openai:gpt-6-astra');
+        expect(config.reasoningEffort).toBe('high');
+        expect(config.temperature).toBeNull();
+        expect(config.warnings.some((warning) => warning.includes('does not support the temperature parameter'))).toBe(true);
+    });
+
     it('lets model-profile selection control both model and default reasoning', () => {
         const config = resolveAiRequestConfig({
             preset: 'agentChat',
@@ -183,28 +204,19 @@ describe('AI request preset helpers', () => {
         expect(config.overridesApplied).toContain('inferenceProfileKey');
     });
 
-    it('keeps temperature on GPT-5.1 only when reasoning effort resolves to none', () => {
-        const supportedConfig = resolveAiRequestConfig({
+    it('follows multi-hop replacements until a current model is reached', () => {
+        const config = resolveAiRequestConfig({
             preset: 'titleGeneration',
-            model: 'openai:gpt-5.1',
+            model: 'openai:chatgpt-4o-latest',
             temperature: 0.35
         });
 
-        const unsupportedConfig = resolveAiRequestConfig({
-            preset: 'creativeWriting',
-            model: 'openai:gpt-5.1',
-            temperature: 0.35
-        });
-
-        expect(supportedConfig.reasoningEffort).toBe('none');
-        expect(supportedConfig.temperature).toBe(0.35);
-        expect(unsupportedConfig.reasoningEffort).toBe('medium');
-        expect(unsupportedConfig.temperature).toBeNull();
-        expect(
-            unsupportedConfig.warnings.some((warning) =>
-                warning.includes('only supports temperature when reasoning effort is set to "none"')
-            )
-        ).toBe(true);
+        expect(config.modelKey).toBe('openai:gpt-5.6-sol');
+        expect(config.reasoningEffort).toBe('none');
+        expect(config.temperature).toBeNull();
+        expect(config.warnings).toContain(
+            'Outdated model "openai:chatgpt-4o-latest" (retired) was automatically upgraded: openai:chatgpt-4o-latest -> openai:gpt-5.1-chat-latest -> openai:gpt-5.6-sol.'
+        );
     });
 
     it('supports explicit model overrides that are not yet in the shared catalog', () => {

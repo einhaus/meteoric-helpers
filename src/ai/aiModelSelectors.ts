@@ -189,7 +189,7 @@ export function isAiAgentChatCandidate(modelIdentifier: string, provider?: AiPro
     const model = getAiModelByKey(modelIdentifier) ?? getAiModelById(modelIdentifier, provider) ?? getAiModelById(modelIdentifier);
 
     if (model) {
-        const excludedStatuses = new Set<AiModelStatus>(['deprecated', 'retired']);
+        const excludedStatuses = new Set<AiModelStatus>(['legacy', 'deprecated', 'retired']);
         if (excludedStatuses.has(model.status)) return false;
         if (model.status === 'specialized' && !model.tags.includes('agent') && !model.tags.includes('chat')) return false;
         if (model.capabilities.supportsTextInput === false || model.capabilities.supportsTextOutput === false) return false;
