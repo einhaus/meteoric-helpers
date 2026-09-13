@@ -407,7 +407,7 @@ export class DBMysql {
         parameters?: DbParameters | undefined;
         connection?: Connection | PoolConnection | undefined;
         verbose?: boolean | undefined;
-    }): Promise<ResultSetHeader | void> {
+    }): Promise<ResultSetHeader> {
         const { queryString, parameters, connection, verbose } = config;
         let retryAttempts = 0;
         const MAX_RETRIES = this.maxRetries;
@@ -431,10 +431,12 @@ export class DBMysql {
                     await sleep(RETRY_DELAY_MS * retryAttempts);
                 } else {
                     this.handleError(e);
-                    break;
+                    throw e;
                 }
             }
         }
+
+        throw new Error(`Max retries (${MAX_RETRIES}) reached for query: ${queryString}`);
     }
 
     private getOrThrowPool() {

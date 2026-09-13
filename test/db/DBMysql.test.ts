@@ -99,6 +99,73 @@ describe('DBMysql connection config', () => {
     });
 });
 
+describe('DBMysql.doQuery', () => {
+    const createMutationPool = (query: ReturnType<typeof vi.fn>) => ({
+        end: vi.fn(async () => undefined),
+        format: vi.fn((queryString: string) => queryString),
+        query
+    });
+
+    const createDb = (maxRetries: number) =>
+        DBMysql.getInstance({ ...TEST_DB_CONFIG, maxRetries, retryDelayMs: 0 }, `mutation-pool-${testInstanceId++}`);
+
+    beforeEach(() => {
+        createConnection.mockReset();
+        createPool.mockReset();
+        vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    });
+
+    it('returns the result set header on success', async () => {
+        const header = { affectedRows: 2, insertId: 0 };
+        const query = vi.fn(async () => [header]);
+        createPool.mockReturnValue(createMutationPool(query));
+
+        const result = await createDb(3).doQuery({ queryString: 'DELETE FROM titles WHERE id = ?', parameters: [1] });
+
+        expect(result).toBe(header);
+        expect(query).toHaveBeenCalledOnce();
+    });
+
+    it('rethrows non-transient errors without retrying', async () => {
+        const foreignKeyError = Object.assign(new Error('Cannot delete or update a parent row'), { code: 'ER_ROW_IS_REFERENCED_2' });
+        const query = vi.fn(async () => {
+            throw foreignKeyError;
+        });
+        createPool.mockReturnValue(createMutationPool(query));
+
+        await expect(createDb(3).doQuery({ queryString: 'DELETE FROM titles WHERE id = ?', parameters: [1] })).rejects.toBe(
+            foreignKeyError
+        );
+        expect(query).toHaveBeenCalledOnce();
+    });
+
+    it('retries transient errors and returns the eventual result', async () => {
+        const deadlockError = Object.assign(new Error('Deadlock found'), { code: 'ER_LOCK_DEADLOCK' });
+        const header = { affectedRows: 1, insertId: 0 };
+        const query = vi.fn().mockRejectedValueOnce(deadlockError).mockResolvedValueOnce([header]);
+        createPool.mockReturnValue(createMutationPool(query));
+
+        const result = await createDb(3).doQuery({ queryString: 'UPDATE titles SET name = ? WHERE id = ?', parameters: ['a', 1] });
+
+        expect(result).toBe(header);
+        expect(query).toHaveBeenCalledTimes(2);
+    });
+
+    it('rethrows the transient error once retries are exhausted', async () => {
+        const lockWaitError = Object.assign(new Error('Lock wait timeout exceeded'), { code: 'ER_LOCK_WAIT_TIMEOUT' });
+        const query = vi.fn(async () => {
+            throw lockWaitError;
+        });
+        createPool.mockReturnValue(createMutationPool(query));
+
+        await expect(createDb(3).doQuery({ queryString: 'UPDATE titles SET name = ? WHERE id = ?', parameters: ['a', 1] })).rejects.toBe(
+            lockWaitError
+        );
+        expect(query).toHaveBeenCalledTimes(3);
+    });
+});
+
 describe('DBMysql.createResultStream', () => {
     beforeEach(() => {
         createConnection.mockReset();

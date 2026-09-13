@@ -250,7 +250,7 @@ export class DBPostgres {
         parameters?: DbParametersWithDate | undefined;
         connection?: PoolClient | undefined;
         verbose?: boolean | undefined;
-    }): Promise<QueryResult | void> {
+    }): Promise<QueryResult> {
         const { queryString, parameters, connection, verbose } = config;
         let retryAttempts = 0;
 
@@ -280,10 +280,12 @@ export class DBPostgres {
                     await sleep(this.retryDelayMs * retryAttempts);
                 } else {
                     this.handleError(e);
-                    break;
+                    throw e;
                 }
             }
         }
+
+        throw new Error(`Max retries (${this.maxRetries}) reached for query: ${queryString}`);
     }
 
     async insert<T extends object>(config: {
@@ -598,7 +600,7 @@ export class DBPostgres {
         logicalOperator?: 'AND' | 'OR';
         allowFullDelete?: boolean;
         verbose?: boolean;
-    }): Promise<QueryResult | void> {
+    }): Promise<QueryResult> {
         if (!this.db) this.getOrThrowPool();
         const { verbose } = config;
         let queryString: string;
