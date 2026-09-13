@@ -296,7 +296,7 @@ export class DBPostgres {
         onDuplicateKeyUpdateColumns?: (keyof T)[];
         connection?: PoolClient;
         verbose?: boolean;
-    }): Promise<number | void> {
+    }): Promise<number> {
         const { connection, verbose } = config;
         const columns = Object.keys(config.params) as (keyof T)[];
 
@@ -327,11 +327,7 @@ export class DBPostgres {
 
         const values = columns.map((column) => config.params[column]);
 
-        try {
-            return await this.doInsert({ queryString, parameters: values, retryAttempts: 0, verbose, connection });
-        } catch (e: unknown) {
-            console.error('Insert failed:', e);
-        }
+        return this.doInsert({ queryString, parameters: values, retryAttempts: 0, verbose, connection });
     }
 
     async insertMultiple<T extends object>(config: {
@@ -342,8 +338,8 @@ export class DBPostgres {
         onDuplicateKeyUpdateColumns?: (keyof T)[];
         connection?: PoolClient;
         verbose?: boolean;
-    }): Promise<number | void> {
-        if (config.values.length === 0) return;
+    }): Promise<number> {
+        if (config.values.length === 0) return 0;
 
         const { connection, verbose } = config;
 
@@ -382,13 +378,13 @@ export class DBPostgres {
             }
         }
 
-        // Make sure we have values before trying to get keys
-        if (!config.values?.length || !config.values[0]) {
-            console.error('No values provided for insertMultiple');
-            return;
+        const [firstRow] = config.values;
+
+        if (!firstRow) {
+            throw new Error(`insertMultiple into "${config.table}" received an undefined first row`);
         }
 
-        const columns = Object.keys(config.values[0]) as (keyof T)[];
+        const columns = Object.keys(firstRow) as (keyof T)[];
 
         // For PostgreSQL, we need to use a different approach for bulk inserts with parameterized values
         // Using the VALUES (...), (...), ... syntax with properly numbered parameters
@@ -429,17 +425,13 @@ export class DBPostgres {
         // Add RETURNING to get the inserted ID in PostgreSQL (will return only the last inserted ID)
         queryString += ` RETURNING id;`;
 
-        try {
-            return await this.doInsert({
-                queryString,
-                parameters: values,
-                retryAttempts: 0,
-                verbose,
-                connection
-            });
-        } catch (e: unknown) {
-            console.error('Insert multiple failed:', e);
-        }
+        return this.doInsert({
+            queryString,
+            parameters: values,
+            retryAttempts: 0,
+            verbose,
+            connection
+        });
     }
 
     /**
@@ -451,8 +443,8 @@ export class DBPostgres {
         values: Insertable<T>[];
         connection?: PoolClient;
         verbose?: boolean;
-    }): Promise<number | void> {
-        if (config.values.length === 0) return;
+    }): Promise<number> {
+        if (config.values.length === 0) return 0;
 
         const { table, values, verbose } = config;
         let clientSupplied = false;
@@ -712,7 +704,7 @@ export class DBPostgres {
         retryAttempts: number;
         connection?: PoolClient | undefined;
         verbose?: boolean | undefined;
-    }): Promise<number | void> {
+    }): Promise<number> {
         const { queryString, parameters, connection, verbose } = config;
         let retryAttempts = 0;
 
@@ -761,23 +753,23 @@ export class DBPostgres {
                 // If no id field was returned, return the number of affected rows
                 return result.rowCount || 0;
             } catch (e: unknown) {
-                if (!connection && this.isPoolClosedError(e)) {
+                retryAttempts++;
+
+                if (!connection && this.isPoolClosedError(e) && retryAttempts < this.maxRetries) {
                     await this.resetPool('pool closed');
                 } else if (this.isTransientError(e, true) && retryAttempts < this.maxRetries) {
                     const errorCode = (e as { code?: string }).code;
                     const errorType = this.getErrorType(errorCode);
 
                     console.warn(
-                        `[${errorType}] Insert transient error: ${errorCode || 'Unknown'} - ${(e as Error).message}. Retrying (${retryAttempts + 1}/${this.maxRetries})...`
+                        `[${errorType}] Insert transient error: ${errorCode || 'Unknown'} - ${(e as Error).message}. Retrying (${retryAttempts}/${this.maxRetries})...`
                     );
 
-                    await sleep(this.retryDelayMs * (retryAttempts + 1));
+                    await sleep(this.retryDelayMs * retryAttempts);
                 } else {
                     this.handleError(e);
                     throw e;
                 }
-
-                retryAttempts++;
             }
         }
 

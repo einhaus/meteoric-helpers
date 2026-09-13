@@ -99,22 +99,26 @@ describe('DBMysql connection config', () => {
     });
 });
 
+const createMutationPool = (query: ReturnType<typeof vi.fn>) => ({
+    end: vi.fn(async () => undefined),
+    format: vi.fn((queryString: string) => queryString),
+    query
+});
+
+const createDb = (maxRetries: number) =>
+    DBMysql.getInstance({ ...TEST_DB_CONFIG, maxRetries, retryDelayMs: 0 }, `mutation-pool-${testInstanceId++}`);
+
+const resetMutationMocks = () => {
+    createConnection.mockReset();
+    createPool.mockReset();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+};
+
+const createDbError = (message: string, code: string) => Object.assign(new Error(message), { code });
+
 describe('DBMysql.doQuery', () => {
-    const createMutationPool = (query: ReturnType<typeof vi.fn>) => ({
-        end: vi.fn(async () => undefined),
-        format: vi.fn((queryString: string) => queryString),
-        query
-    });
-
-    const createDb = (maxRetries: number) =>
-        DBMysql.getInstance({ ...TEST_DB_CONFIG, maxRetries, retryDelayMs: 0 }, `mutation-pool-${testInstanceId++}`);
-
-    beforeEach(() => {
-        createConnection.mockReset();
-        createPool.mockReset();
-        vi.spyOn(console, 'error').mockImplementation(() => undefined);
-        vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    });
+    beforeEach(resetMutationMocks);
 
     it('returns the result set header on success', async () => {
         const header = { affectedRows: 2, insertId: 0 };
@@ -128,7 +132,7 @@ describe('DBMysql.doQuery', () => {
     });
 
     it('rethrows non-transient errors without retrying', async () => {
-        const foreignKeyError = Object.assign(new Error('Cannot delete or update a parent row'), { code: 'ER_ROW_IS_REFERENCED_2' });
+        const foreignKeyError = createDbError('Cannot delete or update a parent row', 'ER_ROW_IS_REFERENCED_2');
         const query = vi.fn(async () => {
             throw foreignKeyError;
         });
@@ -141,7 +145,7 @@ describe('DBMysql.doQuery', () => {
     });
 
     it('retries transient errors and returns the eventual result', async () => {
-        const deadlockError = Object.assign(new Error('Deadlock found'), { code: 'ER_LOCK_DEADLOCK' });
+        const deadlockError = createDbError('Deadlock found', 'ER_LOCK_DEADLOCK');
         const header = { affectedRows: 1, insertId: 0 };
         const query = vi.fn().mockRejectedValueOnce(deadlockError).mockResolvedValueOnce([header]);
         createPool.mockReturnValue(createMutationPool(query));
@@ -153,7 +157,7 @@ describe('DBMysql.doQuery', () => {
     });
 
     it('rethrows the transient error once retries are exhausted', async () => {
-        const lockWaitError = Object.assign(new Error('Lock wait timeout exceeded'), { code: 'ER_LOCK_WAIT_TIMEOUT' });
+        const lockWaitError = createDbError('Lock wait timeout exceeded', 'ER_LOCK_WAIT_TIMEOUT');
         const query = vi.fn(async () => {
             throw lockWaitError;
         });
@@ -163,6 +167,111 @@ describe('DBMysql.doQuery', () => {
             lockWaitError
         );
         expect(query).toHaveBeenCalledTimes(3);
+    });
+});
+
+describe('DBMysql.insert', () => {
+    beforeEach(resetMutationMocks);
+
+    it('returns the generated insert id', async () => {
+        const query = vi.fn(async () => [{ affectedRows: 1, insertId: 17 }]);
+        createPool.mockReturnValue(createMutationPool(query));
+
+        await expect(createDb(3).insert<{ name: string }>({ table: 'titles', params: { name: 'a' } })).resolves.toBe(17);
+        expect(query).toHaveBeenCalledOnce();
+    });
+
+    it('rethrows a duplicate-key error without retrying', async () => {
+        const duplicateError = createDbError("Duplicate entry 'a' for key 'uniq_name'", 'ER_DUP_ENTRY');
+        const query = vi.fn(async () => {
+            throw duplicateError;
+        });
+        createPool.mockReturnValue(createMutationPool(query));
+
+        await expect(createDb(3).insert<{ name: string }>({ table: 'titles', params: { name: 'a' } })).rejects.toBe(duplicateError);
+        expect(query).toHaveBeenCalledOnce();
+    });
+
+    it('does not retry a lost connection because the insert may already have been applied', async () => {
+        const connectionLostError = createDbError('Connection lost: The server closed the connection.', 'PROTOCOL_CONNECTION_LOST');
+        const query = vi.fn(async () => {
+            throw connectionLostError;
+        });
+        createPool.mockReturnValue(createMutationPool(query));
+
+        await expect(createDb(3).insert<{ name: string }>({ table: 'titles', params: { name: 'a' } })).rejects.toBe(connectionLostError);
+        expect(query).toHaveBeenCalledOnce();
+    });
+
+    it('retries deadlocks and returns the eventual insert id', async () => {
+        const deadlockError = createDbError('Deadlock found', 'ER_LOCK_DEADLOCK');
+        const query = vi
+            .fn()
+            .mockRejectedValueOnce(deadlockError)
+            .mockResolvedValueOnce([{ affectedRows: 1, insertId: 23 }]);
+        createPool.mockReturnValue(createMutationPool(query));
+
+        await expect(createDb(3).insert<{ name: string }>({ table: 'titles', params: { name: 'a' } })).resolves.toBe(23);
+        expect(query).toHaveBeenCalledTimes(2);
+    });
+
+    it('rethrows the original deadlock error once retries are exhausted', async () => {
+        const deadlockError = createDbError('Deadlock found', 'ER_LOCK_DEADLOCK');
+        const query = vi.fn(async () => {
+            throw deadlockError;
+        });
+        createPool.mockReturnValue(createMutationPool(query));
+
+        await expect(createDb(3).insert<{ name: string }>({ table: 'titles', params: { name: 'a' } })).rejects.toBe(deadlockError);
+        expect(query).toHaveBeenCalledTimes(3);
+    });
+});
+
+describe('DBMysql.insertMultiple', () => {
+    beforeEach(resetMutationMocks);
+
+    it('writes every row in one statement and returns the first insert id', async () => {
+        const query = vi.fn(async () => [{ affectedRows: 2, insertId: 40 }]);
+        const pool = createMutationPool(query);
+        createPool.mockReturnValue(pool);
+
+        const result = await createDb(3).insertMultiple<{ name: string }>({ table: 'titles', values: [{ name: 'a' }, { name: 'b' }] });
+
+        expect(result).toBe(40);
+        expect(query).toHaveBeenCalledOnce();
+        expect(pool.format).toHaveBeenCalledWith(expect.stringContaining('VALUES (?), (?)'), ['a', 'b']);
+    });
+
+    it('rethrows insert errors', async () => {
+        const missingDefaultError = createDbError("Field 'cryptoId' doesn't have a default value", 'ER_NO_DEFAULT_FOR_FIELD');
+        const query = vi.fn(async () => {
+            throw missingDefaultError;
+        });
+        createPool.mockReturnValue(createMutationPool(query));
+
+        await expect(createDb(3).insertMultiple<{ name: string }>({ table: 'titles', values: [{ name: 'a' }] })).rejects.toBe(
+            missingDefaultError
+        );
+        expect(query).toHaveBeenCalledOnce();
+    });
+
+    it('returns 0 without querying when there are no rows', async () => {
+        const query = vi.fn();
+        createPool.mockReturnValue(createMutationPool(query));
+
+        await expect(createDb(3).insertMultiple<{ name: string }>({ table: 'titles', values: [] })).resolves.toBe(0);
+        expect(createPool).not.toHaveBeenCalled();
+        expect(query).not.toHaveBeenCalled();
+    });
+
+    it('throws when the first row is missing', async () => {
+        const query = vi.fn();
+        createPool.mockReturnValue(createMutationPool(query));
+
+        await expect(
+            createDb(3).insertMultiple<{ name: string }>({ table: 'titles', values: new Array<{ name: string }>(1) })
+        ).rejects.toThrow('insertMultiple into `titles` received an undefined first row');
+        expect(query).not.toHaveBeenCalled();
     });
 });
 

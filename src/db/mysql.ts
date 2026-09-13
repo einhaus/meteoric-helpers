@@ -468,13 +468,18 @@ export class DBMysql {
         }
     }
 
+    /**
+     * Executes an INSERT and returns `ResultSetHeader.insertId`: the AUTO_INCREMENT id of the first inserted row,
+     * or 0 when the statement generated none (e.g. tables without AUTO_INCREMENT, rows skipped by IGNORE).
+     * Only deadlocks and refused connections are retried; every other failure is logged and rethrown.
+     */
     async doInsert<T>(config: {
         queryString: string;
         parameters?: T[] | DbParameters | undefined;
         retryAttempts?: number;
         connection?: Connection | PoolConnection | undefined;
         verbose?: boolean | undefined;
-    }): Promise<number | void> {
+    }): Promise<number> {
         const { queryString, parameters, connection, verbose } = config;
         let retryAttempts = 0;
 
@@ -487,18 +492,18 @@ export class DBMysql {
                 const results = row as ResultSetHeader;
                 return results.insertId;
             } catch (e: unknown) {
-                if (!connection && this.isClosedConnectionError(e)) {
+                retryAttempts++;
+
+                if (!connection && this.isClosedConnectionError(e) && retryAttempts < this.maxRetries) {
                     await this.resetPool('pool closed');
                 } else if (this.isTransientError(e, true) && retryAttempts < this.maxRetries) {
-                    console.warn(`Insert transient error (${(e as Error).message}). Retrying (${retryAttempts + 1}/${this.maxRetries})...`);
+                    console.warn(`Insert transient error (${(e as Error).message}). Retrying (${retryAttempts}/${this.maxRetries})...`);
 
-                    await sleep(this.retryDelayMs * (retryAttempts + 1));
+                    await sleep(this.retryDelayMs * retryAttempts);
                 } else {
                     this.handleError(e);
                     throw e;
                 }
-
-                retryAttempts++;
             }
         }
 
@@ -513,7 +518,7 @@ export class DBMysql {
         updateOnDuplicateColumns?: (keyof T)[];
         connection?: Connection | PoolConnection;
         verbose?: boolean;
-    }): Promise<number | void> {
+    }): Promise<number> {
         const { connection, verbose } = config;
         const columns = Object.keys(config.params) as (keyof T)[];
         const placeholders = `(${columns.map(() => '?').join(', ')})`;
@@ -533,13 +538,13 @@ export class DBMysql {
         const values = columns.map((column) => config.params[column]);
         queryString += ';';
 
-        try {
-            return await this.doInsert({ queryString, parameters: values, retryAttempts: 0, verbose, connection });
-        } catch (e: unknown) {
-            console.log('Insert failed:', e);
-        }
+        return this.doInsert({ queryString, parameters: values, retryAttempts: 0, verbose, connection });
     }
 
+    /**
+     * Inserts every row in a single statement and returns the first inserted row's AUTO_INCREMENT id (see `doInsert`).
+     * An empty `values` array is a no-op that returns 0 without querying.
+     */
     async insertMultiple<T extends object>(config: {
         table: string;
         values: Insertable<T>[];
@@ -548,17 +553,16 @@ export class DBMysql {
         onDuplicateKeyUpdateColumns?: (keyof T)[];
         connection?: Connection | PoolConnection;
         verbose?: boolean;
-    }): Promise<number | void> {
-        if (!config.values || config.values.length === 0) return;
+    }): Promise<number> {
+        if (config.values.length === 0) return 0;
         const { connection, verbose } = config;
+        const [firstRow] = config.values;
 
-        // Make sure we have at least one item in the values array
-        if (!config.values[0]) {
-            console.error('No values provided for insertMultiple');
-            return;
+        if (!firstRow) {
+            throw new Error(`insertMultiple into \`${config.table}\` received an undefined first row`);
         }
 
-        const columns = Object.keys(config.values[0]) as (keyof T)[];
+        const columns = Object.keys(firstRow) as (keyof T)[];
         const ignore = config.shouldIgnore ? 'IGNORE' : '';
 
         let queryString = `
@@ -575,11 +579,7 @@ export class DBMysql {
         const values = config.values.flatMap((param) => columns.map((column) => param[column]));
         queryString += ';';
 
-        try {
-            return await this.doInsert({ queryString, parameters: values, retryAttempts: 0, verbose, connection });
-        } catch (e: unknown) {
-            console.log('Insert multiple failed:', e);
-        }
+        return this.doInsert({ queryString, parameters: values, retryAttempts: 0, verbose, connection });
     }
 
     async update<T extends object>(config: {
