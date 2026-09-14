@@ -1,6 +1,6 @@
 {
     "name": "@einhaus/meteoric-helpers",
-    "version": "1.0.153",
+    "version": "1.0.154",
     "files": [
         "dist",
         "README.md"
@@ -73,8 +73,8 @@
         "@types/node": "^26.5.1",
         "@types/pg": "^8.23.1",
         "concurrently": "^10.0.5",
-        "oxfmt": "^0.67.0",
-        "oxlint": "^1.82.0",
+        "oxfmt": "^0.68.0",
+        "oxlint": "^1.83.0",
         "oxlint-tsgolint": "^7.0.2001",
         "typescript": "^7.0.2",
         "vitest": "^5.0.0"

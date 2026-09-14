@@ -21,6 +21,8 @@ describe('AI model catalog helpers', () => {
         expect(normalizeAiModelKey('gpt-5.6')).toBe('openai:gpt-5.6-sol');
         expect(normalizeAiModelKey('gpt-daybreak-blue-latest')).toBe('openai:gpt-5.6-sol');
         expect(normalizeAiModelKey('gpt-daybreak-red-latest')).toBe('openai:gpt-5.6-cyber');
+        expect(normalizeAiModelKey('gpt-rosalind-research')).toBe('openai:gpt-rosalind-research');
+        expect(normalizeAiModelKey('gpt-5.4-cyber')).toBe('openai:gpt-5.4-cyber');
         expect(normalizeAiModelKey('daybreak-blue-latest')).toBe('openai:gpt-5.6-sol');
         expect(normalizeAiModelKey('daybreak-red-latest')).toBe('openai:gpt-5.6-cyber');
         expect(normalizeAiModelKey('gpt-5.6-terra')).toBe('openai:gpt-5.6-terra');
@@ -314,6 +316,13 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('gpt-5.6-cyber')?.status).toBe('specialized');
         expect(getAiModelById('gpt-5.6-cyber')?.pricing.inputUsdPerMillionTokens).toBe(12.5);
         expect(getAiModelById('gpt-5.6-cyber')?.pricing.longContextOutputUsdPerMillionTokens).toBe(112.5);
+        expect(getAiModelById('gpt-rosalind-research')?.status).toBe('specialized');
+        expect(getAiModelById('gpt-rosalind-research')?.pricing.inputUsdPerMillionTokens).toBe(5);
+        expect(getAiModelById('gpt-rosalind-research')?.pricing.cachedInputUsdPerMillionTokens).toBe(0.5);
+        expect(getAiModelById('gpt-rosalind-research')?.pricing.outputUsdPerMillionTokens).toBe(25);
+        expect(getAiModelById('gpt-rosalind-research')?.pricing.cacheWriteUsdPerMillionTokens).toBeNull();
+        expect(getAiModelById('gpt-5.4-cyber')?.status).toBe('deprecated');
+        expect(getAiModelById('gpt-5.4-cyber')?.recommendedReplacementModelKey).toBe('openai:gpt-5.6-cyber');
         expect(getAiModelById('gpt-5.6-terra')?.pricing.longContextOutputUsdPerMillionTokens).toBe(18);
         expect(getAiModelById('gpt-5.6-luna')?.pricing.outputUsdPerMillionTokens).toBe(1.2);
         expect(getAiModelById('gpt-4o-mini')?.modelKey).toBe('openai:gpt-4o-mini');

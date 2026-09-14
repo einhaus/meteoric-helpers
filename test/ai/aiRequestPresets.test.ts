@@ -68,6 +68,17 @@ describe('AI request preset helpers', () => {
         expect(config.warnings.some((warning) => warning.includes('was automatically upgraded'))).toBe(true);
     });
 
+    it('upgrades deprecated GPT-5.4 Cyber requests to the current same-provider replacement', () => {
+        const config = resolveAiRequestConfig({ preset: 'agentChat', model: 'gpt-5.4-cyber' });
+
+        expect(config.provider).toBe('openai');
+        expect(config.modelKey).toBe('openai:gpt-5.6-cyber');
+        expect(config.modelId).toBe('gpt-5.6-cyber');
+        expect(config.warnings).toContain(
+            'Outdated model "openai:gpt-5.4-cyber" (deprecated) was automatically upgraded: openai:gpt-5.4-cyber -> openai:gpt-5.6-cyber.'
+        );
+    });
+
     it('supports explicit adaptive-only Anthropic reasoning models without adding legacy thinking budgets', () => {
         const config = resolveAiRequestConfig({
             preset: 'agentChat',

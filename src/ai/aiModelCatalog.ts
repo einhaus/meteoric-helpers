@@ -1,7 +1,7 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-09-07';
-const GPT_5_6_VERIFIED_AT = '2026-09-07';
+const VERIFIED_AT = '2026-09-14';
+const GPT_5_6_VERIFIED_AT = '2026-09-14';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -24,6 +24,12 @@ const OPENAI_PRICING_SOURCE: AiModelSource = {
 const OPENAI_DEPRECATIONS_SOURCE: AiModelSource = {
     label: 'OpenAI deprecations',
     url: 'https://developers.openai.com/api/docs/deprecations',
+    verifiedAt: VERIFIED_AT
+};
+
+const OPENAI_CHANGELOG_SOURCE: AiModelSource = {
+    label: 'OpenAI API changelog',
+    url: 'https://developers.openai.com/api/docs/changelog',
     verifiedAt: VERIFIED_AT
 };
 
@@ -352,6 +358,59 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         tags: ['specialized', 'reasoning', 'cybersecurity', 'restricted-access', 'agent']
     },
     {
+        modelKey: 'openai:gpt-rosalind-research',
+        provider: 'openai',
+        modelId: 'gpt-rosalind-research',
+        snapshotModelId: null,
+        aliases: [],
+        displayName: 'GPT-Rosalind',
+        family: 'gpt-rosalind',
+        description: 'Restricted-access life-sciences reasoning model for approved internal research.',
+        status: 'specialized',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: null,
+            supportsAudioInput: null,
+            supportsAudioOutput: null,
+            supportsVision: null,
+            supportsStreaming: null,
+            supportsToolCalling: null,
+            supportsStructuredOutputs: null,
+            supportsPromptCaching: true,
+            supportsWebSearch: null,
+            supportsFileSearch: null,
+            supportsComputerUse: null,
+            supportsMcp: null,
+            supportsReasoningEffort: null,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: null,
+        maxOutputTokens: null,
+        knowledgeCutoff: null,
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 5,
+            cachedInputUsdPerMillionTokens: 0.5,
+            outputUsdPerMillionTokens: 25,
+            cacheWriteUsdPerMillionTokens: null,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextCacheWriteUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'Billing begins October 5, 2026. Cache-write pricing does not apply. Access is limited to approved internal research through the trusted-access program.'
+        }),
+        sources: [OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE, OPENAI_CHANGELOG_SOURCE],
+        tags: ['specialized', 'reasoning', 'research', 'life-sciences', 'restricted-access']
+    },
+    {
         modelKey: 'openai:gpt-5.6-terra',
         provider: 'openai',
         modelId: 'gpt-5.6-terra',
@@ -638,6 +697,60 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         }),
         sources: [createOpenAiModelSource('gpt-5.4'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
         tags: ['recommended', 'reasoning', 'coding', 'agent'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
+    },
+    {
+        modelKey: 'openai:gpt-5.4-cyber',
+        provider: 'openai',
+        modelId: 'gpt-5.4-cyber',
+        snapshotModelId: null,
+        aliases: [],
+        displayName: 'GPT-5.4 Cyber',
+        family: 'gpt-5.4',
+        description: 'Deprecated restricted-access cybersecurity model from the OpenAI Daybreak program.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-5.6-cyber',
+        inputModalities: ['text'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: null,
+            supportsAudioInput: null,
+            supportsAudioOutput: null,
+            supportsVision: null,
+            supportsStreaming: null,
+            supportsToolCalling: null,
+            supportsStructuredOutputs: null,
+            supportsPromptCaching: null,
+            supportsWebSearch: null,
+            supportsFileSearch: null,
+            supportsComputerUse: null,
+            supportsMcp: null,
+            supportsReasoningEffort: null,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: null,
+        maxOutputTokens: null,
+        knowledgeCutoff: null,
+        pricing: createPricing({
+            inputUsdPerMillionTokens: null,
+            cachedInputUsdPerMillionTokens: null,
+            outputUsdPerMillionTokens: null,
+            cacheWriteUsdPerMillionTokens: null,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextCacheWriteUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'Deprecated September 11, 2026 and scheduled for API removal October 1, 2026. Official current documentation does not publish retained model specifications or pricing.'
+        }),
+        sources: [OPENAI_DEPRECATIONS_SOURCE, OPENAI_CYBER_SAFETY_SOURCE],
+        tags: ['specialized', 'reasoning', 'cybersecurity', 'restricted-access'],
         parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
