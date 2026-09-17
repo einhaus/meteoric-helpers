@@ -1,3 +1,4 @@
+import type { SendEmailCommandInput } from '@aws-sdk/client-ses';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const { destroyMock, sendMock } = vi.hoisted(() => ({
@@ -36,6 +37,27 @@ describe('sendEmail', () => {
         await expect(sendEmail(config)).resolves.toBeUndefined();
         expect(sendMock).toHaveBeenCalledTimes(1);
         expect(destroyMock).toHaveBeenCalledTimes(1);
+    });
+
+    test('sends only the HTML part when no plain-text body is supplied', async () => {
+        sendMock.mockResolvedValue({ MessageId: 'test-message-id' });
+
+        await sendEmail({ ...config, body: '<p>Hello</p>' });
+
+        const [command] = sendMock.mock.calls[0] as [{ input: SendEmailCommandInput }];
+        expect(command.input.Message?.Body).toEqual({ Html: { Charset: 'UTF-8', Data: '<p>Hello</p>' } });
+    });
+
+    test('adds the plain-text alternative when one is supplied', async () => {
+        sendMock.mockResolvedValue({ MessageId: 'test-message-id' });
+
+        await sendEmail({ ...config, body: '<p>Hello</p>', textBody: 'Hello' });
+
+        const [command] = sendMock.mock.calls[0] as [{ input: SendEmailCommandInput }];
+        expect(command.input.Message?.Body).toEqual({
+            Html: { Charset: 'UTF-8', Data: '<p>Hello</p>' },
+            Text: { Charset: 'UTF-8', Data: 'Hello' }
+        });
     });
 
     test('rejects when SES fails and still destroys the client', async () => {

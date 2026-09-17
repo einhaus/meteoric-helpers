@@ -7,10 +7,12 @@ export const sendEmail = async (config: {
     awsRegion: string;
     subject: string;
     body?: string;
+    /** Plain-text alternative for clients that do not render HTML. Omitted from the message when empty. */
+    textBody?: string;
     replyTo?: string;
     credentials?: AwsCredentials;
 }) => {
-    const { toEmail, subject, fromEmail, awsRegion, replyTo, body = '', credentials } = config;
+    const { toEmail, subject, fromEmail, awsRegion, replyTo, body = '', textBody, credentials } = config;
 
     const replyToAddresses = replyTo ? [replyTo] : [];
 
@@ -25,10 +27,14 @@ export const sendEmail = async (config: {
                     Charset: 'UTF-8',
                     Data: body
                 },
-                Text: {
-                    Charset: 'UTF-8',
-                    Data: ''
-                }
+                ...(textBody
+                    ? {
+                          Text: {
+                              Charset: 'UTF-8',
+                              Data: textBody
+                          }
+                      }
+                    : {})
             },
             Subject: {
                 Charset: 'UTF-8',

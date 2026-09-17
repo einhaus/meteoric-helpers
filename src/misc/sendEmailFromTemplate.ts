@@ -54,6 +54,7 @@ export const sendEmailFromTemplate = async (config: {
         toEmail,
         subject,
         body: htmlBody,
+        textBody: plainTextBody,
         replyTo: replyTo ? replyTo : fromEmail,
         fromEmail,
         awsRegion,
