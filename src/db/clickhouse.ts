@@ -127,13 +127,6 @@ export class DBClickhouse {
             clickhouseSettings.http_headers_progress_interval_ms = this.progressHeaderInterval.toString();
         }
 
-        // Log timeout configuration for debugging
-        console.log(
-            `[ClickHouse] Initializing client with timeouts: ` +
-                `request_timeout=${this.requestTimeout}ms (${Math.round(this.requestTimeout / 1000)}s), ` +
-                `max_execution_time=${this.maxExecutionTime}s`
-        );
-
         this.client = createClient({
             url: this.config.host,
             password: this.config.password,
