@@ -22,7 +22,6 @@ export class DBMysql {
     private readonly maxRetries: number;
     private readonly retryDelayMs: number;
     private readonly logger: Logger | null = null;
-    private poolResetPromise: Promise<void> | null = null;
 
     /**
      * Private constructor
@@ -86,6 +85,7 @@ export class DBMysql {
 
             const shouldResetPool =
                 previousConfig.host !== config.host ||
+                (previousConfig.port ?? 3306) !== (config.port ?? 3306) ||
                 previousConfig.user !== config.user ||
                 previousConfig.password !== config.password ||
                 previousConfig.db !== config.db ||
@@ -94,7 +94,7 @@ export class DBMysql {
 
             // Only reset the pool if connection-affecting config actually changed.
             if (shouldResetPool) {
-                void instance.resetPool('config updated');
+                instance.resetPool('config updated');
             }
         }
 
@@ -132,6 +132,7 @@ export class DBMysql {
     private buildConnectionConfig() {
         return {
             host: this.config.host,
+            ...(this.config.port !== undefined ? { port: this.config.port } : {}),
             user: this.config.user,
             password: this.config.password,
             database: this.config.db,
@@ -155,31 +156,21 @@ export class DBMysql {
         });
     }
 
-    private async resetPool(reason: string) {
-        if (this.poolResetPromise) return this.poolResetPromise;
+    private resetPool(reason: string) {
+        const oldPool = this.db;
+        // Replace the target synchronously; callers may query immediately after reconfiguration.
+        this.db = this.createPool();
 
-        this.poolResetPromise = Promise.resolve()
-            .then(() => {
-                const oldPool = this.db;
-                // Swap in a fresh pool immediately so concurrent callers can proceed.
-                this.db = this.createPool();
-
-                if (oldPool) {
-                    // Close the old pool in the background; don't block callers on draining.
-                    void oldPool.end().catch((e: unknown) => {
-                        this.handleError(e);
-                    });
-                }
-
-                if (reason) {
-                    console.warn(`MySQL pool reset: ${reason}`);
-                }
-            })
-            .finally(() => {
-                this.poolResetPromise = null;
+        if (oldPool) {
+            // Close the old pool in the background; don't block callers on draining.
+            void oldPool.end().catch((e: unknown) => {
+                this.handleError(e);
             });
+        }
 
-        return this.poolResetPromise;
+        if (reason) {
+            console.warn(`MySQL pool reset: ${reason}`);
+        }
     }
 
     async doSelectFirst<T extends object>(
@@ -212,7 +203,7 @@ export class DBMysql {
             } catch (e: unknown) {
                 if (this.isClosedConnectionError(e)) {
                     if (!connection) {
-                        await this.resetPool('pool closed');
+                        this.resetPool('pool closed');
                     } else {
                         // If a specific connection is provided, we can't recreate it safely because
                         // session-scoped state like transactions or advisory locks would be lost.
@@ -424,7 +415,7 @@ export class DBMysql {
                 retryAttempts++;
 
                 if (!connection && this.isClosedConnectionError(e) && retryAttempts < MAX_RETRIES) {
-                    await this.resetPool('pool closed');
+                    this.resetPool('pool closed');
                 } else if (this.isTransientError(e) && retryAttempts < MAX_RETRIES) {
                     console.warn(`Retryable error encountered (${(e as Error).message}). Retrying (${retryAttempts}/${MAX_RETRIES})...`);
 
@@ -495,7 +486,7 @@ export class DBMysql {
                 retryAttempts++;
 
                 if (!connection && this.isClosedConnectionError(e) && retryAttempts < this.maxRetries) {
-                    await this.resetPool('pool closed');
+                    this.resetPool('pool closed');
                 } else if (this.isTransientError(e, true) && retryAttempts < this.maxRetries) {
                     console.warn(`Insert transient error (${(e as Error).message}). Retrying (${retryAttempts}/${this.maxRetries})...`);
 

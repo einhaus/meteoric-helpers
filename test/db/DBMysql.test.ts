@@ -75,6 +75,70 @@ describe('DBMysql connection config', () => {
         expect(createPool).toHaveBeenCalledWith(expect.objectContaining({ jsonStrings: true, dateStrings: true }));
     });
 
+    it('leaves the port unspecified for the driver default', async () => {
+        createPool.mockReturnValue(createMockPool().pool);
+        const db = DBMysql.getInstance(TEST_DB_CONFIG, `config-pool-${testInstanceId++}`);
+        db.getPool();
+        await db.createConnection();
+
+        expect(createPool.mock.calls[0]?.[0]).not.toHaveProperty('port');
+        expect(createConnection.mock.calls[0]?.[0]).not.toHaveProperty('port');
+    });
+
+    it('uses the configured port for both pooled and direct connections', async () => {
+        createPool.mockReturnValue(createMockPool().pool);
+        const db = DBMysql.getInstance({ ...TEST_DB_CONFIG, port: 33306 }, `config-pool-${testInstanceId++}`);
+        db.getPool();
+        await db.createConnection();
+
+        expect(createPool).toHaveBeenCalledWith(expect.objectContaining({ port: 33306 }));
+        expect(createConnection).toHaveBeenCalledWith(expect.objectContaining({ port: 33306 }));
+    });
+
+    it('routes to the new port immediately while the old pool drains', () => {
+        const firstPool = createMockPool();
+        const secondPool = createMockPool();
+        firstPool.end.mockImplementationOnce(() => new Promise<void>(() => undefined));
+        createPool.mockReturnValueOnce(firstPool.pool).mockReturnValue(secondPool.pool);
+        const instanceKey = `config-pool-${testInstanceId++}`;
+        const db = DBMysql.getInstance(TEST_DB_CONFIG, instanceKey);
+        db.getPool();
+
+        DBMysql.getInstance({ ...TEST_DB_CONFIG, port: 33306 }, instanceKey);
+        expect(db.getPool()).toBe(secondPool.pool);
+        expect(createPool).toHaveBeenCalledTimes(2);
+        expect(createPool).toHaveBeenLastCalledWith(expect.objectContaining({ port: 33306 }));
+        expect(firstPool.end).toHaveBeenCalledOnce();
+    });
+
+    it('routes repeated synchronous reconfiguration to the latest port', () => {
+        const firstPool = createMockPool();
+        const secondPool = createMockPool();
+        const thirdPool = createMockPool();
+        createPool.mockReturnValueOnce(firstPool.pool).mockReturnValueOnce(secondPool.pool).mockReturnValueOnce(thirdPool.pool);
+        const instanceKey = `config-pool-${testInstanceId++}`;
+        const db = DBMysql.getInstance(TEST_DB_CONFIG, instanceKey);
+        db.getPool();
+
+        DBMysql.getInstance({ ...TEST_DB_CONFIG, port: 33306 }, instanceKey);
+        DBMysql.getInstance({ ...TEST_DB_CONFIG, port: 33307 }, instanceKey);
+
+        expect(db.getPool()).toBe(thirdPool.pool);
+        expect(createPool).toHaveBeenLastCalledWith(expect.objectContaining({ port: 33307 }));
+        expect(firstPool.end).toHaveBeenCalledOnce();
+        expect(secondPool.end).toHaveBeenCalledOnce();
+    });
+
+    it('keeps the pool when an explicit port is equivalent to the driver default', () => {
+        createPool.mockReturnValue(createMockPool().pool);
+        const instanceKey = `config-pool-${testInstanceId++}`;
+        const db = DBMysql.getInstance(TEST_DB_CONFIG, instanceKey);
+        db.getPool();
+
+        DBMysql.getInstance({ ...TEST_DB_CONFIG, port: 3306 }, instanceKey);
+        expect(createPool).toHaveBeenCalledOnce();
+    });
+
     it('allows opting into driver-decoded JSON columns', () => {
         createPool.mockReturnValue(createMockPool().pool);
 

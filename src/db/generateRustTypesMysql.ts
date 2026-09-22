@@ -5,6 +5,8 @@ import { DBMysql } from './mysql.js';
 
 export interface GenerateRustTypesMysqlOptions {
     host: string;
+    /** MySQL TCP port. Defaults to the driver default (3306). */
+    port?: number;
     user: string;
     password: string;
     db: string;
@@ -280,6 +282,7 @@ async function buildMysqlSchemaManifest(options: GenerateRustTypesMysqlOptions):
     const DB = DBMysql.getInstance(
         {
             host: options.host,
+            ...(options.port !== undefined ? { port: options.port } : {}),
             user: options.user,
             password: options.password,
             db: options.db,

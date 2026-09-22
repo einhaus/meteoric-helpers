@@ -84,6 +84,8 @@ export function normalizeUndefinedToNull<T>(obj: T): UndefinedToNull<T> {
 export interface DBConfig {
     user: string;
     host: string;
+    /** MySQL TCP port. Defaults to the driver default (3306). */
+    port?: number;
     password: string;
     db: string;
     charset?: string;
