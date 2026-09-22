@@ -194,8 +194,9 @@ export class DBMysql {
         let retryAttempts = 0;
 
         while (retryAttempts < this.maxRetries) {
+            let dbConnection: Pool | Connection | PoolConnection | undefined;
             try {
-                const dbConnection: Pool | Connection | PoolConnection = connection ? connection : this.getOrThrowPool();
+                dbConnection = connection ? connection : this.getOrThrowPool();
                 const query = dbConnection.format(queryString, parameters);
                 const [rows] = await dbConnection.query(query);
                 if (verbose) console.log(`Executing query: ${query}`);
@@ -203,7 +204,8 @@ export class DBMysql {
             } catch (e: unknown) {
                 if (this.isClosedConnectionError(e)) {
                     if (!connection) {
-                        this.resetPool('pool closed');
+                        // Another failed query or reconfiguration may already have replaced this pool.
+                        if (this.db === dbConnection) this.resetPool('pool closed');
                     } else {
                         // If a specific connection is provided, we can't recreate it safely because
                         // session-scoped state like transactions or advisory locks would be lost.
@@ -405,8 +407,9 @@ export class DBMysql {
         const RETRY_DELAY_MS = this.retryDelayMs;
 
         while (retryAttempts < MAX_RETRIES) {
+            let dbConnection: Pool | Connection | PoolConnection | undefined;
             try {
-                const dbConnection: Pool | Connection | PoolConnection = connection ? connection : this.getOrThrowPool();
+                dbConnection = connection ? connection : this.getOrThrowPool();
                 const query = dbConnection.format(queryString, parameters);
                 if (verbose) console.log(`Executing query: ${query}`);
                 const [row] = await dbConnection.query(query);
@@ -415,7 +418,8 @@ export class DBMysql {
                 retryAttempts++;
 
                 if (!connection && this.isClosedConnectionError(e) && retryAttempts < MAX_RETRIES) {
-                    this.resetPool('pool closed');
+                    // Never reset a fresh pool because an older in-flight query failed.
+                    if (this.db === dbConnection) this.resetPool('pool closed');
                 } else if (this.isTransientError(e) && retryAttempts < MAX_RETRIES) {
                     console.warn(`Retryable error encountered (${(e as Error).message}). Retrying (${retryAttempts}/${MAX_RETRIES})...`);
 
@@ -475,8 +479,9 @@ export class DBMysql {
         let retryAttempts = 0;
 
         while (retryAttempts < this.maxRetries) {
+            let dbConnection: Pool | Connection | PoolConnection | undefined;
             try {
-                const dbConnection: Pool | Connection | PoolConnection = connection ? connection : this.getOrThrowPool();
+                dbConnection = connection ? connection : this.getOrThrowPool();
                 const query = dbConnection.format(queryString, parameters);
                 if (verbose) console.log(`Executing query: ${query}`);
                 const [row] = await dbConnection.query(query);
@@ -486,7 +491,8 @@ export class DBMysql {
                 retryAttempts++;
 
                 if (!connection && this.isClosedConnectionError(e) && retryAttempts < this.maxRetries) {
-                    this.resetPool('pool closed');
+                    // Never reset a fresh pool because an older in-flight query failed.
+                    if (this.db === dbConnection) this.resetPool('pool closed');
                 } else if (this.isTransientError(e, true) && retryAttempts < this.maxRetries) {
                     console.warn(`Insert transient error (${(e as Error).message}). Retrying (${retryAttempts}/${this.maxRetries})...`);
 

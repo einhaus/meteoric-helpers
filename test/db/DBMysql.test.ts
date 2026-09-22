@@ -169,6 +169,16 @@ const createMutationPool = (query: ReturnType<typeof vi.fn>) => ({
     query
 });
 
+const createDeferred = <T>() => {
+    let resolve!: (value: T) => void;
+    let reject!: (reason: unknown) => void;
+    const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+        resolve = resolvePromise;
+        reject = rejectPromise;
+    });
+    return { promise, reject, resolve };
+};
+
 const createDb = (maxRetries: number) =>
     DBMysql.getInstance({ ...TEST_DB_CONFIG, maxRetries, retryDelayMs: 0 }, `mutation-pool-${testInstanceId++}`);
 
@@ -180,6 +190,54 @@ const resetMutationMocks = () => {
 };
 
 const createDbError = (message: string, code: string) => Object.assign(new Error(message), { code });
+
+describe('DBMysql.doSelectMultiple', () => {
+    beforeEach(resetMutationMocks);
+
+    it('does not replace a newly configured pool when an old select reports closure', async () => {
+        const deferred = createDeferred<[{ id: number }[]]>();
+        const oldPool = createMutationPool(vi.fn(() => deferred.promise));
+        const newPool = createMutationPool(vi.fn(async () => [[{ id: 1 }]]));
+        createPool.mockReturnValueOnce(oldPool).mockReturnValueOnce(newPool);
+        const instanceKey = `select-pool-${testInstanceId++}`;
+        const db = DBMysql.getInstance({ ...TEST_DB_CONFIG, maxRetries: 3, retryDelayMs: 0 }, instanceKey);
+        const result = db.doSelectMultiple<{ id: number }>('SELECT id FROM titles');
+        await vi.waitFor(() => expect(oldPool.query).toHaveBeenCalledOnce());
+
+        DBMysql.getInstance({ ...TEST_DB_CONFIG, port: 33306, maxRetries: 3, retryDelayMs: 0 }, instanceKey);
+        deferred.reject(createDbError('Pool is closed.', 'PROTOCOL_ENQUEUE_AFTER_QUIT'));
+
+        await expect(result).resolves.toEqual([{ id: 1 }]);
+        expect(createPool).toHaveBeenCalledTimes(2);
+        expect(newPool.end).not.toHaveBeenCalled();
+    });
+
+    it('keeps the latest pool when concurrent old selects fail after reconfiguration', async () => {
+        const first = createDeferred<[{ id: number }[]]>();
+        const second = createDeferred<[{ id: number }[]]>();
+        const oldPool = createMutationPool(
+            vi
+                .fn()
+                .mockImplementationOnce(() => first.promise)
+                .mockImplementationOnce(() => second.promise)
+        );
+        const newPool = createMutationPool(vi.fn(async () => [[{ id: 2 }]]));
+        createPool.mockReturnValueOnce(oldPool).mockReturnValueOnce(newPool);
+        const instanceKey = `select-pool-${testInstanceId++}`;
+        const db = DBMysql.getInstance({ ...TEST_DB_CONFIG, maxRetries: 3, retryDelayMs: 0 }, instanceKey);
+        const firstResult = db.doSelectMultiple<{ id: number }>('SELECT id FROM titles');
+        const secondResult = db.doSelectMultiple<{ id: number }>('SELECT id FROM titles');
+        await vi.waitFor(() => expect(oldPool.query).toHaveBeenCalledTimes(2));
+
+        DBMysql.getInstance({ ...TEST_DB_CONFIG, port: 33306, maxRetries: 3, retryDelayMs: 0 }, instanceKey);
+        first.reject(createDbError('Pool is closed.', 'PROTOCOL_ENQUEUE_AFTER_QUIT'));
+        second.reject(createDbError('Pool is closed.', 'PROTOCOL_ENQUEUE_AFTER_QUIT'));
+
+        await expect(Promise.all([firstResult, secondResult])).resolves.toEqual([[{ id: 2 }], [{ id: 2 }]]);
+        expect(createPool).toHaveBeenCalledTimes(2);
+        expect(newPool.end).not.toHaveBeenCalled();
+    });
+});
 
 describe('DBMysql.doQuery', () => {
     beforeEach(resetMutationMocks);
@@ -231,6 +289,24 @@ describe('DBMysql.doQuery', () => {
             lockWaitError
         );
         expect(query).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not replace a newly configured pool when an old query reports closure', async () => {
+        const deferred = createDeferred<[{ affectedRows: number; insertId: number }]>();
+        const oldPool = createMutationPool(vi.fn(() => deferred.promise));
+        const newPool = createMutationPool(vi.fn(async () => [{ affectedRows: 1, insertId: 0 }]));
+        createPool.mockReturnValueOnce(oldPool).mockReturnValueOnce(newPool);
+        const instanceKey = `mutation-pool-${testInstanceId++}`;
+        const db = DBMysql.getInstance({ ...TEST_DB_CONFIG, maxRetries: 3, retryDelayMs: 0 }, instanceKey);
+        const result = db.doQuery({ queryString: 'UPDATE titles SET name = ? WHERE id = ?', parameters: ['b', 1] });
+        await vi.waitFor(() => expect(oldPool.query).toHaveBeenCalledOnce());
+
+        DBMysql.getInstance({ ...TEST_DB_CONFIG, port: 33306, maxRetries: 3, retryDelayMs: 0 }, instanceKey);
+        deferred.reject(createDbError('Pool is closed.', 'PROTOCOL_ENQUEUE_AFTER_QUIT'));
+
+        await expect(result).resolves.toEqual({ affectedRows: 1, insertId: 0 });
+        expect(createPool).toHaveBeenCalledTimes(2);
+        expect(newPool.end).not.toHaveBeenCalled();
     });
 });
 
@@ -288,6 +364,24 @@ describe('DBMysql.insert', () => {
 
         await expect(createDb(3).insert<{ name: string }>({ table: 'titles', params: { name: 'a' } })).rejects.toBe(deadlockError);
         expect(query).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not replace a newly configured pool when an old insert reports closure', async () => {
+        const deferred = createDeferred<[{ affectedRows: number; insertId: number }]>();
+        const oldPool = createMutationPool(vi.fn(() => deferred.promise));
+        const newPool = createMutationPool(vi.fn(async () => [{ affectedRows: 1, insertId: 31 }]));
+        createPool.mockReturnValueOnce(oldPool).mockReturnValueOnce(newPool);
+        const instanceKey = `mutation-pool-${testInstanceId++}`;
+        const db = DBMysql.getInstance({ ...TEST_DB_CONFIG, maxRetries: 3, retryDelayMs: 0 }, instanceKey);
+        const result = db.insert<{ name: string }>({ table: 'titles', params: { name: 'a' } });
+        await vi.waitFor(() => expect(oldPool.query).toHaveBeenCalledOnce());
+
+        DBMysql.getInstance({ ...TEST_DB_CONFIG, port: 33306, maxRetries: 3, retryDelayMs: 0 }, instanceKey);
+        deferred.reject(createDbError('Pool is closed.', 'PROTOCOL_ENQUEUE_AFTER_QUIT'));
+
+        await expect(result).resolves.toBe(31);
+        expect(createPool).toHaveBeenCalledTimes(2);
+        expect(newPool.end).not.toHaveBeenCalled();
     });
 });
 
