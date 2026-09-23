@@ -60,7 +60,6 @@ export * from './date/getsDaysSinceDate.js';
 export * from './date/dayjsTimezone.js';
 export * from './date/generateTimestampRanges.js';
 export * from './date/getDatePlusMinus.js';
-export * from './math/getOptionSellQuantity.js';
 export * from './math/generateRangeArray.js';
 export * from './math/medianNumberArray.js';
 export * from './math/roundToClosestDivisible.js';
