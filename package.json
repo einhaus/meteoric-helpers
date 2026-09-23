@@ -1,6 +1,6 @@
 {
     "name": "@einhaus/meteoric-helpers",
-    "version": "1.0.157",
+    "version": "1.0.159",
     "files": [
         "dist",
         "README.md"
