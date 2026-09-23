@@ -61,7 +61,8 @@
         "lint:all": "bun run lint",
         "lint:fix": "oxlint --disable-nested-config --fix --deny-warnings --report-unused-disable-directives-severity=error .",
         "format": "oxfmt .",
-        "format:check": "oxfmt --check ."
+        "format:check": "oxfmt --check .",
+        "prepublishOnly": "bun run build && node utilities/assertCleanPublish.mjs"
     },
     "repository": {
         "type": "git",
