@@ -1,7 +1,7 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-09-14';
-const GPT_5_6_VERIFIED_AT = '2026-09-14';
+const VERIFIED_AT = '2026-09-21';
+const GPT_5_6_VERIFIED_AT = '2026-09-21';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
