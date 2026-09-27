@@ -86,8 +86,14 @@ export type BunDbPrimaryKey<Schema extends BunDbSchema, Table extends BunDbTable
     Table
 >['primaryKey'];
 
-export interface BunDbRuntimeTableMetadata<PrimaryKey extends string = string> {
-    primaryKey?: PrimaryKey | readonly PrimaryKey[];
+export interface BunDbRuntimeTableMetadata<Column extends string = string> {
+    primaryKey?: Column | readonly Column[];
+    /**
+     * Postgres int8 (`bigint`/`bigserial`) columns. Bun.SQL returns them as strings, so DBBun's typed
+     * `select`/`selectOne` helpers and Postgres `insertId` coerce them to safe integers to match their
+     * generated `number` types.
+     */
+    bigintColumns?: readonly Column[];
 }
 
 export type BunDbRuntimeSchemaMetadata<Schema extends BunDbSchema> = {

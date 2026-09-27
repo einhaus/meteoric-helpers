@@ -27,6 +27,29 @@ const LIST_SEPARATOR = String.fromCharCode(31);
 
 const isImmutableAutoManagedColumn = (columnName: string) => columnName === 'created_at' || columnName === 'createdAt';
 
+// information_schema reports scalar int8 columns (bigint, bigserial, and domains over int8) as `bigint`,
+// while arrays such as `bigint[]` report as `ARRAY`, so only scalar columns are matched.
+const isBigIntColumn = (dataType: string) => dataType.toLowerCase() === 'bigint';
+
+const quoteColumnList = (columns: readonly string[]) => `[${columns.map((column) => `'${column}'`).join(', ')}]`;
+
+const renderBunSchemaMetadataEntry = (tableName: string, primaryKeyColumns: readonly string[], bigintColumns: readonly string[]) => {
+    const fields: string[] = [];
+
+    if (primaryKeyColumns.length === 1) {
+        fields.push(`primaryKey: '${primaryKeyColumns[0]}'`);
+    } else if (primaryKeyColumns.length > 1) {
+        fields.push(`primaryKey: ${quoteColumnList(primaryKeyColumns)}`);
+    }
+
+    // Bun.SQL returns int8 values as strings; DBBun coerces these columns so reads match the generated `number` type.
+    if (bigintColumns.length > 0) {
+        fields.push(`bigintColumns: ${quoteColumnList(bigintColumns)}`);
+    }
+
+    return `    ${tableName}: ${fields.length > 0 ? `{ ${fields.join(', ')} }` : '{}'},`;
+};
+
 export interface GenerateTypesPgOptions {
     host: string;
     user: string;
@@ -670,15 +693,9 @@ export type ${pascalCaseTableName}RowInsert = ${
                     `    ${tableName}: BunDbSchemaTable<${pascalCaseTableName}Row, ${pascalCaseTableName}RowInsert, ${pascalCaseTableName}RowUpdate${primaryKeyTypeArgument}>;`
                 );
 
-                if (primaryKeyColumns.length === 1) {
-                    bunSchemaMetadataEntries.push(`    ${tableName}: { primaryKey: '${primaryKeyColumns[0]}' },`);
-                } else if (primaryKeyColumns.length > 1) {
-                    bunSchemaMetadataEntries.push(
-                        `    ${tableName}: { primaryKey: [${primaryKeyColumns.map((column) => `'${column}'`).join(', ')}] },`
-                    );
-                } else {
-                    bunSchemaMetadataEntries.push(`    ${tableName}: {},`);
-                }
+                const bigintColumns = columns.filter((column) => isBigIntColumn(column.data_type)).map((column) => column.column_name);
+
+                bunSchemaMetadataEntries.push(renderBunSchemaMetadataEntry(tableName, primaryKeyColumns, bigintColumns));
             }
         }
 

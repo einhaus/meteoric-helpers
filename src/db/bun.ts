@@ -105,6 +105,51 @@ const renderAssignmentValue = (values: unknown[], value: unknown): string => {
     return pushValue(values, value);
 };
 
+const MAX_SAFE_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
+const MIN_SAFE_BIGINT = BigInt(Number.MIN_SAFE_INTEGER);
+const INTEGER_STRING_PATTERN = /^-?\d+$/;
+
+const toSafeInteger = (value: number | bigint | string, label: string): number => {
+    if (typeof value === 'bigint') {
+        if (value > MAX_SAFE_BIGINT || value < MIN_SAFE_BIGINT) {
+            throw new Error(`${label} ${value.toString()} exceeds the safe integer range.`);
+        }
+
+        return Number(value);
+    }
+
+    if (typeof value === 'string' && !INTEGER_STRING_PATTERN.test(value)) {
+        throw new Error(`${label} "${value}" is not a valid integer string.`);
+    }
+
+    // Integer strings beyond 2^53 - 1 parse to doubles that are no longer safe integers, so this check
+    // rejects them without allocating a BigInt for every value.
+    const numberValue = Number(value);
+
+    if (!Number.isSafeInteger(numberValue)) {
+        throw new Error(`${label} ${String(value)} exceeds the safe integer range.`);
+    }
+
+    return numberValue;
+};
+
+/**
+ * Bun.SQL returns Postgres int8 values as strings (or bigints with `bigint: true`), while generated
+ * schemas type them as `number`. Values that cannot be represented exactly fail loudly instead of
+ * silently losing precision.
+ */
+const coerceBigintColumnValue = (value: unknown, table: string, column: string): number | null => {
+    if (value === null) {
+        return null;
+    }
+
+    if (typeof value !== 'number' && typeof value !== 'bigint' && typeof value !== 'string') {
+        throw new Error(`Unsupported value type ${typeof value} for bigint column ${table}.${column}.`);
+    }
+
+    return toSafeInteger(value, `Bigint column ${table}.${column} value`);
+};
+
 export interface DBBunConfig<Schema extends BunDbSchema = BunDbSchema> {
     url?: string;
     adapter?: BunDbDialect | 'mariadb';
@@ -458,7 +503,33 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
     ): Promise<BunDbSelectResult<Schema, Table, Columns>> {
         const { queryString, parameters } = this.buildSelectQuery(table, config);
         const rows = await this.executeUnsafe<BunDbSelectResult<Schema, Table, Columns>>(context, queryString, parameters);
+        this.coerceSelectedBigintColumns(table, config?.columns, rows as readonly Record<string, unknown>[]);
         return rows;
+    }
+
+    /**
+     * Converts the selected Postgres int8 columns in place so typed reads match their generated `number` types.
+     */
+    private coerceSelectedBigintColumns<Table extends BunDbTableName<Schema>>(
+        table: Table,
+        selectedColumns: readonly BunDbColumnName<Schema, Table>[] | undefined,
+        rows: readonly Record<string, unknown>[]
+    ): void {
+        if (rows.length === 0 || this.dialect !== 'postgres') return;
+
+        let bigintColumns = this.getBigintColumns(table);
+        if (bigintColumns.length === 0) return;
+
+        if (selectedColumns && selectedColumns.length > 0) {
+            const selected = new Set<string>(selectedColumns);
+            bigintColumns = bigintColumns.filter((column) => selected.has(column));
+        }
+
+        for (const row of rows) {
+            for (const column of bigintColumns) {
+                row[column] = coerceBigintColumnValue(row[column], table, column);
+            }
+        }
     }
 
     private async insertManyWithContext<Table extends BunDbTableName<Schema>>(
@@ -528,9 +599,10 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
             if (singlePrimaryKey) {
                 queryString += ` RETURNING ${this.quoteIdentifier(singlePrimaryKey)} AS "__insert_id"`;
 
-                const rows = await this.executeUnsafe<{ __insert_id: BunDbInsertId<Schema, Table> }[]>(context, queryString, parameters);
+                const rows = await this.executeUnsafe<{ __insert_id: unknown }[]>(context, queryString, parameters);
+                const lastRow = rows[rows.length - 1];
 
-                const insertId = rows.length > 0 ? rows[rows.length - 1]?.__insert_id : undefined;
+                const insertId = lastRow ? this.coerceInsertId(table, singlePrimaryKey, lastRow.__insert_id) : undefined;
 
                 return {
                     affectedRows: rows.length,
@@ -854,6 +926,26 @@ export class DBBun<Schema extends BunDbSchema = BunDbSchema> implements BunDbCli
     private getSinglePrimaryKeyColumn<Table extends BunDbTableName<Schema>>(table: Table): string | undefined {
         const primaryKey = this.getPrimaryKeyColumns(table);
         return primaryKey.length === 1 ? primaryKey[0] : undefined;
+    }
+
+    private getBigintColumns<Table extends BunDbTableName<Schema>>(table: Table): readonly string[] {
+        return this.config.schemaMetadata?.[table]?.bigintColumns ?? [];
+    }
+
+    /**
+     * Postgres returns the primary key through RETURNING, so int8 keys arrive as strings like any other
+     * int8 read. Keys of other types (int4, text, uuid, ...) are returned unchanged.
+     */
+    private coerceInsertId<Table extends BunDbTableName<Schema>>(
+        table: Table,
+        primaryKey: string,
+        value: unknown
+    ): BunDbInsertId<Schema, Table> {
+        if (!this.getBigintColumns(table).includes(primaryKey)) {
+            return value as BunDbInsertId<Schema, Table>;
+        }
+
+        return coerceBigintColumnValue(value, table, primaryKey) as BunDbInsertId<Schema, Table>;
     }
 
     private async executeTagged<TResult>(
