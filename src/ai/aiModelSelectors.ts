@@ -50,6 +50,7 @@ function normalizeProvider(value: string): AiProvider | null {
 
 function matchesOpenAiVisionFallback(modelIdentifier: string): boolean {
     return (
+        modelIdentifier.startsWith('gpt-6') ||
         modelIdentifier.startsWith('gpt-5') ||
         modelIdentifier.startsWith('gpt-4.1') ||
         modelIdentifier.startsWith('gpt-4o') ||
@@ -210,6 +211,7 @@ export function isAiAgentChatCandidate(modelIdentifier: string, provider?: AiPro
     if (inferredProvider !== 'openai') return false;
 
     const shouldInclude =
+        normalizedModelIdentifier.startsWith('gpt-6') ||
         normalizedModelIdentifier.startsWith('gpt-5') ||
         normalizedModelIdentifier.startsWith('gpt-4o') ||
         normalizedModelIdentifier.startsWith('gpt-4.1') ||

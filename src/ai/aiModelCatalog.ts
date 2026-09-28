@@ -1,7 +1,7 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-09-21';
-const GPT_5_6_VERIFIED_AT = '2026-09-21';
+const VERIFIED_AT = '2026-09-28';
+const GPT_5_6_VERIFIED_AT = '2026-09-28';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -105,6 +105,12 @@ const ANTHROPIC_OPUS_5_SOURCE: AiModelSource = {
     verifiedAt: VERIFIED_AT
 };
 
+const ANTHROPIC_OPUS_5_5_MIGRATION_SOURCE: AiModelSource = {
+    label: 'Anthropic Claude Opus 5.5 migration guide',
+    url: 'https://platform.claude.com/docs/en/models/opus-5-5/migration-guide',
+    verifiedAt: VERIFIED_AT
+};
+
 const ANTHROPIC_SONNET_5_SOURCE: AiModelSource = {
     label: 'Anthropic Claude Sonnet 5 launch notes',
     url: 'https://platform.claude.com/docs/en/about-claude/models/whats-new-sonnet-5',
@@ -142,6 +148,7 @@ const ANTHROPIC_CONTEXT_WINDOWS_SOURCE: AiModelSource = {
 };
 
 const OPENAI_GPT_6_REASONING_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+const OPENAI_GPT_6_REASONING_LEVELS_WITH_NONE = ['none', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
 const OPENAI_GPT_5_6_REASONING_LEVELS = ['none', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
 const OPENAI_GPT_5_5_REASONING_LEVELS = ['none', 'low', 'medium', 'high', 'xhigh'] as const;
 const OPENAI_GPT_5_4_REASONING_LEVELS = ['none', 'low', 'medium', 'high', 'xhigh'] as const;
@@ -233,6 +240,128 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             OPENAI_LATEST_MODEL_GUIDE_SOURCE
         ],
         tags: ['flagship', 'reasoning', 'coding', 'agent', 'research'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
+    },
+    {
+        modelKey: 'openai:gpt-6-sol',
+        provider: 'openai',
+        modelId: 'gpt-6-sol',
+        snapshotModelId: 'gpt-6-sol',
+        aliases: [],
+        displayName: 'GPT-6 Sol',
+        family: 'gpt-6',
+        description: 'OpenAI model for complex coding and agentic workflows that balances intelligence and cost.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: true,
+            supportsMcp: true,
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: OPENAI_GPT_6_REASONING_LEVELS_WITH_NONE,
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 1_050_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-04-20',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 2,
+            cachedInputUsdPerMillionTokens: 0.2,
+            outputUsdPerMillionTokens: 10,
+            cacheWriteUsdPerMillionTokens: 2.5,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 272_000,
+            longContextInputUsdPerMillionTokens: 4,
+            longContextCachedInputUsdPerMillionTokens: 0.4,
+            longContextCacheWriteUsdPerMillionTokens: 5,
+            longContextOutputUsdPerMillionTokens: 15,
+            notes: 'Prompts above 272K input tokens are billed at 2x input and cache rates and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
+        }),
+        sources: [
+            createOpenAiModelSource('gpt-6-sol'),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_CHANGELOG_SOURCE,
+            OPENAI_LATEST_MODEL_GUIDE_SOURCE
+        ],
+        tags: ['recommended', 'reasoning', 'coding', 'agent', 'balanced', 'research'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
+    },
+    {
+        modelKey: 'openai:gpt-6-luna',
+        provider: 'openai',
+        modelId: 'gpt-6-luna',
+        snapshotModelId: 'gpt-6-luna',
+        aliases: [],
+        displayName: 'GPT-6 Luna',
+        family: 'gpt-6',
+        description: 'OpenAI’s efficient GPT-6 model for focused, cost-sensitive, high-volume workloads.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: true,
+            supportsMcp: true,
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: OPENAI_GPT_6_REASONING_LEVELS_WITH_NONE,
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 1_050_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-05-18',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 0.1,
+            cachedInputUsdPerMillionTokens: 0.01,
+            outputUsdPerMillionTokens: 0.5,
+            cacheWriteUsdPerMillionTokens: 0.125,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 272_000,
+            longContextInputUsdPerMillionTokens: 0.2,
+            longContextCachedInputUsdPerMillionTokens: 0.02,
+            longContextCacheWriteUsdPerMillionTokens: 0.25,
+            longContextOutputUsdPerMillionTokens: 0.75,
+            notes: 'Prompts above 272K input tokens are billed at 2x input and cache rates and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
+        }),
+        sources: [
+            createOpenAiModelSource('gpt-6-luna'),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_CHANGELOG_SOURCE,
+            OPENAI_LATEST_MODEL_GUIDE_SOURCE
+        ],
+        tags: ['recommended', 'reasoning', 'fast', 'cheap', 'high-volume'],
         parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
@@ -2349,9 +2478,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'o3 Deep Research',
         family: 'o3-deep-research',
-        description: 'Retired OpenAI deep-research model retained for compatibility (requests now fail on the OpenAI API).',
-        status: 'retired',
-        recommendedReplacementModelKey: 'openai:gpt-5.6-sol',
+        description: 'OpenAI’s most powerful dedicated deep-research model for complex, multi-step research.',
+        status: 'specialized',
+        recommendedReplacementModelKey: null,
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -2397,7 +2526,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             OPENAI_PRICING_SOURCE,
             OPENAI_DEPRECATIONS_SOURCE
         ],
-        tags: ['retired', 'deep-research', 'search', 'compatibility']
+        tags: ['specialized', 'deep-research', 'search']
     },
     {
         modelKey: 'openai:o3-deep-research-2025-06-26',
@@ -2409,7 +2538,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         family: 'o3-deep-research',
         description: 'Retired pinned deep-research snapshot kept for compatibility with apps that reference this model ID directly.',
         status: 'retired',
-        recommendedReplacementModelKey: 'openai:gpt-5.6-sol',
+        recommendedReplacementModelKey: 'openai:o3-deep-research',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -2465,9 +2594,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'o4-mini Deep Research',
         family: 'o4-mini-deep-research',
-        description: 'Retired faster, lower-cost OpenAI deep-research model retained for compatibility.',
-        status: 'retired',
-        recommendedReplacementModelKey: 'openai:gpt-5.6-sol',
+        description: 'OpenAI’s faster, lower-cost dedicated deep-research model for complex, multi-step research.',
+        status: 'specialized',
+        recommendedReplacementModelKey: null,
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -2513,7 +2642,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             OPENAI_PRICING_SOURCE,
             OPENAI_DEPRECATIONS_SOURCE
         ],
-        tags: ['retired', 'deep-research', 'fast', 'search', 'compatibility']
+        tags: ['specialized', 'deep-research', 'fast', 'search']
     },
     {
         modelKey: 'openai:o4-mini-deep-research-2025-06-26',
@@ -2525,7 +2654,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         family: 'o4-mini-deep-research',
         description: 'Retired pinned deep-research snapshot kept for compatibility with apps that reference this model ID directly.',
         status: 'retired',
-        recommendedReplacementModelKey: 'openai:gpt-5.6-sol',
+        recommendedReplacementModelKey: 'openai:o4-mini-deep-research',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -2898,6 +3027,74 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         }
     },
     {
+        modelKey: 'anthropic:claude-opus-5-5',
+        provider: 'anthropic',
+        modelId: 'claude-opus-5-5',
+        snapshotModelId: 'claude-opus-5-5',
+        aliases: [],
+        displayName: 'Claude Opus 5.5',
+        family: 'claude-opus-5',
+        description: 'Anthropic’s current Opus model for long-running agentic coding and knowledge work.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: null,
+            supportsComputerUse: true,
+            supportsMcp: null,
+            supportsReasoningEffort: false,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: false,
+            supportsAdaptiveThinking: true,
+            requiresAdaptiveThinking: true
+        }),
+        contextWindowTokens: 1_000_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-06',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 4,
+            cachedInputUsdPerMillionTokens: 0.2,
+            outputUsdPerMillionTokens: 20,
+            cacheWrite5mUsdPerMillionTokens: 5,
+            cacheWrite1hUsdPerMillionTokens: 8,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'Full 1M context is included at standard pricing. Adaptive thinking is always on and is controlled with the effort parameter; legacy manual and disabled thinking configurations are rejected.'
+        }),
+        sources: [
+            createAnthropicModelSource('opus-5-5'),
+            ANTHROPIC_MODELS_SOURCE,
+            ANTHROPIC_MODEL_IDS_SOURCE,
+            ANTHROPIC_PRICING_SOURCE,
+            ANTHROPIC_MODEL_DEPRECATIONS_SOURCE,
+            ANTHROPIC_RELEASE_NOTES_SOURCE,
+            ANTHROPIC_OPUS_5_5_MIGRATION_SOURCE,
+            ANTHROPIC_ADAPTIVE_THINKING_SOURCE,
+            ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE,
+            ANTHROPIC_WEB_SEARCH_SOURCE,
+            ANTHROPIC_COMPUTER_USE_SOURCE
+        ],
+        tags: ['recommended', 'reasoning', 'coding', 'agent'],
+        parameterPolicies: {
+            temperature: 'unsupported',
+            forcedToolChoice: 'unsupported'
+        }
+    },
+    {
         modelKey: 'anthropic:claude-opus-5',
         provider: 'anthropic',
         modelId: 'claude-opus-5',
@@ -2905,9 +3102,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'Claude Opus 5',
         family: 'claude-opus-5',
-        description: 'Anthropic’s current Opus model for complex agentic coding, deep reasoning, and enterprise work.',
-        status: 'active',
-        recommendedReplacementModelKey: null,
+        description: 'Previous Anthropic Opus model retained for compatibility with Claude Opus 5 deployments.',
+        status: 'legacy',
+        recommendedReplacementModelKey: 'anthropic:claude-opus-5-5',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -2958,7 +3155,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             ANTHROPIC_WEB_SEARCH_SOURCE,
             ANTHROPIC_COMPUTER_USE_SOURCE
         ],
-        tags: ['recommended', 'reasoning', 'coding', 'agent'],
+        tags: ['legacy', 'reasoning', 'coding', 'agent', 'compatibility'],
         parameterPolicies: {
             temperature: 'unsupported'
         }

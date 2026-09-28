@@ -44,37 +44,37 @@ const createCostPolicy = (policy: AiModelProfileCostPolicy): AiModelProfileCostP
 export const AI_PROVIDER_MODEL_PROFILE_DEFAULTS: Readonly<Record<AiProvider, AiProviderModelProfileDefaultMap>> = {
     openai: {
         reasoning: {
-            modelKey: 'openai:gpt-5.6-terra',
+            modelKey: 'openai:gpt-6-sol',
             inferenceProfileKey: 'reasoning_high'
         },
         balanced: {
-            modelKey: 'openai:gpt-5.6-terra',
+            modelKey: 'openai:gpt-6-sol',
             inferenceProfileKey: 'reasoning_medium'
         },
         fast: {
-            modelKey: 'openai:gpt-5.6-luna',
+            modelKey: 'openai:gpt-6-luna',
             inferenceProfileKey: 'reasoning_low'
         },
         cheap: {
-            modelKey: 'openai:gpt-5.6-luna',
+            modelKey: 'openai:gpt-6-luna',
             inferenceProfileKey: 'reasoning_none'
         },
         title: {
-            modelKey: 'openai:gpt-5.6-luna',
+            modelKey: 'openai:gpt-6-luna',
             inferenceProfileKey: 'reasoning_none'
         },
         webSearch: {
-            modelKey: 'openai:gpt-5.6-terra',
+            modelKey: 'openai:gpt-6-sol',
             inferenceProfileKey: 'reasoning_medium'
         },
         deepResearch: {
-            modelKey: 'openai:gpt-5.6-sol',
-            inferenceProfileKey: 'reasoning_high'
+            modelKey: 'openai:o4-mini-deep-research',
+            inferenceProfileKey: null
         }
     },
     anthropic: {
         reasoning: {
-            modelKey: 'anthropic:claude-opus-5',
+            modelKey: 'anthropic:claude-opus-5-5',
             inferenceProfileKey: 'reasoning_high'
         },
         balanced: {
@@ -122,7 +122,7 @@ export const AI_PROVIDER_MODEL_PROFILE_COST_POLICIES: Readonly<Record<AiProvider
             maxOutputPriceMultiplier: 1.01,
             maxCacheWritePriceMultiplier: null,
             approvedHigherCostModels: [],
-            notes: 'Reasoning defaults use Terra for strong reasoning at the standard GPT-5.6 price tier; Sol promotions require explicit approval.'
+            notes: 'Reasoning defaults use GPT-6 Sol within the existing GPT-5.6 Terra price ceiling; higher-cost promotions require explicit approval.'
         }),
         balanced: createCostPolicy({
             costTier: 'standard',
@@ -158,7 +158,7 @@ export const AI_PROVIDER_MODEL_PROFILE_COST_POLICIES: Readonly<Record<AiProvider
             maxOutputPriceMultiplier: 1.01,
             maxCacheWritePriceMultiplier: null,
             approvedHigherCostModels: [],
-            notes: 'Fast defaults use Luna for low-latency, high-volume workloads and must remain at the Luna price tier.'
+            notes: 'Fast defaults use GPT-6 Luna for low-latency, high-volume workloads and must remain within the GPT-5.6 Luna reference tier.'
         }),
         cheap: createCostPolicy({
             costTier: 'economy',
@@ -176,7 +176,7 @@ export const AI_PROVIDER_MODEL_PROFILE_COST_POLICIES: Readonly<Record<AiProvider
             maxOutputPriceMultiplier: 1.01,
             maxCacheWritePriceMultiplier: null,
             approvedHigherCostModels: [],
-            notes: 'Cheap defaults use Luna and must remain at its high-volume background-task price tier.'
+            notes: 'Cheap defaults use GPT-6 Luna and must remain within the GPT-5.6 Luna high-volume background-task reference tier.'
         }),
         title: createCostPolicy({
             costTier: 'economy',
@@ -194,7 +194,7 @@ export const AI_PROVIDER_MODEL_PROFILE_COST_POLICIES: Readonly<Record<AiProvider
             maxOutputPriceMultiplier: 1.01,
             maxCacheWritePriceMultiplier: null,
             approvedHigherCostModels: [],
-            notes: 'Title-generation defaults are latency/cost sensitive and should stay at the Luna price tier.'
+            notes: 'Title-generation defaults use GPT-6 Luna and must remain within the GPT-5.6 Luna latency/cost reference tier.'
         }),
         webSearch: createCostPolicy({
             costTier: 'premium',
@@ -212,7 +212,7 @@ export const AI_PROVIDER_MODEL_PROFILE_COST_POLICIES: Readonly<Record<AiProvider
             maxOutputPriceMultiplier: 1.01,
             maxCacheWritePriceMultiplier: null,
             approvedHigherCostModels: [],
-            notes: 'Web-search defaults use search-capable Terra for broad production traffic; Sol promotions require approval.'
+            notes: 'Web-search defaults use search-capable GPT-6 Sol within the existing GPT-5.6 Terra price ceiling.'
         }),
         deepResearch: createCostPolicy({
             costTier: 'specialized',
@@ -229,8 +229,14 @@ export const AI_PROVIDER_MODEL_PROFILE_COST_POLICIES: Readonly<Record<AiProvider
             maxCachedInputPriceMultiplier: 1.01,
             maxOutputPriceMultiplier: 1.01,
             maxCacheWritePriceMultiplier: null,
-            approvedHigherCostModels: [],
-            notes: 'Deep research intentionally uses quality-first Sol at promotional rates available at least through November 21, 2026; other profiles should remain on Terra or Luna unless separately approved.'
+            approvedHigherCostModels: [
+                {
+                    modelKey: 'openai:o4-mini-deep-research',
+                    approvedAt: '2026-09-28',
+                    reason: 'Use the lowest-cost current model purpose-built for deep research; its cached-input rate is 25% above the reference, while input and output rates are 50% and 60% lower.'
+                }
+            ],
+            notes: 'Deep research must use a dedicated deep-research model. o4-mini Deep Research is the lowest-cost current option and has an explicit cached-input exception.'
         })
     },
     anthropic: {

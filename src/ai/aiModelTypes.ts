@@ -16,6 +16,8 @@ export type AiCacheWriteMode = '5m' | '1h';
 
 export type AiTemperaturePolicy = 'supported' | 'unsupported' | 'requiresReasoningEffortNone';
 
+export type AiForcedToolChoicePolicy = 'supported' | 'unsupported';
+
 export type AiModelSource = Readonly<{
     label: string;
     url: string;
@@ -24,6 +26,7 @@ export type AiModelSource = Readonly<{
 
 export type AiModelParameterPolicies = Readonly<{
     temperature: AiTemperaturePolicy;
+    forcedToolChoice?: AiForcedToolChoicePolicy;
 }>;
 
 export type AiModelCapabilities = Readonly<{
@@ -45,6 +48,7 @@ export type AiModelCapabilities = Readonly<{
     reasoningEffortLevels: readonly AiReasoningEffort[];
     supportsExtendedThinking: AiCapabilitySupport;
     supportsAdaptiveThinking: AiCapabilitySupport;
+    requiresAdaptiveThinking?: AiCapabilitySupport;
 }>;
 
 export type AiModelPricing = Readonly<{

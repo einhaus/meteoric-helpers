@@ -9,7 +9,7 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.provider).toBe('openai');
-        expect(config.modelKey).toBe('openai:gpt-5.6-terra');
+        expect(config.modelKey).toBe('openai:gpt-6-sol');
         expect(config.inferenceProfileKey).toBe('reasoning_high');
         expect(config.reasoningEffort).toBe('high');
         expect(config.maxOutputTokens).toBe(8_000);
@@ -26,7 +26,7 @@ describe('AI request preset helpers', () => {
             maxOutputTokens: 200_000
         });
 
-        expect(config.modelKey).toBe('openai:gpt-5.6-luna');
+        expect(config.modelKey).toBe('openai:gpt-6-luna');
         expect(config.inferenceProfileKey).toBe('reasoning_none');
         expect(config.requestedMaxOutputTokens).toBe(200_000);
         expect(config.maxOutputTokens).toBe(128_000);
@@ -48,7 +48,8 @@ describe('AI request preset helpers', () => {
     });
 
     it.each([
-        ['claude-opus-4-5', 'anthropic:claude-opus-5'],
+        ['claude-opus-5', 'anthropic:claude-opus-5-5'],
+        ['claude-opus-4-5', 'anthropic:claude-opus-5-5'],
         ['claude-sonnet-4-5', 'anthropic:claude-sonnet-5']
     ])('upgrades explicit legacy %s requests to %s', (model, expectedModelKey) => {
         const config = resolveAiRequestConfig({ preset: 'analysis', model, maxOutputTokens: 100_000 });
@@ -92,14 +93,14 @@ describe('AI request preset helpers', () => {
         expect(config.warnings.some((warning) => warning.includes('does not advertise extended-thinking support'))).toBe(false);
     });
 
-    it('uses Claude Opus 5 as the cost-gated Anthropic reasoning default', () => {
+    it('uses Claude Opus 5.5 as the cost-gated Anthropic reasoning default', () => {
         const config = resolveAiRequestConfig({
             preset: 'agentChat',
             provider: 'anthropic'
         });
 
         expect(config.provider).toBe('anthropic');
-        expect(config.modelKey).toBe('anthropic:claude-opus-5');
+        expect(config.modelKey).toBe('anthropic:claude-opus-5-5');
         expect(config.inferenceProfileKey).toBe('reasoning_high');
         expect(config.anthropicThinkingBudgetTokens).toBeNull();
         expect(config.temperature).toBeNull();
@@ -139,11 +140,24 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.provider).toBe('openai');
-        expect(config.modelKey).toBe('openai:gpt-5.6-sol');
-        expect(config.inferenceProfileKey).toBe('reasoning_high');
+        expect(config.modelKey).toBe('openai:o4-mini-deep-research');
+        expect(config.inferenceProfileKey).toBeNull();
+        expect(config.reasoningEffort).toBeNull();
         expect(config.maxOutputTokens).toBe(100_000);
         expect(config.useBuiltInWebSearch).toBe(true);
         expect(config.builtInWebSearchContextSize).toBe('high');
+    });
+
+    it('upgrades a retired deep-research snapshot to its current dedicated alias', () => {
+        const config = resolveAiRequestConfig({
+            preset: 'deepResearch',
+            model: 'o4-mini-deep-research-2025-06-26'
+        });
+
+        expect(config.modelKey).toBe('openai:o4-mini-deep-research');
+        expect(config.warnings).toContain(
+            'Outdated model "openai:o4-mini-deep-research-2025-06-26" (retired) was automatically upgraded: openai:o4-mini-deep-research-2025-06-26 -> openai:o4-mini-deep-research.'
+        );
     });
 
     it('resolves creative-writing presets to the shared balanced profile without a default temperature', () => {
@@ -153,21 +167,21 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.provider).toBe('openai');
-        expect(config.modelKey).toBe('openai:gpt-5.6-terra');
+        expect(config.modelKey).toBe('openai:gpt-6-sol');
         expect(config.inferenceProfileKey).toBe('reasoning_medium');
         expect(config.reasoningEffort).toBe('medium');
         expect(config.temperature).toBeNull();
         expect(config.maxOutputTokens).toBe(6_000);
     });
 
-    it('clears temperature automatically for GPT-5-family models that do not support it', () => {
+    it('clears temperature automatically for current OpenAI reasoning models that do not support it', () => {
         const config = resolveAiRequestConfig({
             preset: 'creativeWriting',
             provider: 'openai',
             temperature: 0.35
         });
 
-        expect(config.modelKey).toBe('openai:gpt-5.6-terra');
+        expect(config.modelKey).toBe('openai:gpt-6-sol');
         expect(config.inferenceProfileKey).toBe('reasoning_medium');
         expect(config.temperature).toBeNull();
         expect(config.warnings.some((warning) => warning.includes('does not support the temperature parameter'))).toBe(true);
@@ -195,7 +209,7 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.modelProfile).toBe('fast');
-        expect(config.modelKey).toBe('openai:gpt-5.6-luna');
+        expect(config.modelKey).toBe('openai:gpt-6-luna');
         expect(config.inferenceProfileKey).toBe('reasoning_low');
         expect(config.reasoningEffort).toBe('low');
         expect(config.overridesApplied).toContain('modelProfile');
@@ -209,7 +223,7 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.modelProfile).toBe('balanced');
-        expect(config.modelKey).toBe('openai:gpt-5.6-terra');
+        expect(config.modelKey).toBe('openai:gpt-6-sol');
         expect(config.inferenceProfileKey).toBe('reasoning_high');
         expect(config.reasoningEffort).toBe('high');
         expect(config.overridesApplied).toContain('inferenceProfileKey');
