@@ -639,6 +639,9 @@ const parseResponse = async <T>(
     redactionConfig?: RedactionConfig,
     requestConfig?: RequestConfig
 ): Promise<T | ErrorResponse> => {
+    // No-content responses have no JSON body, even when the server labels them JSON.
+    if (response.status === 204 || response.status === 205) return '' as T;
+
     const contentType = response.headers.get('content-type');
 
     if (contentType?.includes('application/json')) {

@@ -18,6 +18,18 @@ describe('doFetch', () => {
         vi.restoreAllMocks();
     });
 
+    it.each([204, 205])('accepts an empty JSON-labelled %i response without logging a parse error', async (status) => {
+        const response = new Response(null, { status, headers: { 'Content-Type': 'application/json' } });
+        const jsonSpy = vi.spyOn(response, 'json');
+        const consoleSpy = vi.spyOn(console, 'error');
+        globalThis.fetch = vi.fn(async () => response) as typeof fetch;
+
+        expect(await doFetch<string>('https://example.com/orders/one', { method: 'DELETE', timesToRetry: 0 })).toBe('');
+        expect(jsonSpy).not.toHaveBeenCalled();
+        expect(consoleSpy).not.toHaveBeenCalled();
+        expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    });
+
     it('redacts normalized secret headers in timeout responses', async () => {
         globalThis.fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
             return new Promise<Response>((_resolve, reject) => {
