@@ -328,6 +328,9 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('gpt-6-sol')?.contextWindowTokens).toBe(1_050_000);
         expect(getAiModelById('gpt-6-sol')?.capabilities.reasoningEffortLevels).toEqual(['none', 'low', 'medium', 'high', 'xhigh', 'max']);
         expect(getAiModelById('gpt-6-sol')?.pricing.longContextOutputUsdPerMillionTokens).toBe(15);
+        expect(getAiModelById('gpt-6.1-sol')?.modelKey).toBe('openai:gpt-6.1-sol');
+        expect(getAiModelById('gpt-6.1-sol')?.capabilities.reasoningEffortLevels).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
+        expect(getAiModelById('gpt-6.1-sol')?.pricing.cachedInputUsdPerMillionTokens).toBe(0.1);
         expect(getAiModelById('gpt-6-luna')?.pricing.outputUsdPerMillionTokens).toBe(0.5);
         expect(getAiModelById('gpt-6-luna')?.pricing.longContextCacheWriteUsdPerMillionTokens).toBe(0.25);
         expect(getAiModelById('gpt-5.6')?.modelKey).toBe('openai:gpt-5.6-sol');

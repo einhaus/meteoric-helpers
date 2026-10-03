@@ -2,6 +2,7 @@ import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies
 
 const VERIFIED_AT = '2026-09-28';
 const GPT_5_6_VERIFIED_AT = '2026-09-28';
+const GPT_6_1_VERIFIED_AT = '2026-10-03';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -301,6 +302,60 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             OPENAI_LATEST_MODEL_GUIDE_SOURCE
         ],
         tags: ['recommended', 'reasoning', 'coding', 'agent', 'balanced', 'research'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
+    },
+    {
+        modelKey: 'openai:gpt-6.1-sol',
+        provider: 'openai',
+        modelId: 'gpt-6.1-sol',
+        snapshotModelId: 'gpt-6.1-sol',
+        aliases: [],
+        displayName: 'GPT-6.1 Sol',
+        family: 'gpt-6.1',
+        description: 'OpenAI model with near-Astra performance for complex work at a lower cost.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: true,
+            supportsMcp: true,
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: OPENAI_GPT_6_REASONING_LEVELS,
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 1_050_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-04-30',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 2,
+            cachedInputUsdPerMillionTokens: 0.1,
+            outputUsdPerMillionTokens: 10,
+            cacheWriteUsdPerMillionTokens: 2.5,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 272_000,
+            longContextInputUsdPerMillionTokens: 4,
+            longContextCachedInputUsdPerMillionTokens: 0.2,
+            longContextCacheWriteUsdPerMillionTokens: 5,
+            longContextOutputUsdPerMillionTokens: 15,
+            notes: 'Prompts above 272K input tokens are billed at 2x input and cache rates and 1.5x output for the full request.'
+        }),
+        sources: [createOpenAiModelSource('gpt-6.1-sol', GPT_6_1_VERIFIED_AT)],
+        tags: ['reasoning', 'coding', 'agent', 'balanced', 'research'],
         parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
