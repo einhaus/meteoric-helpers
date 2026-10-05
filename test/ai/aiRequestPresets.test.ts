@@ -50,7 +50,7 @@ describe('AI request preset helpers', () => {
     it.each([
         ['claude-opus-5', 'anthropic:claude-opus-5-5'],
         ['claude-opus-4-5', 'anthropic:claude-opus-5-5'],
-        ['claude-sonnet-4-5', 'anthropic:claude-sonnet-5']
+        ['claude-sonnet-4-5', 'anthropic:claude-sonnet-5-5']
     ])('upgrades explicit legacy %s requests to %s', (model, expectedModelKey) => {
         const config = resolveAiRequestConfig({ preset: 'analysis', model, maxOutputTokens: 100_000 });
 
@@ -134,13 +134,13 @@ describe('AI request preset helpers', () => {
         expect(config.warnings.some((warning) => warning.includes('does not support the temperature parameter'))).toBe(true);
     });
 
-    it('prefers openai automatically for deep-research presets', () => {
+    it('uses OpenAI’s documented replacement for retired dedicated deep-research models', () => {
         const config = resolveAiRequestConfig({
             preset: 'deepResearch'
         });
 
         expect(config.provider).toBe('openai');
-        expect(config.modelKey).toBe('openai:o4-mini-deep-research');
+        expect(config.modelKey).toBe('openai:gpt-5.6-sol');
         expect(config.inferenceProfileKey).toBeNull();
         expect(config.reasoningEffort).toBeNull();
         expect(config.maxOutputTokens).toBe(100_000);
@@ -148,15 +148,15 @@ describe('AI request preset helpers', () => {
         expect(config.builtInWebSearchContextSize).toBe('high');
     });
 
-    it('upgrades a retired deep-research snapshot to its current dedicated alias', () => {
+    it('upgrades a retired deep-research snapshot through its retired alias', () => {
         const config = resolveAiRequestConfig({
             preset: 'deepResearch',
             model: 'o4-mini-deep-research-2025-06-26'
         });
 
-        expect(config.modelKey).toBe('openai:o4-mini-deep-research');
+        expect(config.modelKey).toBe('openai:gpt-5.6-sol');
         expect(config.warnings).toContain(
-            'Outdated model "openai:o4-mini-deep-research-2025-06-26" (retired) was automatically upgraded: openai:o4-mini-deep-research-2025-06-26 -> openai:o4-mini-deep-research.'
+            'Outdated model "openai:o4-mini-deep-research-2025-06-26" (retired) was automatically upgraded: openai:o4-mini-deep-research-2025-06-26 -> openai:o4-mini-deep-research -> openai:gpt-5.6-sol.'
         );
     });
 

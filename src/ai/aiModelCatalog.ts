@@ -2,7 +2,8 @@ import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies
 
 const VERIFIED_AT = '2026-09-28';
 const GPT_5_6_VERIFIED_AT = '2026-09-28';
-const GPT_6_1_VERIFIED_AT = '2026-10-03';
+const GPT_6_1_VERIFIED_AT = '2026-10-05';
+const CURRENT_AUDIT_VERIFIED_AT = '2026-10-05';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -13,7 +14,7 @@ const OPENAI_MODELS_SOURCE: AiModelSource = {
 const OPENAI_ALL_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI all-models list',
     url: 'https://developers.openai.com/api/docs/models/all',
-    verifiedAt: VERIFIED_AT
+    verifiedAt: CURRENT_AUDIT_VERIFIED_AT
 };
 
 const OPENAI_PRICING_SOURCE: AiModelSource = {
@@ -25,7 +26,7 @@ const OPENAI_PRICING_SOURCE: AiModelSource = {
 const OPENAI_DEPRECATIONS_SOURCE: AiModelSource = {
     label: 'OpenAI deprecations',
     url: 'https://developers.openai.com/api/docs/deprecations',
-    verifiedAt: VERIFIED_AT
+    verifiedAt: CURRENT_AUDIT_VERIFIED_AT
 };
 
 const OPENAI_CHANGELOG_SOURCE: AiModelSource = {
@@ -43,7 +44,7 @@ const OPENAI_LATEST_MODEL_GUIDE_SOURCE: AiModelSource = {
 const OPENAI_DEEP_RESEARCH_GUIDE_SOURCE: AiModelSource = {
     label: 'OpenAI deep research guide',
     url: 'https://developers.openai.com/api/docs/guides/deep-research',
-    verifiedAt: VERIFIED_AT
+    verifiedAt: CURRENT_AUDIT_VERIFIED_AT
 };
 
 const OPENAI_CYBER_SAFETY_SOURCE: AiModelSource = {
@@ -55,7 +56,7 @@ const OPENAI_CYBER_SAFETY_SOURCE: AiModelSource = {
 const ANTHROPIC_MODELS_SOURCE: AiModelSource = {
     label: 'Anthropic models overview',
     url: 'https://platform.claude.com/docs/en/models/overview',
-    verifiedAt: VERIFIED_AT
+    verifiedAt: CURRENT_AUDIT_VERIFIED_AT
 };
 
 const ANTHROPIC_PRICING_SOURCE: AiModelSource = {
@@ -67,7 +68,7 @@ const ANTHROPIC_PRICING_SOURCE: AiModelSource = {
 const ANTHROPIC_MODEL_DEPRECATIONS_SOURCE: AiModelSource = {
     label: 'Anthropic model deprecations',
     url: 'https://platform.claude.com/docs/en/about-claude/model-deprecations',
-    verifiedAt: VERIFIED_AT
+    verifiedAt: CURRENT_AUDIT_VERIFIED_AT
 };
 
 const ANTHROPIC_MODEL_IDS_SOURCE: AiModelSource = {
@@ -176,10 +177,10 @@ const createOpenAiModelSource = (modelId: string, verifiedAt = VERIFIED_AT): AiM
     verifiedAt
 });
 
-const createAnthropicModelSource = (modelSlug: string): AiModelSource => ({
+const createAnthropicModelSource = (modelSlug: string, verifiedAt = VERIFIED_AT): AiModelSource => ({
     label: `Anthropic model doc: claude-${modelSlug}`,
     url: `https://platform.claude.com/docs/en/models/${modelSlug}/overview`,
-    verifiedAt: VERIFIED_AT
+    verifiedAt
 });
 
 export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
@@ -1051,8 +1052,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         displayName: 'GPT-5.4 nano',
         family: 'gpt-5.4',
         description: 'Lowest-cost GPT-5.4-class model for simple high-volume workloads and sub-agents.',
-        status: 'active',
-        recommendedReplacementModelKey: null,
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-6-luna',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -1090,8 +1091,14 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextOutputUsdPerMillionTokens: null,
             notes: null
         }),
-        sources: [createOpenAiModelSource('gpt-5.4-nano'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['recommended', 'cheap', 'classifier', 'subagent'],
+        sources: [
+            createOpenAiModelSource('gpt-5.4-nano', CURRENT_AUDIT_VERIFIED_AT),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_DEPRECATIONS_SOURCE
+        ],
+        tags: ['deprecated', 'cheap', 'classifier', 'subagent', 'compatibility'],
         parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
@@ -1219,8 +1226,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         displayName: 'GPT-5.3-Codex',
         family: 'gpt-5.3-codex',
         description: 'OpenAI model optimized for agentic coding tasks in Codex and similar environments.',
-        status: 'active',
-        recommendedReplacementModelKey: null,
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-6-sol',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -1258,8 +1265,13 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextOutputUsdPerMillionTokens: null,
             notes: null
         }),
-        sources: [createOpenAiModelSource('gpt-5.3-codex'), OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['active', 'coding', 'agent', 'codex'],
+        sources: [
+            createOpenAiModelSource('gpt-5.3-codex', CURRENT_AUDIT_VERIFIED_AT),
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_DEPRECATIONS_SOURCE
+        ],
+        tags: ['deprecated', 'coding', 'agent', 'codex', 'compatibility'],
         parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
@@ -1486,8 +1498,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         displayName: 'GPT-5.1',
         family: 'gpt-5.1',
         description: 'Older GPT-5 generation kept for migrations and backward compatibility.',
-        status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.5',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-6-sol',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -1525,8 +1537,14 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextOutputUsdPerMillionTokens: null,
             notes: null
         }),
-        sources: [createOpenAiModelSource('gpt-5.1'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['legacy', 'reasoning', 'compatibility'],
+        sources: [
+            createOpenAiModelSource('gpt-5.1', CURRENT_AUDIT_VERIFIED_AT),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE,
+            OPENAI_DEPRECATIONS_SOURCE
+        ],
+        tags: ['deprecated', 'reasoning', 'compatibility'],
         parameterPolicies: OPENAI_GPT_5_1_PARAMETER_POLICIES
     },
     {
@@ -2533,9 +2551,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'o3 Deep Research',
         family: 'o3-deep-research',
-        description: 'OpenAI’s most powerful dedicated deep-research model for complex, multi-step research.',
-        status: 'specialized',
-        recommendedReplacementModelKey: null,
+        description: 'Retired dedicated deep-research alias retained for historical requests and cost records.',
+        status: 'retired',
+        recommendedReplacementModelKey: 'openai:gpt-5.6-sol',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -2574,14 +2592,14 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: null
         }),
         sources: [
-            createOpenAiModelSource('o3-deep-research'),
+            createOpenAiModelSource('o3-deep-research', CURRENT_AUDIT_VERIFIED_AT),
             OPENAI_DEEP_RESEARCH_GUIDE_SOURCE,
             OPENAI_MODELS_SOURCE,
             OPENAI_ALL_MODELS_SOURCE,
             OPENAI_PRICING_SOURCE,
             OPENAI_DEPRECATIONS_SOURCE
         ],
-        tags: ['specialized', 'deep-research', 'search']
+        tags: ['retired', 'deep-research', 'search', 'compatibility']
     },
     {
         modelKey: 'openai:o3-deep-research-2025-06-26',
@@ -2649,9 +2667,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'o4-mini Deep Research',
         family: 'o4-mini-deep-research',
-        description: 'OpenAI’s faster, lower-cost dedicated deep-research model for complex, multi-step research.',
-        status: 'specialized',
-        recommendedReplacementModelKey: null,
+        description: 'Retired lower-cost dedicated deep-research alias retained for historical requests and cost records.',
+        status: 'retired',
+        recommendedReplacementModelKey: 'openai:gpt-5.6-sol',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -2690,14 +2708,14 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: null
         }),
         sources: [
-            createOpenAiModelSource('o4-mini-deep-research'),
+            createOpenAiModelSource('o4-mini-deep-research', CURRENT_AUDIT_VERIFIED_AT),
             OPENAI_DEEP_RESEARCH_GUIDE_SOURCE,
             OPENAI_MODELS_SOURCE,
             OPENAI_ALL_MODELS_SOURCE,
             OPENAI_PRICING_SOURCE,
             OPENAI_DEPRECATIONS_SOURCE
         ],
-        tags: ['specialized', 'deep-research', 'fast', 'search']
+        tags: ['retired', 'deep-research', 'fast', 'search', 'compatibility']
     },
     {
         modelKey: 'openai:o4-mini-deep-research-2025-06-26',
@@ -3351,6 +3369,70 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         }
     },
     {
+        modelKey: 'anthropic:claude-sonnet-5-5',
+        provider: 'anthropic',
+        modelId: 'claude-sonnet-5-5',
+        snapshotModelId: 'claude-sonnet-5-5',
+        aliases: [],
+        displayName: 'Claude Sonnet 5.5',
+        family: 'claude-sonnet-5-5',
+        description: 'Anthropic Sonnet model combining fast inference with adaptive thinking and a one-million-token context window.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: null,
+            supportsComputerUse: true,
+            supportsMcp: null,
+            supportsReasoningEffort: false,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: false,
+            supportsAdaptiveThinking: true
+        }),
+        contextWindowTokens: 1_000_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-06',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 2,
+            cachedInputUsdPerMillionTokens: 0.2,
+            outputUsdPerMillionTokens: 10,
+            cacheWrite5mUsdPerMillionTokens: 2.5,
+            cacheWrite1hUsdPerMillionTokens: 4,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'The 1M context window is included at standard pricing. Batch API output can reach 300K tokens with a beta header; this catalog records the standard 128K limit.'
+        }),
+        sources: [
+            createAnthropicModelSource('sonnet-5-5', CURRENT_AUDIT_VERIFIED_AT),
+            ANTHROPIC_MODELS_SOURCE,
+            ANTHROPIC_MODEL_IDS_SOURCE,
+            ANTHROPIC_PRICING_SOURCE,
+            ANTHROPIC_ADAPTIVE_THINKING_SOURCE,
+            ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE,
+            ANTHROPIC_WEB_SEARCH_SOURCE,
+            ANTHROPIC_COMPUTER_USE_SOURCE
+        ],
+        tags: ['recommended', 'balanced', 'agent', 'analysis'],
+        parameterPolicies: {
+            temperature: 'unsupported',
+            forcedToolChoice: 'unsupported'
+        }
+    },
+    {
         modelKey: 'anthropic:claude-sonnet-5',
         provider: 'anthropic',
         modelId: 'claude-sonnet-5',
@@ -3598,9 +3680,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: ['claude-sonnet-4-5'],
         displayName: 'Claude Sonnet 4.5 (20250929)',
         family: 'claude-sonnet-4',
-        description: 'Legacy Anthropic Sonnet 4.5 snapshot retained for compatibility with existing Sonnet 4.5 deployments.',
-        status: 'legacy',
-        recommendedReplacementModelKey: 'anthropic:claude-sonnet-5',
+        description: 'Deprecated Anthropic Sonnet 4.5 snapshot retained for compatibility with existing Sonnet 4.5 deployments.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'anthropic:claude-sonnet-5-5',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -3645,7 +3727,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             ANTHROPIC_RELEASE_NOTES_SOURCE,
             ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE
         ],
-        tags: ['legacy', 'balanced', 'compatibility']
+        tags: ['deprecated', 'balanced', 'compatibility']
     },
     {
         modelKey: 'anthropic:claude-opus-4-6',

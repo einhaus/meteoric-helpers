@@ -71,14 +71,14 @@
     "devDependencies": {
         "@types/bcrypt": "^6.0.0",
         "@types/mime-types": "^3.0.1",
-        "@types/node": "^26.6.3",
+        "@types/node": "^26.6.4",
         "@types/pg": "^8.23.1",
         "concurrently": "^10.0.5",
-        "oxfmt": "^0.71.0",
-        "oxlint": "^1.86.0",
+        "oxfmt": "^0.72.0",
+        "oxlint": "^1.87.0",
         "oxlint-tsgolint": "^7.0.2003",
         "typescript": "^7.0.2",
-        "vitest": "^5.0.2"
+        "vitest": "^5.0.3"
     },
     "publishConfig": {
         "registry": "https://npm.pkg.github.com/",
@@ -86,18 +86,18 @@
     },
     "private": false,
     "dependencies": {
-        "@aws-sdk/client-s3": "^3.1142.0",
-        "@aws-sdk/client-ses": "^3.1142.0",
-        "@aws-sdk/s3-request-presigner": "^3.1142.0",
+        "@aws-sdk/client-s3": "^3.1146.0",
+        "@aws-sdk/client-ses": "^3.1146.0",
+        "@aws-sdk/s3-request-presigner": "^3.1146.0",
         "@clickhouse/client": "^1.23.1",
-        "@redis/client": "^6.2.1",
+        "@redis/client": "^6.3.0",
         "bcrypt": "^6.0.0",
         "dayjs": "^1.11.23",
         "mime-types": "^3.0.2",
-        "mysql2": "^3.24.4",
+        "mysql2": "^3.24.5",
         "nanoid": "^6.0.1",
         "node-cache": "^5.1.2",
-        "pg": "^8.23.0"
+        "pg": "^8.23.1"
     },
     "overrides": {
         "fast-xml-parser": "5.3.6",

@@ -89,6 +89,16 @@ describe('AI model catalog helpers', () => {
         expect(compatibleSonnetUpgrade.inputPriceMultiplier).toBe(0.666666666667);
         expect(compatibleSonnetUpgrade.outputPriceMultiplier).toBe(0.666666666667);
 
+        const sonnet55Candidate = evaluateAiModelProfileCostPolicy({
+            provider: 'anthropic',
+            profile: 'balanced',
+            candidateModelKey: 'anthropic:claude-sonnet-5-5'
+        });
+        expect(sonnet55Candidate.isWithinPolicy).toBe(true);
+        expect(sonnet55Candidate.inputPriceMultiplier).toBe(0.666666666667);
+        expect(sonnet55Candidate.cachedInputPriceMultiplier).toBe(0.666666666667);
+        expect(sonnet55Candidate.outputPriceMultiplier).toBe(0.666666666667);
+
         const unapprovedFablePromotion = evaluateAiModelProfileCostPolicy({
             provider: 'anthropic',
             profile: 'reasoning',
@@ -181,14 +191,14 @@ describe('AI model catalog helpers', () => {
         const defaultDeepResearchModel = evaluateAiModelProfileCostPolicy({
             provider: 'openai',
             profile: 'deepResearch',
-            candidateModelKey: 'openai:o4-mini-deep-research'
+            candidateModelKey: 'openai:gpt-5.6-sol'
         });
 
         expect(defaultDeepResearchModel.isWithinPolicy).toBe(true);
-        expect(defaultDeepResearchModel.isApprovedHigherCost).toBe(true);
-        expect(defaultDeepResearchModel.inputPriceMultiplier).toBe(0.5);
-        expect(defaultDeepResearchModel.cachedInputPriceMultiplier).toBe(1.25);
-        expect(defaultDeepResearchModel.outputPriceMultiplier).toBe(0.4);
+        expect(defaultDeepResearchModel.isApprovedHigherCost).toBe(false);
+        expect(defaultDeepResearchModel.inputPriceMultiplier).toBe(1);
+        expect(defaultDeepResearchModel.cachedInputPriceMultiplier).toBe(1);
+        expect(defaultDeepResearchModel.outputPriceMultiplier).toBe(1);
         expect(defaultDeepResearchModel.cacheWrite5mPriceMultiplier).toBeNull();
         expect(defaultDeepResearchModel.cacheWrite1hPriceMultiplier).toBeNull();
         expect(getAiModelById('gpt-5.6-sol')?.pricing.longContextInputUsdPerMillionTokens).toBe(8);
@@ -197,6 +207,10 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('o3-deep-research')?.pricing.inputUsdPerMillionTokens).toBe(10);
         expect(getAiModelById('o3-deep-research')?.pricing.cachedInputUsdPerMillionTokens).toBe(2.5);
         expect(getAiModelById('o3-deep-research')?.pricing.outputUsdPerMillionTokens).toBe(40);
+        expect(getAiModelById('o3-deep-research')?.status).toBe('retired');
+        expect(getAiModelById('o3-deep-research')?.recommendedReplacementModelKey).toBe('openai:gpt-5.6-sol');
+        expect(getAiModelById('o4-mini-deep-research')?.status).toBe('retired');
+        expect(getAiModelById('o4-mini-deep-research')?.recommendedReplacementModelKey).toBe('openai:gpt-5.6-sol');
     });
 
     it('filters legacy models unless explicitly requested', () => {
@@ -220,7 +234,7 @@ describe('AI model catalog helpers', () => {
             'claude-sonnet-4-5'
         ]) {
             const model = getAiModelById(modelId);
-            expect(model?.status).toBe('legacy');
+            expect(model?.status).toBe(modelId === 'claude-sonnet-4-5' ? 'deprecated' : 'legacy');
             expect(defaultAnthropicModels).not.toContain(model);
             expect(listAiModels({ provider: 'anthropic', includeLegacy: true })).toContain(model);
         }
@@ -366,9 +380,9 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('gpt-5-codex')?.recommendedReplacementModelKey).toBe('openai:gpt-5.6-sol');
         expect(getAiModelById('o3-deep-research-2025-06-26')?.modelKey).toBe('openai:o3-deep-research-2025-06-26');
         expect(getAiModelById('o3-deep-research-2025-06-26')?.recommendedReplacementModelKey).toBe('openai:o3-deep-research');
-        expect(getAiModelById('o3-deep-research')?.status).toBe('specialized');
-        expect(getAiModelById('o3-deep-research')?.recommendedReplacementModelKey).toBeNull();
-        expect(getAiModelById('o4-mini-deep-research')?.status).toBe('specialized');
+        expect(getAiModelById('o3-deep-research')?.status).toBe('retired');
+        expect(getAiModelById('o3-deep-research')?.recommendedReplacementModelKey).toBe('openai:gpt-5.6-sol');
+        expect(getAiModelById('o4-mini-deep-research')?.status).toBe('retired');
         expect(getAiModelById('o4-mini-deep-research-2025-06-26')?.status).toBe('retired');
         expect(getAiModelById('o4-mini-deep-research-2025-06-26')?.recommendedReplacementModelKey).toBe('openai:o4-mini-deep-research');
         expect(getAiModelById('claude-fable-5-1')?.modelKey).toBe('anthropic:claude-fable-5-1');
@@ -425,6 +439,10 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('claude-sonnet-5')?.pricing.inputUsdPerMillionTokens).toBe(2);
         expect(getAiModelById('claude-sonnet-5')?.maxOutputTokens).toBe(128_000);
         expect(getAiModelById('claude-sonnet-5')?.recommendedReplacementModelKey).toBeNull();
+        expect(getAiModelById('claude-sonnet-5-5')?.status).toBe('active');
+        expect(getAiModelById('claude-sonnet-5-5')?.maxOutputTokens).toBe(128_000);
+        expect(getAiModelById('claude-sonnet-5-5')?.parameterPolicies?.forcedToolChoice).toBe('unsupported');
+        expect(getAiModelById('claude-sonnet-4-5')?.recommendedReplacementModelKey).toBe('anthropic:claude-sonnet-5-5');
         expect(getAiModelById('claude-sonnet-4-6')?.recommendedReplacementModelKey).toBe('anthropic:claude-sonnet-5');
         expect(getAiModelById('claude-sonnet-4-6')?.maxOutputTokens).toBe(128_000);
         expect(getAiModelById('claude-opus-4')?.status).toBe('retired');

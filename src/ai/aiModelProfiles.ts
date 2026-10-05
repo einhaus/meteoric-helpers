@@ -68,7 +68,7 @@ export const AI_PROVIDER_MODEL_PROFILE_DEFAULTS: Readonly<Record<AiProvider, AiP
             inferenceProfileKey: 'reasoning_medium'
         },
         deepResearch: {
-            modelKey: 'openai:o4-mini-deep-research',
+            modelKey: 'openai:gpt-5.6-sol',
             inferenceProfileKey: null
         }
     },
@@ -229,14 +229,8 @@ export const AI_PROVIDER_MODEL_PROFILE_COST_POLICIES: Readonly<Record<AiProvider
             maxCachedInputPriceMultiplier: 1.01,
             maxOutputPriceMultiplier: 1.01,
             maxCacheWritePriceMultiplier: null,
-            approvedHigherCostModels: [
-                {
-                    modelKey: 'openai:o4-mini-deep-research',
-                    approvedAt: '2026-09-28',
-                    reason: 'Use the lowest-cost current model purpose-built for deep research; its cached-input rate is 25% above the reference, while input and output rates are 50% and 60% lower.'
-                }
-            ],
-            notes: 'Deep research must use a dedicated deep-research model. o4-mini Deep Research is the lowest-cost current option and has an explicit cached-input exception.'
+            approvedHigherCostModels: [],
+            notes: 'OpenAI retired both dedicated deep-research aliases on July 23, 2026 and recommends GPT-5.6 Sol. Restore a dedicated default only when an active purpose-built replacement is documented and passes this cost policy.'
         })
     },
     anthropic: {
