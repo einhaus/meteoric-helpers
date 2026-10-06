@@ -191,6 +191,34 @@ const resetMutationMocks = () => {
 
 const createDbError = (message: string, code: string) => Object.assign(new Error(message), { code });
 
+describe('DBMysql bound connection retry ownership', () => {
+    beforeEach(resetMutationMocks);
+
+    it.each(['ER_LOCK_DEADLOCK', 'ER_LOCK_WAIT_TIMEOUT', 'PROTOCOL_CONNECTION_LOST'])(
+        'immediately propagates %s from selects, queries and inserts',
+        async (code) => {
+            for (const method of ['select', 'query', 'insert']) {
+                const failure = createDbError('transaction failed', code);
+                const query = vi
+                    .fn()
+                    .mockRejectedValueOnce(failure)
+                    .mockResolvedValue([{ insertId: 1 }]);
+                createConnection.mockResolvedValue(createMutationPool(query));
+                const db = createDb(3);
+                const connection = await db.createConnection();
+                const result =
+                    method === 'select'
+                        ? db.doSelectMultiple('SELECT id FROM titles FOR UPDATE', [], connection)
+                        : method === 'query'
+                          ? db.doQuery({ queryString: 'DELETE FROM titles', connection })
+                          : db.doInsert({ queryString: 'INSERT INTO titles (name) VALUES (?)', parameters: ['a'], connection });
+                await expect(result).rejects.toBe(failure);
+                expect(query).toHaveBeenCalledOnce();
+            }
+        }
+    );
+});
+
 describe('DBMysql.doSelectMultiple', () => {
     beforeEach(resetMutationMocks);
 

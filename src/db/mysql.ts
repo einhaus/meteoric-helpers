@@ -191,6 +191,8 @@ export class DBMysql {
         connection?: Connection | PoolConnection,
         verbose?: boolean
     ): Promise<T[]> {
+        // A bound connection may own a transaction. Its caller must retry the whole
+        // transaction: retrying a statement after a deadlock can run in autocommit.
         let retryAttempts = 0;
 
         while (retryAttempts < this.maxRetries) {
@@ -212,7 +214,7 @@ export class DBMysql {
                         this.handleError(e);
                         throw e;
                     }
-                } else if (this.isTransientError(e) && retryAttempts < this.maxRetries) {
+                } else if (!connection && this.isTransientError(e) && retryAttempts < this.maxRetries) {
                     console.warn(
                         `Retryable error encountered (${(e as Error).message}). Retrying (${retryAttempts + 1}/${this.maxRetries})...`
                     );
@@ -402,6 +404,8 @@ export class DBMysql {
         verbose?: boolean | undefined;
     }): Promise<ResultSetHeader> {
         const { queryString, parameters, connection, verbose } = config;
+        // A bound connection may own a transaction. Its caller must retry the whole
+        // transaction: retrying a statement after a deadlock can run in autocommit.
         let retryAttempts = 0;
         const MAX_RETRIES = this.maxRetries;
         const RETRY_DELAY_MS = this.retryDelayMs;
@@ -420,7 +424,7 @@ export class DBMysql {
                 if (!connection && this.isClosedConnectionError(e) && retryAttempts < MAX_RETRIES) {
                     // Never reset a fresh pool because an older in-flight query failed.
                     if (this.db === dbConnection) this.resetPool('pool closed');
-                } else if (this.isTransientError(e) && retryAttempts < MAX_RETRIES) {
+                } else if (!connection && this.isTransientError(e) && retryAttempts < MAX_RETRIES) {
                     console.warn(`Retryable error encountered (${(e as Error).message}). Retrying (${retryAttempts}/${MAX_RETRIES})...`);
 
                     await sleep(RETRY_DELAY_MS * retryAttempts);
@@ -476,6 +480,8 @@ export class DBMysql {
         verbose?: boolean | undefined;
     }): Promise<number> {
         const { queryString, parameters, connection, verbose } = config;
+        // A bound connection may own a transaction. Its caller must retry the whole
+        // transaction: retrying a statement after a deadlock can run in autocommit.
         let retryAttempts = 0;
 
         while (retryAttempts < this.maxRetries) {
@@ -493,7 +499,7 @@ export class DBMysql {
                 if (!connection && this.isClosedConnectionError(e) && retryAttempts < this.maxRetries) {
                     // Never reset a fresh pool because an older in-flight query failed.
                     if (this.db === dbConnection) this.resetPool('pool closed');
-                } else if (this.isTransientError(e, true) && retryAttempts < this.maxRetries) {
+                } else if (!connection && this.isTransientError(e, true) && retryAttempts < this.maxRetries) {
                     console.warn(`Insert transient error (${(e as Error).message}). Retrying (${retryAttempts}/${this.maxRetries})...`);
 
                     await sleep(this.retryDelayMs * retryAttempts);
