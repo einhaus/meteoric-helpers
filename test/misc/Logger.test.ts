@@ -136,6 +136,38 @@ describe('Logger', () => {
         }
     });
 
+    it('keeps matching events with different structured data while suppressing exact duplicates', () => {
+        const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'meteoric-logger-deduplication-'));
+        const logDir = path.join(tempRoot, 'logs');
+
+        try {
+            const logger = Logger.getInstance({ logDir, outputSeverity: 99 });
+            const event = {
+                level: 'info' as const,
+                severity: 3 as const,
+                service: 'TimeBasedTrigger',
+                category: 'authored_schedule_occurrence',
+                message: 'Authored schedule occurrence dispatch completed'
+            };
+            const strategy362 = { strategyId: 362, scheduleOccurrenceId: '362:occurrence' };
+            const strategy428 = { strategyId: 428, scheduleOccurrenceId: '428:occurrence' };
+
+            logger.log({ ...event, extraData: strategy362 });
+            logger.log({ ...event, extraData: strategy428 });
+            logger.log({ ...event, extraData: strategy428 });
+
+            const filesDir = path.join(logDir, 'files');
+            const strategyIds = readdirSync(filesDir)
+                .map((file) => JSON.parse(readFileSync(path.join(filesDir, file), 'utf8')) as { extra_data: string })
+                .map((record) => (JSON.parse(record.extra_data) as { strategyId: number }).strategyId)
+                .sort((left, right) => left - right);
+
+            expect(strategyIds).toEqual([362, 428]);
+        } finally {
+            rmSync(tempRoot, { recursive: true, force: true });
+        }
+    });
+
     it('redacts secrets embedded in console.error messages before forwarding and writing logs', () => {
         const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'meteoric-logger-redaction-'));
         const logDir = path.join(tempRoot, 'logs');

@@ -2,6 +2,7 @@
 import { getDate } from '../date/getDate.js';
 import { checkTimezoneIsEst } from '../date/checkTimezoneIsEst.js';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { createHash } from 'crypto';
 import path from 'path';
 import { nanoid } from 'nanoid';
 import os from 'os';
@@ -906,9 +907,10 @@ export class Logger {
     /**
      * Generate a more comprehensive hash for duplicate detection
      */
-    private generateErrorHash(config: LogEntry): string {
+    private generateErrorHash(config: LogEntry, serializedExtraData: string): string {
         const { error, message, service, category, level } = config;
         const topStackFrame = this.getErrorText(error, 'stack').split('\n')[1]?.trim() ?? '';
+        const extraDataDigest = createHash('sha256').update(serializedExtraData).digest('hex');
 
         // Include more context in the hash to reduce false positives
         const parts = [
@@ -916,7 +918,8 @@ export class Logger {
             service || '',
             category || '',
             error ? `${this.getErrorText(error, 'name', 'Error')}:${this.getErrorText(error, 'message', message || '')}` : message || '',
-            topStackFrame
+            topStackFrame,
+            extraDataDigest
         ];
 
         return parts.join('|');
@@ -925,14 +928,14 @@ export class Logger {
     /**
      * Check if this error should be suppressed as a duplicate
      */
-    private isDuplicate(config: LogEntry): boolean {
+    private isDuplicate(config: LogEntry, serializedExtraData: string): boolean {
         if (!this.enableDuplicateSuppression) return false;
         if (config.severity >= 9) return false;
 
         // Clean up expired entries first
         this.cleanupExpiredErrors();
 
-        const errorHash = this.generateErrorHash(config);
+        const errorHash = this.generateErrorHash(config, serializedExtraData);
         if (!errorHash) return false;
 
         return this.recentErrors.has(errorHash);
@@ -941,11 +944,11 @@ export class Logger {
     /**
      * Record this error in the recent errors map
      */
-    private recordError(config: LogEntry): void {
+    private recordError(config: LogEntry, serializedExtraData: string): void {
         if (!this.enableDuplicateSuppression) return;
         if (config.severity >= 9) return;
 
-        const errorHash = this.generateErrorHash(config);
+        const errorHash = this.generateErrorHash(config, serializedExtraData);
 
         if (errorHash) {
             this.recentErrors.set(errorHash, Date.now());
@@ -1159,7 +1162,7 @@ export class Logger {
             const boundedLogEntry = this.ensureLogEntryFits(logEntry);
 
             // Check for duplicate errors before proceeding
-            if (this.isDuplicate(config)) {
+            if (this.isDuplicate(config, boundedLogEntry.extra_data)) {
                 return; // Skip duplicate
             }
 
@@ -1167,7 +1170,7 @@ export class Logger {
             const filename = `${this.logDir}files/${fileDateTime}_${level}_${nanoid(8)}.json`;
 
             // Record this error to prevent future duplicates
-            this.recordError(config);
+            this.recordError(config, boundedLogEntry.extra_data);
 
             // Log to console if verbose is true and it's an error or warn
             if (this.verbose && (level === 'error' || level === 'warn')) {
