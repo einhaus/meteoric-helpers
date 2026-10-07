@@ -792,10 +792,11 @@ export class DBMysql {
         where?: WhereCondition<T>[] | WhereCondition<T>; // Accept a single condition or an array
         logicalOperator?: 'AND' | 'OR';
         allowFullDelete?: boolean;
+        connection?: Connection | PoolConnection | undefined;
         verbose?: boolean;
     }) {
-        if (!this.db) this.getOrThrowPool();
-        const { verbose } = config;
+        const { connection, verbose } = config;
+        if (!connection && !this.db) this.getOrThrowPool();
         let queryString: string;
         let parameters: unknown[] = [];
 
@@ -822,7 +823,7 @@ export class DBMysql {
             throw new Error('No WHERE conditions provided. To delete every row, set allowFullDelete to true.');
         }
 
-        return this.doQuery({ queryString, parameters: parameters as DbParameters, verbose });
+        return this.doQuery({ queryString, parameters: parameters as DbParameters, connection, verbose });
     }
 
     private handleError(e: unknown) {

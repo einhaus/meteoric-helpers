@@ -219,6 +219,37 @@ describe('DBMysql bound connection retry ownership', () => {
     );
 });
 
+describe('DBMysql.delete connection ownership', () => {
+    beforeEach(() => {
+        createConnection.mockReset();
+        createPool.mockReset();
+    });
+
+    it('deletes through the supplied connection without acquiring a second pool connection', async () => {
+        const header = { affectedRows: 1, insertId: 0 };
+        const query = vi.fn().mockResolvedValue([header]);
+        createConnection.mockResolvedValue(createMutationPool(query));
+        const db = createDb(3);
+        const connection = await db.createConnection();
+
+        expect(await db.delete<{ id: number }>({ table: 'titles', where: { column: 'id', value: 1 }, connection })).toBe(header);
+        expect(query).toHaveBeenCalledExactlyOnceWith('DELETE FROM `titles` WHERE `id` = ?;');
+        expect(createPool).not.toHaveBeenCalled();
+    });
+
+    it('returns a bound delete failure to its transaction owner without retrying the statement', async () => {
+        const failure = createDbError('transaction failed', 'ER_LOCK_DEADLOCK');
+        const query = vi.fn().mockRejectedValue(failure);
+        createConnection.mockResolvedValue(createMutationPool(query));
+        const db = createDb(3);
+        const connection = await db.createConnection();
+
+        await expect(db.delete<{ id: number }>({ table: 'titles', where: { column: 'id', value: 1 }, connection })).rejects.toBe(failure);
+        expect(query).toHaveBeenCalledOnce();
+        expect(createPool).not.toHaveBeenCalled();
+    });
+});
+
 describe('DBMysql.doSelectMultiple', () => {
     beforeEach(resetMutationMocks);
 
