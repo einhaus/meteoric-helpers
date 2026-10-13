@@ -1,6 +1,6 @@
 {
     "name": "@einhaus/meteoric-helpers",
-    "version": "1.0.168",
+    "version": "1.0.169",
     "files": [
         "dist",
         "README.md"
@@ -71,14 +71,14 @@
     "devDependencies": {
         "@types/bcrypt": "^6.0.0",
         "@types/mime-types": "^3.0.1",
-        "@types/node": "^26.6.4",
+        "@types/node": "^26.6.5",
         "@types/pg": "^8.23.1",
-        "concurrently": "^10.0.5",
-        "oxfmt": "^0.72.0",
-        "oxlint": "^1.87.0",
-        "oxlint-tsgolint": "^7.0.2003",
+        "concurrently": "^10.0.6",
+        "oxfmt": "^0.73.0",
+        "oxlint": "^1.88.0",
+        "oxlint-tsgolint": "^7.0.2004",
         "typescript": "^7.0.2",
-        "vitest": "^5.0.3"
+        "vitest": "^5.0.4"
     },
     "publishConfig": {
         "registry": "https://npm.pkg.github.com/",
@@ -86,10 +86,10 @@
     },
     "private": false,
     "dependencies": {
-        "@aws-sdk/client-s3": "^3.1147.0",
-        "@aws-sdk/client-ses": "^3.1147.0",
-        "@aws-sdk/s3-request-presigner": "^3.1147.0",
-        "@clickhouse/client": "^1.24.0",
+        "@aws-sdk/client-s3": "^3.1150.0",
+        "@aws-sdk/client-ses": "^3.1150.0",
+        "@aws-sdk/s3-request-presigner": "^3.1150.0",
+        "@clickhouse/client": "^1.24.1",
         "@redis/client": "^6.3.0",
         "bcrypt": "^6.0.0",
         "dayjs": "^1.11.23",

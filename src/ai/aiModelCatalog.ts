@@ -1,9 +1,9 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-09-28';
-const GPT_5_6_VERIFIED_AT = '2026-09-28';
-const GPT_6_1_VERIFIED_AT = '2026-10-05';
-const CURRENT_AUDIT_VERIFIED_AT = '2026-10-05';
+const VERIFIED_AT = '2026-10-12';
+const GPT_5_6_VERIFIED_AT = '2026-10-12';
+const GPT_6_1_VERIFIED_AT = '2026-10-12';
+const CURRENT_AUDIT_VERIFIED_AT = '2026-10-12';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -892,8 +892,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'GPT-5.4 Cyber',
         family: 'gpt-5.4',
-        description: 'Deprecated restricted-access cybersecurity model from the OpenAI Daybreak program.',
-        status: 'deprecated',
+        description: 'Retired restricted-access cybersecurity model from the OpenAI Daybreak program (shut down October 1, 2026).',
+        status: 'retired',
         recommendedReplacementModelKey: 'openai:gpt-5.6-cyber',
         inputModalities: ['text'],
         outputModalities: ['text'],
@@ -3399,14 +3399,15 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsReasoningEffort: false,
             reasoningEffortLevels: [],
             supportsExtendedThinking: false,
-            supportsAdaptiveThinking: true
+            supportsAdaptiveThinking: true,
+            supportsBetweenToolsThinking: true
         }),
         contextWindowTokens: 1_000_000,
         maxOutputTokens: 128_000,
         knowledgeCutoff: '2026-06',
         pricing: createPricing({
             inputUsdPerMillionTokens: 2,
-            cachedInputUsdPerMillionTokens: 0.2,
+            cachedInputUsdPerMillionTokens: 0.1,
             outputUsdPerMillionTokens: 10,
             cacheWrite5mUsdPerMillionTokens: 2.5,
             cacheWrite1hUsdPerMillionTokens: 4,
@@ -3418,6 +3419,11 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         }),
         sources: [
             createAnthropicModelSource('sonnet-5-5', CURRENT_AUDIT_VERIFIED_AT),
+            {
+                label: 'Anthropic Claude Sonnet 5.5 migration guide',
+                url: 'https://platform.claude.com/docs/en/models/sonnet-5-5/migration-guide',
+                verifiedAt: CURRENT_AUDIT_VERIFIED_AT
+            },
             ANTHROPIC_MODELS_SOURCE,
             ANTHROPIC_MODEL_IDS_SOURCE,
             ANTHROPIC_PRICING_SOURCE,
@@ -3441,8 +3447,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         displayName: 'Claude Sonnet 5',
         family: 'claude-sonnet-5',
         description: 'Anthropic Sonnet-tier model that upgrades Claude Sonnet 4.6 with stronger speed/intelligence balance.',
-        status: 'active',
-        recommendedReplacementModelKey: null,
+        status: 'legacy',
+        recommendedReplacementModelKey: 'anthropic:claude-sonnet-5-5',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -3491,7 +3497,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             ANTHROPIC_WEB_SEARCH_SOURCE,
             ANTHROPIC_COMPUTER_USE_SOURCE
         ],
-        tags: ['recommended', 'balanced', 'agent', 'analysis'],
+        tags: ['legacy', 'balanced', 'agent', 'analysis'],
         parameterPolicies: {
             temperature: 'unsupported'
         }
@@ -3558,6 +3564,88 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         tags: ['legacy', 'balanced', 'agent', 'analysis', 'compatibility']
     },
     {
+        modelKey: 'anthropic:claude-haiku-5-5',
+        provider: 'anthropic',
+        modelId: 'claude-haiku-5-5',
+        snapshotModelId: 'claude-haiku-5-5',
+        aliases: [],
+        displayName: 'Claude Haiku 5.5',
+        family: 'claude-haiku-5-5',
+        description: 'Anthropic’s fastest model for high-volume classification, extraction, and routing, with adaptive thinking.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: null,
+            supportsComputerUse: true,
+            supportsMcp: null,
+            supportsReasoningEffort: false,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: false,
+            supportsAdaptiveThinking: true,
+            requiresAdaptiveThinking: false
+        }),
+        contextWindowTokens: 1_000_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-06',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 0.1,
+            cachedInputUsdPerMillionTokens: 0.01,
+            outputUsdPerMillionTokens: 0.5,
+            cacheWrite5mUsdPerMillionTokens: 0.125,
+            cacheWrite1hUsdPerMillionTokens: 0.2,
+            longContextThresholdInputTokens: 100_000,
+            longContextInputUsdPerMillionTokens: 0.5,
+            longContextCachedInputUsdPerMillionTokens: 0.05,
+            longContextCacheWrite5mUsdPerMillionTokens: 0.625,
+            longContextCacheWrite1hUsdPerMillionTokens: 1,
+            longContextOutputUsdPerMillionTokens: 2.5,
+            notes: 'Prompts over 100K total input tokens, including cache reads and writes, use the higher prices for the full request. The newer tokenizer counts approximately 30% more tokens than Haiku 4.5. Batch API output can reach 300K with a beta header; this catalog records the standard 128K limit.'
+        }),
+        sources: [
+            createAnthropicModelSource('haiku-5-5', CURRENT_AUDIT_VERIFIED_AT),
+            {
+                label: 'Anthropic Claude Haiku 5.5 migration guide',
+                url: 'https://platform.claude.com/docs/en/models/haiku-5-5/migration-guide',
+                verifiedAt: CURRENT_AUDIT_VERIFIED_AT
+            },
+            {
+                label: 'Anthropic thinking modes',
+                url: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+                verifiedAt: CURRENT_AUDIT_VERIFIED_AT
+            },
+            ANTHROPIC_MODELS_SOURCE,
+            ANTHROPIC_MODEL_DEPRECATIONS_SOURCE,
+            {
+                label: 'Anthropic Models API capabilities',
+                url: 'https://api.anthropic.com/v1/models',
+                verifiedAt: CURRENT_AUDIT_VERIFIED_AT
+            },
+            ANTHROPIC_MODEL_IDS_SOURCE,
+            ANTHROPIC_PRICING_SOURCE,
+            ANTHROPIC_ADAPTIVE_THINKING_SOURCE,
+            ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE,
+            ANTHROPIC_COMPUTER_USE_SOURCE
+        ],
+        tags: ['recommended', 'fast', 'cheap', 'title', 'classification'],
+        parameterPolicies: {
+            temperature: 'unsupported',
+            forcedToolChoice: 'supported'
+        }
+    },
+    {
         modelKey: 'anthropic:claude-haiku-4-5',
         provider: 'anthropic',
         modelId: 'claude-haiku-4-5-20251001',
@@ -3565,9 +3653,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: ['claude-haiku-4-5'],
         displayName: 'Claude Haiku 4.5',
         family: 'claude-haiku-4',
-        description: 'Fastest current Anthropic model with near-frontier intelligence for lightweight tasks.',
-        status: 'active',
-        recommendedReplacementModelKey: null,
+        description: 'Legacy Anthropic Haiku model retained for compatibility while moving lightweight workloads to Haiku 5.5.',
+        status: 'legacy',
+        recommendedReplacementModelKey: 'anthropic:claude-haiku-5-5',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -3612,7 +3700,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             ANTHROPIC_PRICING_SOURCE,
             ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE
         ],
-        tags: ['recommended', 'fast', 'cheap', 'chat']
+        tags: ['legacy', 'fast', 'cheap', 'chat']
     },
     {
         modelKey: 'anthropic:claude-opus-4-5-20251101',

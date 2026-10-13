@@ -78,23 +78,23 @@ export const AI_PROVIDER_MODEL_PROFILE_DEFAULTS: Readonly<Record<AiProvider, AiP
             inferenceProfileKey: 'reasoning_high'
         },
         balanced: {
-            modelKey: 'anthropic:claude-sonnet-5',
+            modelKey: 'anthropic:claude-sonnet-5-5',
             inferenceProfileKey: 'reasoning_medium'
         },
         fast: {
-            modelKey: 'anthropic:claude-haiku-4-5',
+            modelKey: 'anthropic:claude-haiku-5-5',
             inferenceProfileKey: 'reasoning_low'
         },
         cheap: {
-            modelKey: 'anthropic:claude-haiku-4-5',
+            modelKey: 'anthropic:claude-haiku-5-5',
             inferenceProfileKey: 'reasoning_none'
         },
         title: {
-            modelKey: 'anthropic:claude-haiku-4-5',
+            modelKey: 'anthropic:claude-haiku-5-5',
             inferenceProfileKey: 'reasoning_none'
         },
         webSearch: {
-            modelKey: 'anthropic:claude-sonnet-5',
+            modelKey: 'anthropic:claude-sonnet-5-5',
             inferenceProfileKey: 'reasoning_medium'
         },
         deepResearch: {

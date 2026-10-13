@@ -2,6 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { listAiRequestPresets, resolveAiRequestConfig } from '../../src/ai/aiRequestSelectors.js';
 
 describe('AI request preset helpers', () => {
+    it.each(['claude-haiku-4-5', 'claude-haiku-4-5-20251001'])(
+        'upgrades legacy %s title requests without manual thinking or temperature',
+        (model) => {
+            const config = resolveAiRequestConfig({ preset: 'titleGeneration', model, temperature: 0.3 });
+            expect(config.modelKey).toBe('anthropic:claude-haiku-5-5');
+            expect(config.anthropicThinkingBudgetTokens).toBeNull();
+            expect(config.temperature).toBeNull();
+            expect(config.warnings.some((warning) => warning.includes('automatically upgraded'))).toBe(true);
+        }
+    );
+
     it('resolves openai agent chat defaults from the shared preset catalog', () => {
         const config = resolveAiRequestConfig({
             preset: 'agentChat',
@@ -40,7 +51,7 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.provider).toBe('anthropic');
-        expect(config.modelKey).toBe('anthropic:claude-sonnet-5');
+        expect(config.modelKey).toBe('anthropic:claude-sonnet-5-5');
         expect(config.inferenceProfileKey).toBe('reasoning_medium');
         expect(config.reasoningEffort).toBeNull();
         expect(config.anthropicThinkingBudgetTokens).toBeNull();
@@ -69,14 +80,14 @@ describe('AI request preset helpers', () => {
         expect(config.warnings.some((warning) => warning.includes('was automatically upgraded'))).toBe(true);
     });
 
-    it('upgrades deprecated GPT-5.4 Cyber requests to the current same-provider replacement', () => {
+    it('upgrades retired GPT-5.4 Cyber requests to the current same-provider replacement', () => {
         const config = resolveAiRequestConfig({ preset: 'agentChat', model: 'gpt-5.4-cyber' });
 
         expect(config.provider).toBe('openai');
         expect(config.modelKey).toBe('openai:gpt-5.6-cyber');
         expect(config.modelId).toBe('gpt-5.6-cyber');
         expect(config.warnings).toContain(
-            'Outdated model "openai:gpt-5.4-cyber" (deprecated) was automatically upgraded: openai:gpt-5.4-cyber -> openai:gpt-5.6-cyber.'
+            'Outdated model "openai:gpt-5.4-cyber" (retired) was automatically upgraded: openai:gpt-5.4-cyber -> openai:gpt-5.6-cyber.'
         );
     });
 
@@ -106,14 +117,14 @@ describe('AI request preset helpers', () => {
         expect(config.temperature).toBeNull();
     });
 
-    it('uses the Anthropic Sonnet 5 balanced default without legacy thinking budgets', () => {
+    it('uses the Anthropic Sonnet 5.5 balanced default without legacy thinking budgets', () => {
         const config = resolveAiRequestConfig({
             preset: 'analysis',
             provider: 'anthropic'
         });
 
         expect(config.provider).toBe('anthropic');
-        expect(config.modelKey).toBe('anthropic:claude-sonnet-5');
+        expect(config.modelKey).toBe('anthropic:claude-sonnet-5-5');
         expect(config.inferenceProfileKey).toBe('reasoning_medium');
         expect(config.anthropicThinkingBudgetTokens).toBeNull();
         expect(config.temperature).toBeNull();
@@ -128,7 +139,7 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.provider).toBe('anthropic');
-        expect(config.modelKey).toBe('anthropic:claude-sonnet-5');
+        expect(config.modelKey).toBe('anthropic:claude-sonnet-5-5');
         expect(config.anthropicThinkingBudgetTokens).toBeNull();
         expect(config.temperature).toBeNull();
         expect(config.warnings.some((warning) => warning.includes('does not support the temperature parameter'))).toBe(true);

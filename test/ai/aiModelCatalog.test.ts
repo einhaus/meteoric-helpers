@@ -41,8 +41,8 @@ describe('AI model catalog helpers', () => {
         expect(getPreferredAiModelId({ provider: 'openai', profile: 'reasoning' })).toBe('gpt-6-sol');
         expect(getPreferredAiModelId({ provider: 'openai', profile: 'balanced' })).toBe('gpt-6-sol');
         expect(getPreferredAiModelId({ provider: 'anthropic', profile: 'reasoning' })).toBe('claude-opus-5-5');
-        expect(getPreferredAiModelId({ provider: 'anthropic', profile: 'balanced' })).toBe('claude-sonnet-5');
-        expect(getPreferredAiModelId({ provider: 'anthropic', profile: 'fast', preferSnapshot: true })).toBe('claude-haiku-4-5-20251001');
+        expect(getPreferredAiModelId({ provider: 'anthropic', profile: 'balanced' })).toBe('claude-sonnet-5-5');
+        expect(getPreferredAiModelId({ provider: 'anthropic', profile: 'fast', preferSnapshot: true })).toBe('claude-haiku-5-5');
     });
 
     it('resolves preferred model profiles as model and inference-profile combinations', () => {
@@ -58,8 +58,8 @@ describe('AI model catalog helpers', () => {
         expect(openAiBalancedProfile?.inferenceProfileKey).toBe('reasoning_medium');
         expect(anthropicReasoningProfile?.modelKey).toBe('anthropic:claude-opus-5-5');
         expect(anthropicReasoningProfile?.model?.modelId).toBe('claude-opus-5-5');
-        expect(anthropicBalancedProfile?.modelKey).toBe('anthropic:claude-sonnet-5');
-        expect(anthropicBalancedProfile?.model?.modelId).toBe('claude-sonnet-5');
+        expect(anthropicBalancedProfile?.modelKey).toBe('anthropic:claude-sonnet-5-5');
+        expect(anthropicBalancedProfile?.model?.modelId).toBe('claude-sonnet-5-5');
         expect(getPreferredAiModelInferenceProfileKey('anthropic', 'reasoning')).toBe('reasoning_high');
     });
 
@@ -96,7 +96,7 @@ describe('AI model catalog helpers', () => {
         });
         expect(sonnet55Candidate.isWithinPolicy).toBe(true);
         expect(sonnet55Candidate.inputPriceMultiplier).toBe(0.666666666667);
-        expect(sonnet55Candidate.cachedInputPriceMultiplier).toBe(0.666666666667);
+        expect(sonnet55Candidate.cachedInputPriceMultiplier).toBe(0.333333333333);
         expect(sonnet55Candidate.outputPriceMultiplier).toBe(0.666666666667);
 
         const unapprovedFablePromotion = evaluateAiModelProfileCostPolicy({
@@ -301,6 +301,45 @@ describe('AI model catalog helpers', () => {
         expect(estimate?.totalCostUsd).toBe(7.5);
     });
 
+    it('prices Haiku 5.5 at the threshold and includes cache tokens when crossing it', () => {
+        const atThreshold = estimateAiModelCostUsd({
+            model: 'claude-haiku-5-5',
+            inputTokens: 98_000,
+            cacheReadInputTokens: 1_000,
+            cacheWriteInputTokens: 1_000,
+            outputTokens: 1_000,
+            cacheWriteMode: '1h'
+        });
+        expect(atThreshold?.longContextApplied).toBe(false);
+        expect(atThreshold?.totalCostUsd).toBeCloseTo(0.01051);
+
+        const overThreshold = estimateAiModelCostUsd({
+            model: 'claude-haiku-5-5',
+            inputTokens: 98_001,
+            cacheReadInputTokens: 1_000,
+            cacheWriteInputTokens: 1_000,
+            outputTokens: 1_000,
+            cacheWriteMode: '1h'
+        });
+        expect(overThreshold?.longContextApplied).toBe(true);
+        expect(overThreshold?.cacheWriteCostUsd).toBe(0.001);
+        expect(overThreshold?.totalCostUsd).toBeCloseTo(0.0525505);
+    });
+
+    it('keeps both standard and long-context Haiku 5.5 pricing within the Haiku policy', () => {
+        const candidate = evaluateAiModelProfileCostPolicy({
+            provider: 'anthropic',
+            profile: 'fast',
+            candidateModelKey: 'anthropic:claude-haiku-5-5'
+        });
+        expect(candidate.isWithinPolicy).toBe(true);
+        expect(candidate.inputPriceMultiplier).toBe(0.1);
+        expect(candidate.cachedInputPriceMultiplier).toBe(0.1);
+        expect(candidate.outputPriceMultiplier).toBe(0.1);
+        expect(candidate.cacheWrite5mPriceMultiplier).toBe(0.1);
+        expect(candidate.cacheWrite1hPriceMultiplier).toBe(0.1);
+    });
+
     it('charges generic cache-write pricing for current OpenAI models', () => {
         const standardEstimate = estimateAiModelCostUsd({
             model: 'gpt-5.6-terra',
@@ -358,7 +397,7 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('gpt-rosalind-research')?.pricing.cachedInputUsdPerMillionTokens).toBe(0.5);
         expect(getAiModelById('gpt-rosalind-research')?.pricing.outputUsdPerMillionTokens).toBe(25);
         expect(getAiModelById('gpt-rosalind-research')?.pricing.cacheWriteUsdPerMillionTokens).toBeNull();
-        expect(getAiModelById('gpt-5.4-cyber')?.status).toBe('deprecated');
+        expect(getAiModelById('gpt-5.4-cyber')?.status).toBe('retired');
         expect(getAiModelById('gpt-5.4-cyber')?.recommendedReplacementModelKey).toBe('openai:gpt-5.6-cyber');
         expect(getAiModelById('gpt-5.6-terra')?.pricing.longContextOutputUsdPerMillionTokens).toBe(18);
         expect(getAiModelById('gpt-5.6-luna')?.pricing.outputUsdPerMillionTokens).toBe(1.2);
@@ -375,7 +414,7 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('gpt-5-chat-latest')?.recommendedReplacementModelKey).toBe('openai:gpt-5.6-sol');
         expect(getAiModelById('gpt-5.5-pro')?.modelKey).toBe('openai:gpt-5.5-pro');
         expect(getAiModelById('gpt-5.2-pro')?.modelKey).toBe('openai:gpt-5.2-pro');
-        expect(getAiModelById('gpt-5.3-codex')?.status).toBe('active');
+        expect(getAiModelById('gpt-5.3-codex')?.status).toBe('deprecated');
         expect(getAiModelById('gpt-5-codex')?.status).toBe('retired');
         expect(getAiModelById('gpt-5-codex')?.recommendedReplacementModelKey).toBe('openai:gpt-5.6-sol');
         expect(getAiModelById('o3-deep-research-2025-06-26')?.modelKey).toBe('openai:o3-deep-research-2025-06-26');
@@ -438,7 +477,7 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('claude-sonnet-5')?.modelKey).toBe('anthropic:claude-sonnet-5');
         expect(getAiModelById('claude-sonnet-5')?.pricing.inputUsdPerMillionTokens).toBe(2);
         expect(getAiModelById('claude-sonnet-5')?.maxOutputTokens).toBe(128_000);
-        expect(getAiModelById('claude-sonnet-5')?.recommendedReplacementModelKey).toBeNull();
+        expect(getAiModelById('claude-sonnet-5')?.recommendedReplacementModelKey).toBe('anthropic:claude-sonnet-5-5');
         expect(getAiModelById('claude-sonnet-5-5')?.status).toBe('active');
         expect(getAiModelById('claude-sonnet-5-5')?.maxOutputTokens).toBe(128_000);
         expect(getAiModelById('claude-sonnet-5-5')?.parameterPolicies?.forcedToolChoice).toBe('unsupported');
@@ -480,7 +519,9 @@ describe('AI model catalog helpers', () => {
         expect(isAiAgentChatCandidate('claude-opus-5-5')).toBe(true);
         expect(isAiAgentChatCandidate('claude-opus-5')).toBe(false);
         expect(isAiAgentChatCandidate('claude-opus-4-8')).toBe(false);
-        expect(isAiAgentChatCandidate('claude-sonnet-5')).toBe(true);
+        expect(isAiAgentChatCandidate('claude-sonnet-5')).toBe(false);
+        expect(isAiAgentChatCandidate('claude-sonnet-5-5')).toBe(true);
+        expect(isAiAgentChatCandidate('claude-haiku-5-5')).toBe(true);
         expect(isAiAgentChatCandidate('claude-sonnet-4-6')).toBe(false);
         expect(isAiAgentChatCandidate('claude-3-7-sonnet-20250219')).toBe(false);
     });

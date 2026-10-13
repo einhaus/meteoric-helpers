@@ -49,6 +49,7 @@ export type AiModelCapabilities = Readonly<{
     supportsExtendedThinking: AiCapabilitySupport;
     supportsAdaptiveThinking: AiCapabilitySupport;
     requiresAdaptiveThinking?: AiCapabilitySupport;
+    supportsBetweenToolsThinking?: AiCapabilitySupport;
 }>;
 
 export type AiModelPricing = Readonly<{
