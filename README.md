@@ -1,3 +1,6 @@
+Database MCP: the opt-in server API is `@einhaus/meteoric-helpers/mcp/database`.
+See [configuration, permissions, deployment boundaries, and tests](docs/database-mcp.md).
+
 To publish (GitHub Packages):
 Run build:
 bun run build

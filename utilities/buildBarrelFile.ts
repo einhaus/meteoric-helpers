@@ -108,6 +108,8 @@ const filesInSrcDir = fs.readdirSync(srcDir);
 
 // TODO - recursively search for sub directories
 for (const file of filesInSrcDir) {
+    // MCP is an explicit opt-in server subpath; neither barrel should load its SDK or drivers.
+    if (file === 'mcp') continue;
     // is directory?
     if (fs.statSync(path.join(srcDir, file)).isDirectory()) {
         // Full path
