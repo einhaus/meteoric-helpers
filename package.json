@@ -1,6 +1,6 @@
 {
     "name": "@einhaus/meteoric-helpers",
-    "version": "1.0.170",
+    "version": "1.0.171",
     "files": [
         "dist",
         "docs/database-mcp.md",
@@ -83,7 +83,8 @@
         "oxlint": "^1.88.0",
         "oxlint-tsgolint": "^7.0.2004",
         "typescript": "^7.0.2",
-        "vitest": "^5.0.4"
+        "vitest": "^5.0.4",
+        "zod": "^4.6.7"
     },
     "publishConfig": {
         "registry": "https://npm.pkg.github.com/",
@@ -105,8 +106,7 @@
         "nanoid": "^6.0.2",
         "node-cache": "^5.1.2",
         "node-sql-parser": "5.4.0",
-        "pg": "^8.23.1",
-        "zod": "4.6.7"
+        "pg": "^8.23.1"
     },
     "overrides": {
         "fast-xml-parser": "5.3.6",
@@ -116,5 +116,8 @@
         "minimatch@10": "10.2.4",
         "typescript": "^7.0.2",
         "oxlint-tsgolint": "^7.0.2001"
+    },
+    "peerDependencies": {
+        "zod": "^4.6.5"
     }
 }
