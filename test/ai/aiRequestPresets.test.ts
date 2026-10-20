@@ -72,12 +72,34 @@ describe('AI request preset helpers', () => {
         expect(config.warnings.some((warning) => warning.includes('was automatically upgraded'))).toBe(true);
     });
 
-    it('upgrades a legacy OpenAI request before snapshot selection', () => {
-        const config = resolveAiRequestConfig({ preset: 'analysis', model: 'gpt-4o', preferSnapshot: true });
+    it.each([
+        'gpt-4.1',
+        'gpt-4.1-2025-04-14',
+        'gpt-4.1-mini',
+        'gpt-4.1-mini-2025-04-14',
+        'gpt-4o',
+        'gpt-4o-2024-08-06',
+        'gpt-4o-2024-11-20',
+        'gpt-4o-mini',
+        'gpt-4o-mini-2024-07-18'
+    ])('upgrades deprecated %s before snapshot selection', (model) => {
+        const config = resolveAiRequestConfig({ preset: 'analysis', model, preferSnapshot: true });
 
-        expect(config.modelKey).toBe('openai:gpt-5.6-sol');
-        expect(config.modelId).toBe('gpt-5.6-sol');
+        expect(config.modelKey).toBe('openai:gpt-6-luna');
+        expect(config.modelId).toBe('gpt-6-luna');
         expect(config.warnings.some((warning) => warning.includes('was automatically upgraded'))).toBe(true);
+    });
+
+    it.each([
+        ['gpt-daybreak-blue-latest', 'gpt-5.6-sol'],
+        ['daybreak-blue-latest', 'gpt-5.6-sol'],
+        ['gpt-daybreak-red-latest', 'gpt-5.6-cyber'],
+        ['daybreak-red-latest', 'gpt-5.6-cyber']
+    ])('upgrades deprecated %s without changing the documented underlying model', (model, replacement) => {
+        const config = resolveAiRequestConfig({ preset: 'agentChat', model, preferSnapshot: true });
+
+        expect(config.modelId).toBe(replacement);
+        expect(config.warnings.some((warning) => warning.includes('(deprecated) was automatically upgraded'))).toBe(true);
     });
 
     it('upgrades retired GPT-5.4 Cyber requests to the current same-provider replacement', () => {

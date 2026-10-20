@@ -1,9 +1,9 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-10-12';
-const GPT_5_6_VERIFIED_AT = '2026-10-12';
-const GPT_6_1_VERIFIED_AT = '2026-10-12';
-const CURRENT_AUDIT_VERIFIED_AT = '2026-10-12';
+const VERIFIED_AT = '2026-10-19';
+const GPT_5_6_VERIFIED_AT = '2026-10-19';
+const GPT_6_1_VERIFIED_AT = '2026-10-19';
+const CURRENT_AUDIT_VERIFIED_AT = '2026-10-19';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -81,6 +81,12 @@ const ANTHROPIC_RELEASE_NOTES_SOURCE: AiModelSource = {
     label: 'Anthropic release notes',
     url: 'https://platform.claude.com/docs/en/release-notes/overview',
     verifiedAt: VERIFIED_AT
+};
+
+const ANTHROPIC_MODELS_API_SOURCE: AiModelSource = {
+    label: 'Anthropic Models API capability metadata',
+    url: 'https://platform.claude.com/docs/en/api/models/list',
+    verifiedAt: CURRENT_AUDIT_VERIFIED_AT
 };
 
 const ANTHROPIC_FABLE_5_SOURCE: AiModelSource = {
@@ -425,7 +431,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         provider: 'openai',
         modelId: 'gpt-5.6-sol',
         snapshotModelId: 'gpt-5.6-sol',
-        aliases: ['gpt-5.6', 'gpt-daybreak-blue-latest', 'daybreak-blue-latest'],
+        aliases: ['gpt-5.6'],
         displayName: 'GPT-5.6 Sol',
         family: 'gpt-5.6',
         description: 'Frontier GPT-5.6 model for complex professional, coding, reasoning, and agentic workflows.',
@@ -487,7 +493,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         provider: 'openai',
         modelId: 'gpt-5.6-cyber',
         snapshotModelId: 'gpt-5.6-cyber',
-        aliases: ['gpt-daybreak-red-latest', 'daybreak-red-latest'],
+        aliases: [],
         displayName: 'GPT-5.6 Cyber',
         family: 'gpt-5.6',
         description:
@@ -541,6 +547,113 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             OPENAI_CYBER_SAFETY_SOURCE
         ],
         tags: ['specialized', 'reasoning', 'cybersecurity', 'restricted-access', 'agent']
+    },
+    {
+        modelKey: 'openai:gpt-daybreak-blue-latest',
+        provider: 'openai',
+        modelId: 'gpt-daybreak-blue-latest',
+        snapshotModelId: null,
+        aliases: ['daybreak-blue-latest'],
+        displayName: 'Daybreak Blue',
+        family: 'daybreak',
+        description:
+            'Deprecated Daybreak Blue alias retained for compatibility; use a stable model available to the approved organization.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-5.6-sol',
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: true,
+            supportsMcp: true,
+            supportsReasoningEffort: null,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 1_050_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-02-16',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 4,
+            cachedInputUsdPerMillionTokens: 0.4,
+            outputUsdPerMillionTokens: 20,
+            cacheWriteUsdPerMillionTokens: 5,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 272_000,
+            longContextInputUsdPerMillionTokens: 8,
+            longContextCachedInputUsdPerMillionTokens: 0.8,
+            longContextCacheWriteUsdPerMillionTokens: 10,
+            longContextOutputUsdPerMillionTokens: 30,
+            notes: 'Alias rates follow its documented underlying snapshot; no independent alias prices or exact replacement ID are published. The replacement conservatively follows that snapshot without escalating access or cost tiers.'
+        }),
+        sources: [createOpenAiModelSource('gpt-daybreak-blue-latest'), createOpenAiModelSource('gpt-5.6-sol'), OPENAI_CYBER_SAFETY_SOURCE],
+        tags: ['deprecated', 'cybersecurity', 'restricted-access', 'compatibility']
+    },
+    {
+        modelKey: 'openai:gpt-daybreak-red-latest',
+        provider: 'openai',
+        modelId: 'gpt-daybreak-red-latest',
+        snapshotModelId: null,
+        aliases: ['daybreak-red-latest'],
+        displayName: 'Daybreak Red',
+        family: 'daybreak',
+        description: 'Deprecated Daybreak Red alias retained for compatibility; use a stable model available to the approved organization.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-5.6-cyber',
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: true,
+            supportsMcp: true,
+            supportsReasoningEffort: null,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 400_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-02-16',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 12.5,
+            cachedInputUsdPerMillionTokens: 1.25,
+            outputUsdPerMillionTokens: 75,
+            cacheWriteUsdPerMillionTokens: 15.625,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 272_000,
+            longContextInputUsdPerMillionTokens: 25,
+            longContextCachedInputUsdPerMillionTokens: 2.5,
+            longContextCacheWriteUsdPerMillionTokens: 31.25,
+            longContextOutputUsdPerMillionTokens: 112.5,
+            notes: 'Alias rates follow its documented underlying snapshot; no independent alias prices or exact replacement ID are published. The replacement conservatively follows that snapshot without escalating access or cost tiers.'
+        }),
+        sources: [createOpenAiModelSource('gpt-daybreak-red-latest'), createOpenAiModelSource('gpt-5.6-cyber'), OPENAI_CYBER_SAFETY_SOURCE],
+        tags: ['deprecated', 'cybersecurity', 'restricted-access', 'compatibility']
     },
     {
         modelKey: 'openai:gpt-rosalind-research',
@@ -2006,9 +2119,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: ['gpt-4.1-2025-04-14'],
         displayName: 'GPT-4.1',
         family: 'gpt-4.1',
-        description: 'Legacy non-reasoning OpenAI model with a 1M-token context window.',
-        status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.4-mini',
+        description: 'Deprecated non-reasoning OpenAI model retained for compatibility until its January 14, 2027 shutdown.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-6-luna',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -2044,10 +2157,16 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextInputUsdPerMillionTokens: null,
             longContextCachedInputUsdPerMillionTokens: null,
             longContextOutputUsdPerMillionTokens: null,
-            notes: null
+            notes: 'Deprecated October 14, 2026; the current snapshot shuts down January 14, 2027. The unpinned alias follows that snapshot. Earlier snapshots may have earlier shutdowns.'
         }),
-        sources: [createOpenAiModelSource('gpt-4.1'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['legacy', 'tooling', 'compatibility']
+        sources: [
+            OPENAI_DEPRECATIONS_SOURCE,
+            createOpenAiModelSource('gpt-4.1'),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE
+        ],
+        tags: ['deprecated', 'tooling', 'compatibility']
     },
     {
         modelKey: 'openai:gpt-4.1-mini',
@@ -2057,9 +2176,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: ['gpt-4.1-mini-2025-04-14'],
         displayName: 'GPT-4.1 mini',
         family: 'gpt-4.1',
-        description: 'Legacy smaller, faster version of GPT-4.1 with a 1M-token context window.',
-        status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.4-mini',
+        description: 'Deprecated smaller GPT-4.1 model retained for compatibility until its January 14, 2027 shutdown.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-6-luna',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -2095,10 +2214,16 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextInputUsdPerMillionTokens: null,
             longContextCachedInputUsdPerMillionTokens: null,
             longContextOutputUsdPerMillionTokens: null,
-            notes: null
+            notes: 'Deprecated October 14, 2026; the current snapshot shuts down January 14, 2027. The unpinned alias follows that snapshot. Earlier snapshots may have earlier shutdowns.'
         }),
-        sources: [createOpenAiModelSource('gpt-4.1-mini'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['legacy', 'fast', 'compatibility']
+        sources: [
+            OPENAI_DEPRECATIONS_SOURCE,
+            createOpenAiModelSource('gpt-4.1-mini'),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE
+        ],
+        tags: ['deprecated', 'fast', 'compatibility']
     },
     {
         modelKey: 'openai:gpt-4.1-nano',
@@ -2165,9 +2290,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: ['gpt-4o-2024-11-20', 'gpt-4o-2024-08-06', 'gpt-4o-2024-05-13'],
         displayName: 'GPT-4o',
         family: 'gpt-4o',
-        description: 'Legacy multimodal GPT model retained for compatibility with existing apps.',
-        status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.6-sol',
+        description: 'Deprecated multimodal GPT model retained for compatibility until its January 14, 2027 shutdown.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-6-luna',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -2203,10 +2328,16 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextInputUsdPerMillionTokens: null,
             longContextCachedInputUsdPerMillionTokens: null,
             longContextOutputUsdPerMillionTokens: null,
-            notes: null
+            notes: 'Deprecated October 14, 2026; the current snapshot shuts down January 14, 2027. The unpinned alias follows that snapshot. Earlier snapshots may have earlier shutdowns.'
         }),
-        sources: [createOpenAiModelSource('gpt-4o'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['legacy', 'multimodal', 'compatibility']
+        sources: [
+            OPENAI_DEPRECATIONS_SOURCE,
+            createOpenAiModelSource('gpt-4o'),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE
+        ],
+        tags: ['deprecated', 'multimodal', 'compatibility']
     },
     {
         modelKey: 'openai:chatgpt-4o-latest',
@@ -2272,9 +2403,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: ['gpt-4o-mini-2024-07-18'],
         displayName: 'GPT-4o mini',
         family: 'gpt-4o',
-        description: 'Widely used older low-cost OpenAI model still common in existing apps.',
-        status: 'legacy',
-        recommendedReplacementModelKey: 'openai:gpt-5.4-mini',
+        description: 'Deprecated smaller GPT-4o model retained for compatibility until its January 14, 2027 shutdown.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-6-luna',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -2310,10 +2441,16 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextInputUsdPerMillionTokens: null,
             longContextCachedInputUsdPerMillionTokens: null,
             longContextOutputUsdPerMillionTokens: null,
-            notes: 'Kept mainly so older apps can centralize their existing fallback.'
+            notes: 'Deprecated October 14, 2026; the current snapshot shuts down January 14, 2027. The unpinned alias follows that snapshot.'
         }),
-        sources: [createOpenAiModelSource('gpt-4o-mini'), OPENAI_MODELS_SOURCE, OPENAI_ALL_MODELS_SOURCE, OPENAI_PRICING_SOURCE],
-        tags: ['legacy', 'cheap', 'compatibility']
+        sources: [
+            OPENAI_DEPRECATIONS_SOURCE,
+            createOpenAiModelSource('gpt-4o-mini'),
+            OPENAI_MODELS_SOURCE,
+            OPENAI_ALL_MODELS_SOURCE,
+            OPENAI_PRICING_SOURCE
+        ],
+        tags: ['deprecated', 'cheap', 'compatibility']
     },
     {
         modelKey: 'openai:o1',
@@ -2799,14 +2936,15 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsToolCalling: true,
             supportsStructuredOutputs: true,
             supportsPromptCaching: true,
-            supportsWebSearch: null,
+            supportsWebSearch: true,
             supportsFileSearch: null,
             supportsComputerUse: true,
             supportsMcp: null,
             supportsReasoningEffort: false,
             reasoningEffortLevels: [],
             supportsExtendedThinking: false,
-            supportsAdaptiveThinking: true
+            supportsAdaptiveThinking: true,
+            supportsBetweenToolsThinking: false
         }),
         contextWindowTokens: 1_000_000,
         maxOutputTokens: 128_000,
@@ -2824,6 +2962,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: 'Full 1M context window is included at standard pricing. Claude Fable 5.1 uses 30-day data retention and is not available under zero data retention unless Anthropic has authorized an exception.'
         }),
         sources: [
+            ANTHROPIC_MODELS_API_SOURCE,
             createAnthropicModelSource('fable-5-1'),
             ANTHROPIC_MODELS_SOURCE,
             ANTHROPIC_MODEL_IDS_SOURCE,
@@ -2934,7 +3073,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsReasoningEffort: false,
             reasoningEffortLevels: [],
             supportsExtendedThinking: false,
-            supportsAdaptiveThinking: true
+            supportsAdaptiveThinking: true,
+            supportsBetweenToolsThinking: false
         }),
         contextWindowTokens: 1_000_000,
         maxOutputTokens: 128_000,
@@ -2952,6 +3092,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: 'Full 1M context window is included at standard pricing. Claude Fable 5 requires 30-day data retention and is not available under zero data retention.'
         }),
         sources: [
+            ANTHROPIC_MODELS_API_SOURCE,
             createAnthropicModelSource('fable-5'),
             ANTHROPIC_MODELS_SOURCE,
             ANTHROPIC_MODEL_IDS_SOURCE,
@@ -3131,6 +3272,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             reasoningEffortLevels: [],
             supportsExtendedThinking: false,
             supportsAdaptiveThinking: true,
+            supportsBetweenToolsThinking: false,
             requiresAdaptiveThinking: true
         }),
         contextWindowTokens: 1_000_000,
@@ -3149,6 +3291,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: 'Full 1M context is included at standard pricing. Adaptive thinking is always on and is controlled with the effort parameter; legacy manual and disabled thinking configurations are rejected.'
         }),
         sources: [
+            ANTHROPIC_MODELS_API_SOURCE,
             createAnthropicModelSource('opus-5-5'),
             ANTHROPIC_MODELS_SOURCE,
             ANTHROPIC_MODEL_IDS_SOURCE,
@@ -3198,7 +3341,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsReasoningEffort: false,
             reasoningEffortLevels: [],
             supportsExtendedThinking: false,
-            supportsAdaptiveThinking: true
+            supportsAdaptiveThinking: true,
+            supportsBetweenToolsThinking: false
         }),
         contextWindowTokens: 1_000_000,
         maxOutputTokens: 128_000,
@@ -3216,6 +3360,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: 'Full 1M context window is included at standard pricing. Thinking is enabled by default, and effort supports low, medium, high, xhigh, and max.'
         }),
         sources: [
+            ANTHROPIC_MODELS_API_SOURCE,
             createAnthropicModelSource('opus-5'),
             ANTHROPIC_MODELS_SOURCE,
             ANTHROPIC_MODEL_IDS_SOURCE,
@@ -3264,7 +3409,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsReasoningEffort: false,
             reasoningEffortLevels: [],
             supportsExtendedThinking: false,
-            supportsAdaptiveThinking: true
+            supportsAdaptiveThinking: true,
+            supportsBetweenToolsThinking: false
         }),
         contextWindowTokens: 1_000_000,
         maxOutputTokens: 128_000,
@@ -3282,6 +3428,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: 'Full 1M context window is included at standard pricing on the Claude API, Amazon Bedrock, and Vertex AI; Microsoft Foundry is listed as 200k.'
         }),
         sources: [
+            ANTHROPIC_MODELS_API_SOURCE,
             createAnthropicModelSource('opus-4-8'),
             ANTHROPIC_MODELS_SOURCE,
             ANTHROPIC_MODEL_IDS_SOURCE,
@@ -3333,7 +3480,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsReasoningEffort: false,
             reasoningEffortLevels: [],
             supportsExtendedThinking: false,
-            supportsAdaptiveThinking: true
+            supportsAdaptiveThinking: true,
+            supportsBetweenToolsThinking: false
         }),
         contextWindowTokens: 1_000_000,
         maxOutputTokens: 128_000,
@@ -3351,6 +3499,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: 'Pricing in the latest overview is listed as input, output, and caching rates.'
         }),
         sources: [
+            ANTHROPIC_MODELS_API_SOURCE,
             createAnthropicModelSource('opus-4-7'),
             ANTHROPIC_MODELS_SOURCE,
             ANTHROPIC_MODEL_IDS_SOURCE,
@@ -3469,7 +3618,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsReasoningEffort: false,
             reasoningEffortLevels: [],
             supportsExtendedThinking: false,
-            supportsAdaptiveThinking: true
+            supportsAdaptiveThinking: true,
+            supportsBetweenToolsThinking: false
         }),
         contextWindowTokens: 1_000_000,
         maxOutputTokens: 128_000,
@@ -3487,6 +3637,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: 'The launch pricing of $2 input, $0.20 cached input, $2.50 5m cache write, $4 1h cache write, and $10 output per MTok is now the standard price; the previously scheduled September 1, 2026 increase will not occur. Full 1M context is included at standard pricing. The new tokenizer can produce about 30% more tokens for the same text compared with Sonnet 4.6.'
         }),
         sources: [
+            ANTHROPIC_MODELS_API_SOURCE,
             createAnthropicModelSource('sonnet-5'),
             ANTHROPIC_MODELS_SOURCE,
             ANTHROPIC_MODEL_IDS_SOURCE,
@@ -3533,7 +3684,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsReasoningEffort: false,
             reasoningEffortLevels: [],
             supportsExtendedThinking: true,
-            supportsAdaptiveThinking: true
+            supportsAdaptiveThinking: true,
+            supportsBetweenToolsThinking: false
         }),
         contextWindowTokens: 1_000_000,
         maxOutputTokens: 128_000,
@@ -3553,6 +3705,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: 'Full 1M context window is included at standard pricing.'
         }),
         sources: [
+            ANTHROPIC_MODELS_API_SOURCE,
             createAnthropicModelSource('sonnet-4-6'),
             ANTHROPIC_MODELS_SOURCE,
             ANTHROPIC_MODEL_IDS_SOURCE,
@@ -3595,6 +3748,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             reasoningEffortLevels: [],
             supportsExtendedThinking: false,
             supportsAdaptiveThinking: true,
+            supportsBetweenToolsThinking: false,
             requiresAdaptiveThinking: false
         }),
         contextWindowTokens: 1_000_000,
@@ -3615,6 +3769,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: 'Prompts over 100K total input tokens, including cache reads and writes, use the higher prices for the full request. The newer tokenizer counts approximately 30% more tokens than Haiku 4.5. Batch API output can reach 300K with a beta header; this catalog records the standard 128K limit.'
         }),
         sources: [
+            ANTHROPIC_MODELS_API_SOURCE,
             createAnthropicModelSource('haiku-5-5', CURRENT_AUDIT_VERIFIED_AT),
             {
                 label: 'Anthropic Claude Haiku 5.5 migration guide',
@@ -3669,14 +3824,15 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsToolCalling: true,
             supportsStructuredOutputs: true,
             supportsPromptCaching: true,
-            supportsWebSearch: null,
+            supportsWebSearch: true,
             supportsFileSearch: null,
             supportsComputerUse: null,
             supportsMcp: null,
             supportsReasoningEffort: false,
             reasoningEffortLevels: [],
             supportsExtendedThinking: true,
-            supportsAdaptiveThinking: false
+            supportsAdaptiveThinking: false,
+            supportsBetweenToolsThinking: false
         }),
         contextWindowTokens: 200_000,
         maxOutputTokens: 64_000,
@@ -3694,6 +3850,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: null
         }),
         sources: [
+            ANTHROPIC_MODELS_API_SOURCE,
             createAnthropicModelSource('haiku-4-5'),
             ANTHROPIC_MODELS_SOURCE,
             ANTHROPIC_MODEL_IDS_SOURCE,
@@ -3726,14 +3883,15 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsToolCalling: true,
             supportsStructuredOutputs: true,
             supportsPromptCaching: true,
-            supportsWebSearch: null,
+            supportsWebSearch: true,
             supportsFileSearch: null,
             supportsComputerUse: true,
             supportsMcp: null,
             supportsReasoningEffort: false,
             reasoningEffortLevels: [],
             supportsExtendedThinking: true,
-            supportsAdaptiveThinking: false
+            supportsAdaptiveThinking: false,
+            supportsBetweenToolsThinking: false
         }),
         contextWindowTokens: 200_000,
         maxOutputTokens: 64_000,
@@ -3751,6 +3909,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: null
         }),
         sources: [
+            ANTHROPIC_MODELS_API_SOURCE,
             ANTHROPIC_COMPUTER_USE_SOURCE,
             createAnthropicModelSource('opus-4-5'),
             ANTHROPIC_MODEL_DEPRECATIONS_SOURCE,
@@ -3784,14 +3943,15 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsToolCalling: true,
             supportsStructuredOutputs: true,
             supportsPromptCaching: true,
-            supportsWebSearch: null,
+            supportsWebSearch: true,
             supportsFileSearch: null,
             supportsComputerUse: null,
             supportsMcp: null,
             supportsReasoningEffort: false,
             reasoningEffortLevels: [],
             supportsExtendedThinking: true,
-            supportsAdaptiveThinking: false
+            supportsAdaptiveThinking: false,
+            supportsBetweenToolsThinking: false
         }),
         contextWindowTokens: 200_000,
         maxOutputTokens: 64_000,
@@ -3809,6 +3969,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: null
         }),
         sources: [
+            ANTHROPIC_MODELS_API_SOURCE,
             createAnthropicModelSource('sonnet-4-5'),
             ANTHROPIC_MODEL_DEPRECATIONS_SOURCE,
             ANTHROPIC_PRICING_SOURCE,
@@ -3848,7 +4009,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsReasoningEffort: false,
             reasoningEffortLevels: [],
             supportsExtendedThinking: true,
-            supportsAdaptiveThinking: true
+            supportsAdaptiveThinking: true,
+            supportsBetweenToolsThinking: false
         }),
         contextWindowTokens: 1_000_000,
         maxOutputTokens: 128_000,
@@ -3866,6 +4028,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             notes: null
         }),
         sources: [
+            ANTHROPIC_MODELS_API_SOURCE,
             ANTHROPIC_COMPUTER_USE_SOURCE,
             createAnthropicModelSource('opus-4-6'),
             ANTHROPIC_MODELS_SOURCE,

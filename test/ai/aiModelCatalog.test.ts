@@ -21,12 +21,12 @@ describe('AI model catalog helpers', () => {
         expect(normalizeAiModelKey('gpt-6-sol')).toBe('openai:gpt-6-sol');
         expect(normalizeAiModelKey('gpt-6-luna')).toBe('openai:gpt-6-luna');
         expect(normalizeAiModelKey('gpt-5.6')).toBe('openai:gpt-5.6-sol');
-        expect(normalizeAiModelKey('gpt-daybreak-blue-latest')).toBe('openai:gpt-5.6-sol');
-        expect(normalizeAiModelKey('gpt-daybreak-red-latest')).toBe('openai:gpt-5.6-cyber');
+        expect(normalizeAiModelKey('gpt-daybreak-blue-latest')).toBe('openai:gpt-daybreak-blue-latest');
+        expect(normalizeAiModelKey('gpt-daybreak-red-latest')).toBe('openai:gpt-daybreak-red-latest');
         expect(normalizeAiModelKey('gpt-rosalind-research')).toBe('openai:gpt-rosalind-research');
         expect(normalizeAiModelKey('gpt-5.4-cyber')).toBe('openai:gpt-5.4-cyber');
-        expect(normalizeAiModelKey('daybreak-blue-latest')).toBe('openai:gpt-5.6-sol');
-        expect(normalizeAiModelKey('daybreak-red-latest')).toBe('openai:gpt-5.6-cyber');
+        expect(normalizeAiModelKey('daybreak-blue-latest')).toBe('openai:gpt-daybreak-blue-latest');
+        expect(normalizeAiModelKey('daybreak-red-latest')).toBe('openai:gpt-daybreak-red-latest');
         expect(normalizeAiModelKey('gpt-5.6-terra')).toBe('openai:gpt-5.6-terra');
         expect(normalizeAiModelKey('openai:gpt-5.5')).toBe('openai:gpt-5.5');
         expect(normalizeAiModelKey('claude-opus-5-5')).toBe('anthropic:claude-opus-5-5');
@@ -374,6 +374,36 @@ describe('AI model catalog helpers', () => {
         expect(astraEstimate?.totalCostUsd).toBe(13.525);
     });
 
+    it.each(['claude-fable-5-1', 'claude-opus-4-5', 'claude-haiku-4-5', 'claude-sonnet-4-5'])(
+        'records API-confirmed web search support for %s',
+        (modelId) => {
+            const model = getAiModelById(modelId);
+            expect(model?.capabilities.supportsWebSearch).toBe(true);
+            expect(model?.capabilities.supportsBetweenToolsThinking).toBe(false);
+            expect(model?.sources.some((source) => source.url === 'https://platform.claude.com/docs/en/api/models/list')).toBe(true);
+        }
+    );
+
+    it.each(['gpt-4.1', 'gpt-4.1-mini', 'gpt-4o', 'gpt-4o-mini'])(
+        'retains deprecated %s metadata with the official January 2027 replacement',
+        (modelId) => {
+            const model = getAiModelById(modelId);
+            expect(model?.status).toBe('deprecated');
+            expect(model?.recommendedReplacementModelKey).toBe('openai:gpt-6-luna');
+            expect(model?.pricing.notes).toContain('January 14, 2027');
+            expect(model?.sources.some((source) => source.url === 'https://developers.openai.com/api/docs/deprecations')).toBe(true);
+        }
+    );
+
+    it.each(['blue', 'red'])('retains the deprecated Daybreak %s alias separately from its active underlying model', (colour) => {
+        const model = getAiModelById(`gpt-daybreak-${colour}-latest`);
+        expect(model?.status).toBe('deprecated');
+        expect(getAiModelById(`daybreak-${colour}-latest`)?.modelKey).toBe(model?.modelKey);
+        const replacement = getAiModelById(model?.recommendedReplacementModelKey ?? '');
+        expect(['active', 'specialized']).toContain(replacement?.status);
+        expect(model?.pricing.inputUsdPerMillionTokens).toBe(replacement?.pricing.inputUsdPerMillionTokens);
+    });
+
     it('can still resolve legacy models used by current apps', () => {
         expect(getAiModelById('gpt-6-astra')?.contextWindowTokens).toBe(1_050_000);
         expect(getAiModelById('gpt-6-astra')?.capabilities.reasoningEffortLevels).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
@@ -427,7 +457,7 @@ describe('AI model catalog helpers', () => {
         expect(getAiModelById('claude-fable-5-1')?.modelKey).toBe('anthropic:claude-fable-5-1');
         expect(getAiModelById('claude-fable-5-1')?.knowledgeCutoff).toBe('2026-06');
         expect(getAiModelById('claude-fable-5-1')?.pricing.cachedInputUsdPerMillionTokens).toBe(0.25);
-        expect(getAiModelById('claude-fable-5-1')?.capabilities.supportsWebSearch).toBeNull();
+        expect(getAiModelById('claude-fable-5-1')?.capabilities.supportsWebSearch).toBe(true);
         expect(getAiModelById('claude-fable-5')?.modelKey).toBe('anthropic:claude-fable-5');
         expect(getAiModelById('claude-fable-5')?.status).toBe('legacy');
         expect(getAiModelById('claude-fable-5')?.recommendedReplacementModelKey).toBe('anthropic:claude-fable-5-1');
