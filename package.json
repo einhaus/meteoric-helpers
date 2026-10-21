@@ -1,6 +1,6 @@
 {
     "name": "@einhaus/meteoric-helpers",
-    "version": "1.0.172",
+    "version": "1.0.173",
     "files": [
         "dist",
         "docs/database-mcp.md",

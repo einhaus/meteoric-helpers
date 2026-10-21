@@ -369,8 +369,11 @@ const emitStructuredFetchError = (config: {
 }) => {
     const { logDirectory, message, requestConfig, requestUrl, response, redactionConfig } = config;
 
-    const sanitizedUrl = sanitizeUrlForLogging(requestUrl, redactionConfig);
-    const sanitizedRequestConfig = sanitizeRequestConfigForLogging(requestConfig);
+    const loggingRedaction = { ...redactionConfig, level: 'full' as const };
+    const sanitizedUrl = sanitizeUrlForLogging(requestUrl, loggingRedaction);
+    const sanitizedRequestConfig = sanitizeRequestConfigForLogging(
+        requestConfig ? { ...requestConfig, redaction: loggingRedaction } : undefined
+    );
     let sanitizedResponseHeaders: Record<string, string> = {};
 
     if (response?.headers) {
@@ -380,7 +383,7 @@ const emitStructuredFetchError = (config: {
             responseHeaders[key] = value;
         });
 
-        const sanitizedDetails = sanitizeRequestDetails({ headers: responseHeaders }, redactionConfig);
+        const sanitizedDetails = sanitizeRequestDetails({ headers: responseHeaders }, loggingRedaction);
         sanitizedResponseHeaders = sanitizedDetails.headers as Record<string, string>;
     }
 
@@ -394,7 +397,7 @@ const emitStructuredFetchError = (config: {
 
     const logger = Logger.peekInstance();
 
-    if (logger && logDirectory && logger.getLogDir() === normalizeLogDirectory(logDirectory)) {
+    if (logger && (!logDirectory || logger.getLogDir() === normalizeLogDirectory(logDirectory))) {
         logger.log({
             level: 'error',
             severity: 7,
@@ -492,16 +495,14 @@ const returnError = (config: {
 }): ErrorResponse => {
     const { message, url, response, logDirectory, requestConfig, redactionConfig } = config;
 
-    if (logDirectory) {
-        emitStructuredFetchError({
-            logDirectory,
-            message,
-            requestUrl: url,
-            requestConfig,
-            response,
-            redactionConfig
-        });
-    }
+    emitStructuredFetchError({
+        logDirectory,
+        message: `Request failed${response ? ` (HTTP ${response.status})` : ''}`,
+        requestUrl: url,
+        requestConfig,
+        response,
+        redactionConfig
+    });
 
     return response?.status ? { isError: true, message, statusCode: response.status } : { isError: true, message };
 };

@@ -30,6 +30,30 @@ describe('doFetch', () => {
         expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     });
 
+    it.each([403, 429, 500])('logs HTTP %i without a logDirectory or logger', async (status) => {
+        const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        globalThis.fetch = vi.fn(
+            async () =>
+                new Response('{"error":"raw-sensitive-provider-body"}', {
+                    status,
+                    headers: { 'content-type': 'application/json' }
+                })
+        ) as typeof fetch;
+        const result = await doFetch('https://example.com/data?token=raw-secret-token', { timesToRetry: 0 });
+        expect(result).toMatchObject({ isError: true, statusCode: status });
+        expect(log).toHaveBeenCalledTimes(1);
+        expect(JSON.stringify(log.mock.calls)).not.toContain('raw-secret-token');
+        expect(JSON.stringify(log.mock.calls)).not.toContain('raw-sensitive-provider-body');
+    });
+
+    it('uses the active logger without requiring a logDirectory', async () => {
+        const logger = Logger.getInstance({ logDir: path.join(os.tmpdir(), 'dofetch-unused'), outputSeverity: 99 });
+        const log = vi.spyOn(logger, 'log').mockImplementation(() => undefined);
+        globalThis.fetch = vi.fn(async () => new Response('{broken', { headers: { 'content-type': 'application/json' } })) as typeof fetch;
+        expect(await doFetch('https://example.com/data', { timesToRetry: 0 })).toMatchObject({ isError: true });
+        expect(log).toHaveBeenCalledOnce();
+    });
+
     it('redacts normalized secret headers in timeout responses', async () => {
         globalThis.fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
             return new Promise<Response>((_resolve, reject) => {
@@ -97,7 +121,7 @@ describe('doFetch', () => {
 
             const logContents = readFileSync(logFile, 'utf8');
             expect(logContents).toContain('"requestUrl":"https://paper-api.alpaca.markets/v2/account?token=%5BREDACTED%5D"');
-            expect(logContents).toContain('"Authorization":"Bearer [REDACTED]"');
+            expect(logContents).toContain('"Authorization":"[REDACTED]"');
             expect(logContents).not.toContain('raw-secret-token');
         } finally {
             rmSync(tempRoot, { recursive: true, force: true });
@@ -141,7 +165,7 @@ describe('doFetch', () => {
                     severity: 7,
                     service: 'doFetch',
                     category: 'request',
-                    message: 'Service unavailable'
+                    message: 'Request failed (HTTP 503)'
                 })
             );
             expect(existsSync(path.join(logDir, 'doFetchErrors.log'))).toBe(false);
