@@ -63,14 +63,14 @@ Both barrel files are generated; add new modules under `src/**` and regenerate b
 - `bun run build`: clean, regenerate barrel files, and compile TypeScript to `dist/`.
 - `bun run build:barrel`: regenerate `src/index.ts` and `src/node.ts`.
 - `bun run watch`: TypeScript watch + auto-regeneration workflow for local iteration.
-- `bun run type-check`: run `tsc --noEmit` for a fast correctness check.
+- `bun run type-check`: run the built-in `bun check` without emitting files (Bun 1.4.4 or later). Keep TypeScript for builds and watch mode.
 - `bun run test`: run Vitest (expects tests under `test/` when present).
 - `bun publish`: publish using the registry and access settings in `package.json`; publishing requires `GITHUB_PACKAGE_TOKEN`.
 
 ## Coding Style & Naming Conventions
 
 - TypeScript (ESM; see `"type": "module"` in `package.json`), targeting ES2022.
-- Formatting: Oxfmt (`tabWidth: 4`, `singleQuote: true`, `semi: true`, `printWidth: 140`).
+- Formatting: Bun reads `.oxfmtrc.json` natively (`tabWidth: 4`, `singleQuote: true`, `semi: true`, `printWidth: 140`); no `oxfmt` package is required. Use `bun run format:check` or `bun run format`.
 - Linting: Oxlint with its TypeScript 7-native type-aware engine and built-in import rules (`.oxlintrc.json`).
 - Naming: prefer `camelCase` for values, `PascalCase` for types/classes; prefix booleans with `is/has/should/can/...`.
 
