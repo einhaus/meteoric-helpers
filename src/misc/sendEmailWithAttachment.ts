@@ -7,6 +7,12 @@ import type { AwsCredentials } from '../file/S3Helper.js';
 
 const BASE64_LINE_LENGTH = 76;
 
+/** Generated attachments can be delivered without requiring a writable filesystem. */
+export interface EmailAttachment {
+    fileName: string;
+    content: string | Buffer;
+}
+
 const wrapBase64 = (value: Buffer | string): string =>
     (Buffer.isBuffer(value) ? value : Buffer.from(value, 'utf8'))
         .toString('base64')
@@ -71,7 +77,7 @@ const formatFileNameParameter = (parameterName: 'name' | 'filename', fileName: s
         : `${parameterName}*=UTF-8''${encodeRfc2231Value(fileName)}`;
 
 /**
- * Sends an SES raw email with HTML, an optional plain-text alternative, and an optional file attachment.
+ * Sends an SES raw email with HTML, an optional plain-text alternative, and an optional file-path or in-memory attachment.
  * Throws when the attachment cannot be read or SES rejects the message.
  */
 export const sendEmailWithAttachment = async (config: {
@@ -83,12 +89,16 @@ export const sendEmailWithAttachment = async (config: {
     /** Plain-text alternative for clients that do not render HTML. Omitted from the message when empty. */
     textBody?: string;
     attachmentPath?: string;
+    attachment?: EmailAttachment;
     replyTo?: string;
     credentials?: AwsCredentials;
 }): Promise<void> => {
-    const { toEmail, fromEmail, subject, awsRegion, body = '', textBody, attachmentPath, replyTo, credentials } = config;
+    const { toEmail, fromEmail, subject, awsRegion, body = '', textBody, attachmentPath, attachment, replyTo, credentials } = config;
 
     if (!toEmail.trim()) throw new Error(`sendEmailWithAttachment: missing recipient for "${subject}"`);
+    if (attachment && attachmentPath) throw new Error('sendEmailWithAttachment: supply only one attachment source');
+    if (attachment && (!attachment.fileName.trim() || /[\r\n]/.test(attachment.fileName)))
+        throw new Error('sendEmailWithAttachment: invalid attachment file name');
 
     const mixedBoundary = `mixed-${randomUUID()}`;
     const alternativeBoundary = `alternative-${randomUUID()}`;
@@ -121,18 +131,20 @@ export const sendEmailWithAttachment = async (config: {
         ''
     ];
 
-    if (attachmentPath) {
-        const attachment = fs.readFileSync(attachmentPath);
-        const fileName = path.basename(attachmentPath);
-        const mimeType = mime.lookup(attachmentPath) || 'application/octet-stream';
+    const file =
+        attachment ?? (attachmentPath ? { fileName: path.basename(attachmentPath), content: fs.readFileSync(attachmentPath) } : null);
+    if (file) {
+        const bytes = Buffer.from(file.content);
+        const fileName = path.basename(file.fileName);
+        const mimeType = mime.lookup(fileName) || 'application/octet-stream';
 
         lines.push(
             `--${mixedBoundary}`,
             `Content-Type: ${mimeType}; ${formatFileNameParameter('name', fileName)}`,
-            `Content-Disposition: attachment; ${formatFileNameParameter('filename', fileName)}; size=${attachment.length}`,
+            `Content-Disposition: attachment; ${formatFileNameParameter('filename', fileName)}; size=${bytes.length}`,
             'Content-Transfer-Encoding: base64',
             '',
-            wrapBase64(attachment),
+            wrapBase64(bytes),
             ''
         );
     }

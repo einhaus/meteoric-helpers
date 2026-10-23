@@ -36,6 +36,36 @@ const decodeBase64Parts = (raw: string): string[] =>
     );
 
 describe('sendEmailWithAttachment', () => {
+    test('sends a generated UTF-8 attachment from memory without reading a file', async () => {
+        sendMock.mockResolvedValue({ MessageId: 'id' });
+        await sendEmailWithAttachment({
+            toEmail: 'recipient@example.com',
+            fromEmail: 'no-reply@example.com',
+            awsRegion: 'us-east-1',
+            subject: 'Diagnostics',
+            textBody: 'Error summary',
+            attachment: { fileName: 'diagnostics.txt', content: 'Error: source unavailable\nDetails · stack\n' }
+        });
+        const raw = decodeRawMessage();
+        expect(raw).toContain('Content-Disposition: attachment; filename="diagnostics.txt"');
+        expect(decodeBase64Parts(raw)).toContain('Error: source unavailable\nDetails · stack\n');
+    });
+
+    test('rejects ambiguous attachment inputs and header-injecting file names', async () => {
+        const base = {
+            toEmail: 'recipient@example.com',
+            fromEmail: 'no-reply@example.com',
+            awsRegion: 'us-east-1',
+            subject: 'Diagnostics'
+        };
+        await expect(
+            sendEmailWithAttachment({ ...base, attachmentPath: '/unused', attachment: { fileName: 'diagnostics.txt', content: '' } })
+        ).rejects.toThrow('only one attachment source');
+        await expect(
+            sendEmailWithAttachment({ ...base, attachment: { fileName: 'file\r\nInjected: value', content: '' } })
+        ).rejects.toThrow('invalid attachment file name');
+        expect(sendMock).not.toHaveBeenCalled();
+    });
     let directory: string;
 
     beforeEach(() => {
