@@ -102,6 +102,23 @@ describe('AI request preset helpers', () => {
         expect(config.warnings.some((warning) => warning.includes('(deprecated) was automatically upgraded'))).toBe(true);
     });
 
+    it.each([
+        ['gpt-4.1-nano', 'gpt-5.6-luna'],
+        ['gpt-4.1-nano-2025-04-14', 'gpt-5.6-luna'],
+        ['o1', 'gpt-5.6-sol'],
+        ['o1-2024-12-17', 'gpt-5.6-sol'],
+        ['o3-mini', 'gpt-5.6-sol'],
+        ['o3-mini-2025-01-31', 'gpt-5.6-sol'],
+        ['o4-mini', 'gpt-5.6-terra'],
+        ['o4-mini-2025-04-16', 'gpt-5.6-terra'],
+        ['gpt-4o-2024-05-13', 'gpt-5.6-sol']
+    ])('upgrades retired %s to %s before snapshot selection', (model, expectedModelId) => {
+        const config = resolveAiRequestConfig({ preset: 'analysis', model, preferSnapshot: true });
+        expect(config.provider).toBe('openai');
+        expect(config.modelId).toBe(expectedModelId);
+        expect(config.warnings.some((warning) => warning.includes('(retired) was automatically upgraded'))).toBe(true);
+    });
+
     it('upgrades retired GPT-5.4 Cyber requests to the current same-provider replacement', () => {
         const config = resolveAiRequestConfig({ preset: 'agentChat', model: 'gpt-5.4-cyber' });
 

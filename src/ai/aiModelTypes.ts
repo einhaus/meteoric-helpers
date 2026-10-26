@@ -12,7 +12,7 @@ export type AiOutputModality = 'text' | 'image' | 'audio' | 'video';
 
 export type AiCapabilitySupport = boolean | null;
 
-export type AiCacheWriteMode = '5m' | '1h';
+export type AiCacheWriteMode = '5m' | '1h' | '30m' | '12h';
 
 export type AiTemperaturePolicy = 'supported' | 'unsupported' | 'requiresReasoningEffortNone';
 
@@ -57,12 +57,14 @@ export type AiModelPricing = Readonly<{
     cachedInputUsdPerMillionTokens: number | null;
     outputUsdPerMillionTokens: number | null;
     cacheWriteUsdPerMillionTokens?: number | null;
+    cacheWrite12hUsdPerMillionTokens?: number | null;
     cacheWrite5mUsdPerMillionTokens: number | null;
     cacheWrite1hUsdPerMillionTokens: number | null;
     longContextThresholdInputTokens: number | null;
     longContextInputUsdPerMillionTokens: number | null;
     longContextCachedInputUsdPerMillionTokens: number | null;
     longContextCacheWriteUsdPerMillionTokens?: number | null;
+    longContextCacheWrite12hUsdPerMillionTokens?: number | null;
     longContextCacheWrite5mUsdPerMillionTokens?: number | null;
     longContextCacheWrite1hUsdPerMillionTokens?: number | null;
     longContextOutputUsdPerMillionTokens: number | null;

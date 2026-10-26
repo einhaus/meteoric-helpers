@@ -1,9 +1,9 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-10-19';
-const GPT_5_6_VERIFIED_AT = '2026-10-19';
-const GPT_6_1_VERIFIED_AT = '2026-10-19';
-const CURRENT_AUDIT_VERIFIED_AT = '2026-10-19';
+const VERIFIED_AT = '2026-10-26';
+const GPT_5_6_VERIFIED_AT = '2026-10-26';
+const GPT_6_1_VERIFIED_AT = '2026-10-26';
+const CURRENT_AUDIT_VERIFIED_AT = '2026-10-26';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -44,6 +44,12 @@ const OPENAI_LATEST_MODEL_GUIDE_SOURCE: AiModelSource = {
 const OPENAI_DEEP_RESEARCH_GUIDE_SOURCE: AiModelSource = {
     label: 'OpenAI deep research guide',
     url: 'https://developers.openai.com/api/docs/guides/deep-research',
+    verifiedAt: CURRENT_AUDIT_VERIFIED_AT
+};
+
+const OPENAI_PROMPT_CACHING_SOURCE: AiModelSource = {
+    label: 'OpenAI prompt caching',
+    url: 'https://developers.openai.com/api/docs/guides/prompt-caching',
     verifiedAt: CURRENT_AUDIT_VERIFIED_AT
 };
 
@@ -231,16 +237,19 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             cachedInputUsdPerMillionTokens: 1,
             outputUsdPerMillionTokens: 50,
             cacheWriteUsdPerMillionTokens: 12.5,
+            cacheWrite12hUsdPerMillionTokens: 25,
             cacheWrite5mUsdPerMillionTokens: null,
             cacheWrite1hUsdPerMillionTokens: null,
             longContextThresholdInputTokens: 272_000,
             longContextInputUsdPerMillionTokens: 20,
             longContextCachedInputUsdPerMillionTokens: 2,
             longContextCacheWriteUsdPerMillionTokens: 25,
+            longContextCacheWrite12hUsdPerMillionTokens: 50,
             longContextOutputUsdPerMillionTokens: 75,
-            notes: 'Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
+            notes: 'Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Responses API cache writes cost 1.25x input for the default 30m retention and 2.5x input for optional 12h retention.'
         }),
         sources: [
+            OPENAI_PROMPT_CACHING_SOURCE,
             createOpenAiModelSource('gpt-6-astra'),
             OPENAI_MODELS_SOURCE,
             OPENAI_ALL_MODELS_SOURCE,
@@ -291,16 +300,19 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             cachedInputUsdPerMillionTokens: 0.2,
             outputUsdPerMillionTokens: 10,
             cacheWriteUsdPerMillionTokens: 2.5,
+            cacheWrite12hUsdPerMillionTokens: 5,
             cacheWrite5mUsdPerMillionTokens: null,
             cacheWrite1hUsdPerMillionTokens: null,
             longContextThresholdInputTokens: 272_000,
             longContextInputUsdPerMillionTokens: 4,
             longContextCachedInputUsdPerMillionTokens: 0.4,
             longContextCacheWriteUsdPerMillionTokens: 5,
+            longContextCacheWrite12hUsdPerMillionTokens: 10,
             longContextOutputUsdPerMillionTokens: 15,
-            notes: 'Prompts above 272K input tokens are billed at 2x input and cache rates and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
+            notes: 'Prompts above 272K input tokens are billed at 2x input and cache rates and 1.5x output for the full request. Responses API cache writes cost 1.25x input for the default 30m retention and 2.5x input for optional 12h retention.'
         }),
         sources: [
+            OPENAI_PROMPT_CACHING_SOURCE,
             createOpenAiModelSource('gpt-6-sol'),
             OPENAI_MODELS_SOURCE,
             OPENAI_ALL_MODELS_SOURCE,
@@ -352,16 +364,18 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             cachedInputUsdPerMillionTokens: 0.1,
             outputUsdPerMillionTokens: 10,
             cacheWriteUsdPerMillionTokens: 2.5,
+            cacheWrite12hUsdPerMillionTokens: 5,
             cacheWrite5mUsdPerMillionTokens: null,
             cacheWrite1hUsdPerMillionTokens: null,
             longContextThresholdInputTokens: 272_000,
             longContextInputUsdPerMillionTokens: 4,
             longContextCachedInputUsdPerMillionTokens: 0.2,
             longContextCacheWriteUsdPerMillionTokens: 5,
+            longContextCacheWrite12hUsdPerMillionTokens: 10,
             longContextOutputUsdPerMillionTokens: 15,
-            notes: 'Prompts above 272K input tokens are billed at 2x input and cache rates and 1.5x output for the full request.'
+            notes: 'Prompts above 272K input tokens are billed at 2x input and cache rates and 1.5x output for the full request. Responses API cache writes cost 1.25x input for the default 30m retention and 2.5x input for optional 12h retention.'
         }),
-        sources: [createOpenAiModelSource('gpt-6.1-sol', GPT_6_1_VERIFIED_AT)],
+        sources: [OPENAI_PROMPT_CACHING_SOURCE, createOpenAiModelSource('gpt-6.1-sol', GPT_6_1_VERIFIED_AT)],
         tags: ['reasoning', 'coding', 'agent', 'balanced', 'research'],
         parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
@@ -406,16 +420,19 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             cachedInputUsdPerMillionTokens: 0.01,
             outputUsdPerMillionTokens: 0.5,
             cacheWriteUsdPerMillionTokens: 0.125,
+            cacheWrite12hUsdPerMillionTokens: 0.25,
             cacheWrite5mUsdPerMillionTokens: null,
             cacheWrite1hUsdPerMillionTokens: null,
             longContextThresholdInputTokens: 272_000,
             longContextInputUsdPerMillionTokens: 0.2,
             longContextCachedInputUsdPerMillionTokens: 0.02,
             longContextCacheWriteUsdPerMillionTokens: 0.25,
+            longContextCacheWrite12hUsdPerMillionTokens: 0.5,
             longContextOutputUsdPerMillionTokens: 0.75,
-            notes: 'Prompts above 272K input tokens are billed at 2x input and cache rates and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
+            notes: 'Prompts above 272K input tokens are billed at 2x input and cache rates and 1.5x output for the full request. Responses API cache writes cost 1.25x input for the default 30m retention and 2.5x input for optional 12h retention.'
         }),
         sources: [
+            OPENAI_PROMPT_CACHING_SOURCE,
             createOpenAiModelSource('gpt-6-luna'),
             OPENAI_MODELS_SOURCE,
             OPENAI_ALL_MODELS_SOURCE,
@@ -467,16 +484,19 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             cachedInputUsdPerMillionTokens: 0.4,
             outputUsdPerMillionTokens: 20,
             cacheWriteUsdPerMillionTokens: 5,
+            cacheWrite12hUsdPerMillionTokens: 10,
             cacheWrite5mUsdPerMillionTokens: null,
             cacheWrite1hUsdPerMillionTokens: null,
             longContextThresholdInputTokens: 272_000,
             longContextInputUsdPerMillionTokens: 8,
             longContextCachedInputUsdPerMillionTokens: 0.8,
             longContextCacheWriteUsdPerMillionTokens: 10,
+            longContextCacheWrite12hUsdPerMillionTokens: 20,
             longContextOutputUsdPerMillionTokens: 30,
-            notes: 'Promotional pricing is available at least through November 21, 2026. Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
+            notes: 'Promotional pricing is available at least through November 21, 2026. Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Responses API cache writes cost 1.25x input for the default 30m retention and 2.5x input for optional 12h retention.'
         }),
         sources: [
+            OPENAI_PROMPT_CACHING_SOURCE,
             createOpenAiModelSource('gpt-5.6-sol', GPT_5_6_VERIFIED_AT),
             createOpenAiModelSource('gpt-daybreak-blue-latest', GPT_5_6_VERIFIED_AT),
             OPENAI_MODELS_SOURCE,
@@ -749,16 +769,19 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             cachedInputUsdPerMillionTokens: 0.2,
             outputUsdPerMillionTokens: 12,
             cacheWriteUsdPerMillionTokens: 2.5,
+            cacheWrite12hUsdPerMillionTokens: 5,
             cacheWrite5mUsdPerMillionTokens: null,
             cacheWrite1hUsdPerMillionTokens: null,
             longContextThresholdInputTokens: 272_000,
             longContextInputUsdPerMillionTokens: 4,
             longContextCachedInputUsdPerMillionTokens: 0.4,
             longContextCacheWriteUsdPerMillionTokens: 5,
+            longContextCacheWrite12hUsdPerMillionTokens: 10,
             longContextOutputUsdPerMillionTokens: 18,
-            notes: 'Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
+            notes: 'Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Responses API cache writes cost 1.25x input for the default 30m retention and 2.5x input for optional 12h retention.'
         }),
         sources: [
+            OPENAI_PROMPT_CACHING_SOURCE,
             createOpenAiModelSource('gpt-5.6-terra', GPT_5_6_VERIFIED_AT),
             OPENAI_MODELS_SOURCE,
             OPENAI_ALL_MODELS_SOURCE,
@@ -809,16 +832,19 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             cachedInputUsdPerMillionTokens: 0.02,
             outputUsdPerMillionTokens: 1.2,
             cacheWriteUsdPerMillionTokens: 0.25,
+            cacheWrite12hUsdPerMillionTokens: 0.5,
             cacheWrite5mUsdPerMillionTokens: null,
             cacheWrite1hUsdPerMillionTokens: null,
             longContextThresholdInputTokens: 272_000,
             longContextInputUsdPerMillionTokens: 0.4,
             longContextCachedInputUsdPerMillionTokens: 0.04,
             longContextCacheWriteUsdPerMillionTokens: 0.5,
+            longContextCacheWrite12hUsdPerMillionTokens: 1,
             longContextOutputUsdPerMillionTokens: 1.8,
-            notes: 'Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
+            notes: 'Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Responses API cache writes cost 1.25x input for the default 30m retention and 2.5x input for optional 12h retention.'
         }),
         sources: [
+            OPENAI_PROMPT_CACHING_SOURCE,
             createOpenAiModelSource('gpt-5.6-luna', GPT_5_6_VERIFIED_AT),
             OPENAI_MODELS_SOURCE,
             OPENAI_ALL_MODELS_SOURCE,
@@ -2233,8 +2259,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: ['gpt-4.1-nano-2025-04-14'],
         displayName: 'GPT-4.1 nano',
         family: 'gpt-4.1',
-        description: 'Deprecated smallest GPT-4.1 variant retained for compatibility and very low-latency tasks.',
-        status: 'deprecated',
+        description: 'Retired smallest GPT-4.1 variant retained for compatibility and very low-latency tasks.',
+        status: 'retired',
         recommendedReplacementModelKey: 'openai:gpt-5.6-luna',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
@@ -2271,7 +2297,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextInputUsdPerMillionTokens: null,
             longContextCachedInputUsdPerMillionTokens: null,
             longContextOutputUsdPerMillionTokens: null,
-            notes: null
+            notes: 'Retired October 23, 2026. Historical limits and rates remain available for persisted records; live requests automatically use the same-provider replacement.'
         }),
         sources: [
             createOpenAiModelSource('gpt-4.1-nano'),
@@ -2280,14 +2306,14 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             OPENAI_PRICING_SOURCE,
             OPENAI_DEPRECATIONS_SOURCE
         ],
-        tags: ['deprecated', 'cheap', 'compatibility']
+        tags: ['retired', 'cheap', 'compatibility']
     },
     {
         modelKey: 'openai:gpt-4o',
         provider: 'openai',
         modelId: 'gpt-4o',
         snapshotModelId: 'gpt-4o-2024-08-06',
-        aliases: ['gpt-4o-2024-11-20', 'gpt-4o-2024-08-06', 'gpt-4o-2024-05-13'],
+        aliases: ['gpt-4o-2024-11-20', 'gpt-4o-2024-08-06'],
         displayName: 'GPT-4o',
         family: 'gpt-4o',
         description: 'Deprecated multimodal GPT model retained for compatibility until its January 14, 2027 shutdown.',
@@ -2338,6 +2364,57 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             OPENAI_PRICING_SOURCE
         ],
         tags: ['deprecated', 'multimodal', 'compatibility']
+    },
+    {
+        modelKey: 'openai:gpt-4o-2024-05-13',
+        provider: 'openai',
+        modelId: 'gpt-4o-2024-05-13',
+        snapshotModelId: 'gpt-4o-2024-05-13',
+        aliases: [],
+        displayName: 'GPT-4o (May 2024 snapshot)',
+        family: 'gpt-4o',
+        description: 'Retired initial GPT-4o snapshot retained separately for historical pricing and replacement routing.',
+        status: 'retired',
+        recommendedReplacementModelKey: 'openai:gpt-5.6-sol',
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: null,
+            supportsToolCalling: null,
+            supportsStructuredOutputs: null,
+            supportsPromptCaching: null,
+            supportsWebSearch: null,
+            supportsFileSearch: null,
+            supportsComputerUse: null,
+            supportsMcp: null,
+            supportsReasoningEffort: false,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: null,
+        maxOutputTokens: null,
+        knowledgeCutoff: null,
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 5,
+            cachedInputUsdPerMillionTokens: null,
+            outputUsdPerMillionTokens: 15,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'Retired October 23, 2026. Pricing is published for this snapshot; current per-model documentation only specifies limits and tool support for the later GPT-4o snapshot, so those historical fields remain unknown.'
+        }),
+        sources: [OPENAI_DEPRECATIONS_SOURCE, createOpenAiModelSource('gpt-4o'), OPENAI_PRICING_SOURCE],
+        tags: ['retired', 'snapshot', 'compatibility']
     },
     {
         modelKey: 'openai:chatgpt-4o-latest',
@@ -2460,8 +2537,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: ['o1-2024-12-17'],
         displayName: 'o1',
         family: 'o1',
-        description: 'Deprecated full o-series reasoning model retained for compatibility.',
-        status: 'deprecated',
+        description: 'Retired full o-series reasoning model retained for compatibility.',
+        status: 'retired',
         recommendedReplacementModelKey: 'openai:gpt-5.6-sol',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
@@ -2498,7 +2575,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextInputUsdPerMillionTokens: null,
             longContextCachedInputUsdPerMillionTokens: null,
             longContextOutputUsdPerMillionTokens: null,
-            notes: null
+            notes: 'Retired October 23, 2026. Historical limits and rates remain available for persisted records; live requests automatically use the same-provider replacement.'
         }),
         sources: [
             createOpenAiModelSource('o1'),
@@ -2507,7 +2584,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             OPENAI_PRICING_SOURCE,
             OPENAI_DEPRECATIONS_SOURCE
         ],
-        tags: ['deprecated', 'reasoning', 'compatibility']
+        tags: ['retired', 'reasoning', 'compatibility']
     },
     {
         modelKey: 'openai:o3',
@@ -2574,8 +2651,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: ['o3-mini-2025-01-31'],
         displayName: 'o3-mini',
         family: 'o3',
-        description: 'Deprecated small reasoning model retained for compatibility.',
-        status: 'deprecated',
+        description: 'Retired small reasoning model retained for compatibility.',
+        status: 'retired',
         recommendedReplacementModelKey: 'openai:gpt-5.6-sol',
         inputModalities: ['text'],
         outputModalities: ['text'],
@@ -2612,7 +2689,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextInputUsdPerMillionTokens: null,
             longContextCachedInputUsdPerMillionTokens: null,
             longContextOutputUsdPerMillionTokens: null,
-            notes: null
+            notes: 'Retired October 23, 2026. Historical limits and rates remain available for persisted records; live requests automatically use the same-provider replacement.'
         }),
         sources: [
             createOpenAiModelSource('o3-mini'),
@@ -2621,7 +2698,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             OPENAI_PRICING_SOURCE,
             OPENAI_DEPRECATIONS_SOURCE
         ],
-        tags: ['deprecated', 'reasoning', 'cheap', 'compatibility']
+        tags: ['retired', 'reasoning', 'cheap', 'compatibility']
     },
     {
         modelKey: 'openai:o4-mini',
@@ -2631,8 +2708,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: ['o4-mini-2025-04-16'],
         displayName: 'o4-mini',
         family: 'o4',
-        description: 'Deprecated small reasoning model retained for compatibility.',
-        status: 'deprecated',
+        description: 'Retired small reasoning model retained for compatibility.',
+        status: 'retired',
         recommendedReplacementModelKey: 'openai:gpt-5.6-terra',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
@@ -2669,7 +2746,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextInputUsdPerMillionTokens: null,
             longContextCachedInputUsdPerMillionTokens: null,
             longContextOutputUsdPerMillionTokens: null,
-            notes: null
+            notes: 'Retired October 23, 2026. Historical limits and rates remain available for persisted records; live requests automatically use the same-provider replacement.'
         }),
         sources: [
             createOpenAiModelSource('o4-mini'),
@@ -2678,7 +2755,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             OPENAI_PRICING_SOURCE,
             OPENAI_DEPRECATIONS_SOURCE
         ],
-        tags: ['deprecated', 'reasoning', 'cheap', 'compatibility']
+        tags: ['retired', 'reasoning', 'cheap', 'compatibility']
     },
     {
         modelKey: 'openai:o3-deep-research',

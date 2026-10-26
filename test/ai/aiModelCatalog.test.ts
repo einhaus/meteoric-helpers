@@ -374,6 +374,56 @@ describe('AI model catalog helpers', () => {
         expect(astraEstimate?.totalCostUsd).toBe(13.525);
     });
 
+    it.each([
+        ['gpt-6-astra', 12.5, 25],
+        ['gpt-6-sol', 2.5, 5],
+        ['gpt-6.1-sol', 2.5, 5],
+        ['gpt-6-luna', 0.125, 0.25],
+        ['gpt-5.6-sol', 5, 10],
+        ['gpt-5.6-terra', 2.5, 5],
+        ['gpt-5.6-luna', 0.25, 0.5]
+    ] as const)('prices explicit OpenAI cache retention for %s', (model, defaultWriteRate, extendedWriteRate) => {
+        const base = { model, inputTokens: 0, outputTokens: 0, cacheWriteInputTokens: 1_000 };
+        const defaultEstimate = estimateAiModelCostUsd({ ...base, cacheWriteMode: '30m' });
+        const extendedEstimate = estimateAiModelCostUsd({ ...base, cacheWriteMode: '12h' });
+        expect(defaultEstimate?.cacheWriteCostUsd).toBeCloseTo(defaultWriteRate / 1_000);
+        expect(extendedEstimate?.cacheWriteCostUsd).toBeCloseTo(extendedWriteRate / 1_000);
+        expect(extendedEstimate?.cacheWriteMode).toBe('12h');
+
+        const atThreshold = estimateAiModelCostUsd({ ...base, inputTokens: 271_000, cacheWriteMode: '12h' });
+        const overThreshold = estimateAiModelCostUsd({ ...base, inputTokens: 271_001, cacheWriteMode: '12h' });
+        expect(atThreshold?.longContextApplied).toBe(false);
+        expect(atThreshold?.cacheWriteCostUsd).toBeCloseTo(extendedWriteRate / 1_000);
+        expect(overThreshold?.longContextApplied).toBe(true);
+        expect(overThreshold?.cacheWriteCostUsd).toBeCloseTo((extendedWriteRate * 2) / 1_000);
+    });
+
+    it.each(['30m', '12h'] as const)('does not invent %s cache-write pricing for unsupported models', (cacheWriteMode) => {
+        for (const model of ['claude-sonnet-5-5', 'gpt-5.4']) {
+            expect(
+                estimateAiModelCostUsd({ model, inputTokens: 1_000, outputTokens: 100, cacheWriteInputTokens: 1_000, cacheWriteMode })
+            ).toBeNull();
+        }
+    });
+
+    it.each(['gpt-4.1-nano', 'o1', 'o3-mini', 'o4-mini'])('retains %s after its October 23 shutdown', (modelId) => {
+        const model = getAiModelById(modelId);
+        expect(model?.status).toBe('retired');
+        expect(model?.recommendedReplacementModelKey).toBeTruthy();
+        expect(model?.pricing.notes).toContain('Retired October 23, 2026');
+    });
+
+    it('preserves the retired May 2024 GPT-4o snapshot with its own historical prices', () => {
+        const model = getAiModelById('gpt-4o-2024-05-13');
+        expect(model?.modelKey).toBe('openai:gpt-4o-2024-05-13');
+        expect(model?.status).toBe('retired');
+        expect(model?.pricing.inputUsdPerMillionTokens).toBe(5);
+        expect(model?.pricing.outputUsdPerMillionTokens).toBe(15);
+        expect(model?.maxOutputTokens).toBeNull();
+        expect(getAiModelById('gpt-4o')?.status).toBe('deprecated');
+        expect(getAiModelById('gpt-4o-2024-08-06')?.modelKey).toBe('openai:gpt-4o');
+    });
+
     it.each(['claude-fable-5-1', 'claude-opus-4-5', 'claude-haiku-4-5', 'claude-sonnet-4-5'])(
         'records API-confirmed web search support for %s',
         (modelId) => {

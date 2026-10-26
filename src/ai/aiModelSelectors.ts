@@ -665,7 +665,7 @@ export function estimateAiModelCostUsd(params: {
         ? (model.pricing.longContextOutputUsdPerMillionTokens ?? model.pricing.outputUsdPerMillionTokens)
         : model.pricing.outputUsdPerMillionTokens;
 
-    const cacheWriteRate = isLongContextApplied
+    let cacheWriteRate = isLongContextApplied
         ? cacheWriteMode === '1h'
             ? (model.pricing.longContextCacheWrite1hUsdPerMillionTokens ??
               model.pricing.longContextCacheWriteUsdPerMillionTokens ??
@@ -680,6 +680,19 @@ export function estimateAiModelCostUsd(params: {
         : cacheWriteMode === '1h'
           ? (model.pricing.cacheWrite1hUsdPerMillionTokens ?? model.pricing.cacheWriteUsdPerMillionTokens ?? null)
           : (model.pricing.cacheWrite5mUsdPerMillionTokens ?? model.pricing.cacheWriteUsdPerMillionTokens ?? null);
+
+    if (cacheWriteMode === '12h') {
+        cacheWriteRate = isLongContextApplied
+            ? (model.pricing.longContextCacheWrite12hUsdPerMillionTokens ?? model.pricing.cacheWrite12hUsdPerMillionTokens ?? null)
+            : (model.pricing.cacheWrite12hUsdPerMillionTokens ?? null);
+    } else if (cacheWriteMode === '30m') {
+        cacheWriteRate = isLongContextApplied
+            ? (model.pricing.longContextCacheWriteUsdPerMillionTokens ?? model.pricing.cacheWriteUsdPerMillionTokens ?? null)
+            : (model.pricing.cacheWriteUsdPerMillionTokens ?? null);
+    }
+
+    // Explicit OpenAI retention must have a published rate; never price it as an Anthropic TTL or a free write.
+    if (cacheWriteInputTokens > 0 && (cacheWriteMode === '30m' || cacheWriteMode === '12h') && cacheWriteRate === null) return null;
 
     if (inputRate === null && cacheReadRate === null && cacheWriteRate === null && outputRate === null) {
         return null;
