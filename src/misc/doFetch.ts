@@ -27,6 +27,8 @@ type RequestConfig = {
     retryWaitType?: 'exponential' | 'static';
     retryDelayMilliseconds?: number;
     statusCodesToRetry?: number[];
+    /** Expected HTTP failures still return ErrorResponse, without error logging. Does not change retries. */
+    expectedStatusCodes?: readonly number[];
     timeoutMilliseconds?: number;
     logDirectory?: string;
     redaction?: RedactionConfig;
@@ -54,6 +56,9 @@ export const isErrorResponse = (response: unknown): response is ErrorResponse =>
 export const FETCH_DEFAULT_RETRY_MS = 10000;
 export const FETCH_DEFAULT_TIMEOUT_MS = 10000;
 export const FETCH_RETRY_STATUS_CODES = [429, 500, 502, 503, 504];
+
+// fetchWithTimeout represents transport errors as 408 responses. They are not provider HTTP responses.
+const transportErrorResponses = new WeakSet<Response>();
 
 // Default sensitive patterns for redaction
 const DEFAULT_SENSITIVE_HEADERS = [
@@ -300,6 +305,7 @@ const sanitizeRequestConfigForLogging = (config?: RequestConfig): Record<string,
             retryWaitType: config.retryWaitType,
             retryDelayMilliseconds: config.retryDelayMilliseconds,
             statusCodesToRetry: config.statusCodesToRetry,
+            expectedStatusCodes: config.expectedStatusCodes,
             timeoutMilliseconds: config.timeoutMilliseconds,
             headers: config.headers,
             params: config.params
@@ -318,6 +324,7 @@ const sanitizeRequestConfigForLogging = (config?: RequestConfig): Record<string,
         retryWaitType: config.retryWaitType,
         retryDelayMilliseconds: config.retryDelayMilliseconds,
         statusCodesToRetry: config.statusCodesToRetry,
+        expectedStatusCodes: config.expectedStatusCodes,
         timeoutMilliseconds: config.timeoutMilliseconds,
         ...(config.headers
             ? {
@@ -495,14 +502,23 @@ const returnError = (config: {
 }): ErrorResponse => {
     const { message, url, response, logDirectory, requestConfig, redactionConfig } = config;
 
-    emitStructuredFetchError({
-        logDirectory,
-        message: `Request failed${response ? ` (HTTP ${response.status})` : ''}`,
-        requestUrl: url,
-        requestConfig,
-        response,
-        redactionConfig
-    });
+    // Only an actual unsuccessful HTTP response can be an expected status.
+    // Parse errors on 2xx responses and transport failures must remain visible.
+    if (
+        !response ||
+        response.ok ||
+        transportErrorResponses.has(response) ||
+        !requestConfig?.expectedStatusCodes?.includes(response.status)
+    ) {
+        emitStructuredFetchError({
+            logDirectory,
+            message: `Request failed${response ? ` (HTTP ${response.status})` : ''}`,
+            requestUrl: url,
+            requestConfig,
+            response,
+            redactionConfig
+        });
+    }
 
     return response?.status ? { isError: true, message, statusCode: response.status } : { isError: true, message };
 };
@@ -627,11 +643,13 @@ const fetchWithTimeout = async (requestUrl: string | URL, options: RequestInitWi
         };
 
         const errorLogJson = JSON.stringify(errorLog);
-        return new Response(errorLogJson, {
+        const response = new Response(errorLogJson, {
             status: 408,
             statusText: 'Request Timeout',
             headers: { 'Content-Type': 'application/json' }
         });
+        transportErrorResponses.add(response);
+        return response;
     }
 };
 

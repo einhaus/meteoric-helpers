@@ -46,6 +46,94 @@ describe('doFetch', () => {
         expect(JSON.stringify(log.mock.calls)).not.toContain('raw-sensitive-provider-body');
     });
 
+    it('keeps an unconfigured 404 visible', async () => {
+        const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        globalThis.fetch = vi.fn(async () => new Response('Not found', { status: 404 })) as typeof fetch;
+
+        expect(await doFetch('https://example.com/show', { timesToRetry: 0 })).toMatchObject({ isError: true, statusCode: 404 });
+        expect(log).toHaveBeenCalledOnce();
+    });
+
+    it('returns an expected 404 without console error logging', async () => {
+        const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        globalThis.fetch = vi.fn(async () => new Response('Not found', { status: 404 })) as typeof fetch;
+
+        expect(await doFetch('https://example.com/show', { expectedStatusCodes: [404] })).toMatchObject({
+            isError: true,
+            statusCode: 404,
+            message: 'Not found'
+        });
+        expect(globalThis.fetch).toHaveBeenCalledOnce();
+        expect(log).not.toHaveBeenCalled();
+    });
+
+    it('keeps expected misses out of both the active logger and requested log files', async () => {
+        const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'meteoric-dofetch-expected-'));
+        const logDir = path.join(tempRoot, 'logs');
+        const logger = Logger.getInstance({ logDir, outputSeverity: 99 });
+        const log = vi.spyOn(logger, 'log').mockImplementation(() => undefined);
+        globalThis.fetch = vi.fn(async () => new Response('Not found', { status: 404 })) as typeof fetch;
+
+        try {
+            await doFetch('https://example.com/show', { expectedStatusCodes: [404], logDirectory: logDir });
+            expect(log).not.toHaveBeenCalled();
+            Logger.resetInstanceForTests();
+            await doFetch('https://example.com/show', { expectedStatusCodes: [404], logDirectory: logDir });
+            expect(existsSync(path.join(logDir, 'doFetchErrors.log'))).toBe(false);
+        } finally {
+            rmSync(tempRoot, { recursive: true, force: true });
+        }
+    });
+
+    it('preserves retries before an expected final status', async () => {
+        const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        globalThis.fetch = vi
+            .fn()
+            .mockResolvedValueOnce(new Response('Unavailable', { status: 503 }))
+            .mockResolvedValueOnce(new Response('Not found', { status: 404 })) as typeof fetch;
+
+        expect(
+            await doFetch('https://example.com/show', { expectedStatusCodes: [404], timesToRetry: 1, retryDelayMilliseconds: 1 })
+        ).toMatchObject({ isError: true, statusCode: 404 });
+        expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+        expect(log).not.toHaveBeenCalled();
+    });
+
+    it.each([429, 500, 503])('does not hide unexpected HTTP %i', async (status) => {
+        const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        globalThis.fetch = vi.fn(async () => new Response('Failure', { status })) as typeof fetch;
+
+        expect(await doFetch('https://example.com/show', { expectedStatusCodes: [404], timesToRetry: 0 })).toMatchObject({
+            isError: true,
+            statusCode: status
+        });
+        expect(log).toHaveBeenCalledOnce();
+    });
+
+    it('does not hide transport failures or malformed successful responses', async () => {
+        const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        globalThis.fetch = vi.fn().mockRejectedValueOnce(new Error('Connection closed')) as typeof fetch;
+        expect(await doFetch('https://example.com/show', { expectedStatusCodes: [404], timesToRetry: 0 })).toMatchObject({ isError: true });
+        expect(log).toHaveBeenCalledOnce();
+
+        globalThis.fetch = vi.fn(async () => new Response('{broken', { headers: { 'content-type': 'application/json' } })) as typeof fetch;
+        expect(await doFetch('https://example.com/show', { expectedStatusCodes: [404, 200], timesToRetry: 0 })).toMatchObject({
+            isError: true
+        });
+        expect(log).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not treat a synthetic transport timeout as an expected HTTP response', async () => {
+        const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        globalThis.fetch = vi.fn().mockRejectedValueOnce(new Error('Connection closed')) as typeof fetch;
+
+        expect(await doFetch('https://example.com/show', { expectedStatusCodes: [408], timesToRetry: 0 })).toMatchObject({
+            isError: true,
+            statusCode: 408
+        });
+        expect(log).toHaveBeenCalledOnce();
+    });
+
     it('uses the active logger without requiring a logDirectory', async () => {
         const logger = Logger.getInstance({ logDir: path.join(os.tmpdir(), 'dofetch-unused'), outputSeverity: 99 });
         const log = vi.spyOn(logger, 'log').mockImplementation(() => undefined);

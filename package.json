@@ -1,6 +1,6 @@
 {
     "name": "@einhaus/meteoric-helpers",
-    "version": "1.0.175",
+    "version": "1.0.177",
     "files": [
         "dist",
         "docs/database-mcp.md",
@@ -83,7 +83,7 @@
         "@types/node": "^26.6.5",
         "@types/pg": "^8.23.1",
         "concurrently": "^10.0.6",
-        "oxlint": "^1.89.0",
+        "oxlint": "^1.90.0",
         "oxlint-tsgolint": "^7.0.2005",
         "typescript": "^7.0.2",
         "vitest": "^5.0.5",
@@ -95,9 +95,9 @@
     },
     "private": false,
     "dependencies": {
-        "@aws-sdk/client-s3": "^3.1156.0",
-        "@aws-sdk/client-ses": "^3.1156.0",
-        "@aws-sdk/s3-request-presigner": "^3.1156.0",
+        "@aws-sdk/client-s3": "^3.1157.0",
+        "@aws-sdk/client-ses": "^3.1157.0",
+        "@aws-sdk/s3-request-presigner": "^3.1157.0",
         "@clickhouse/client": "^1.24.1",
         "@modelcontextprotocol/sdk": "1.32.2",
         "@redis/client": "^6.3.0",
