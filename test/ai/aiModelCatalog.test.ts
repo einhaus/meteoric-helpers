@@ -16,6 +16,49 @@ import {
 } from '../../src/ai/aiModelSelectors.js';
 
 describe('AI model catalog helpers', () => {
+    it('catalogs GPT-6.1 Terra without promoting shared defaults', () => {
+        const model = getAiModelById('gpt-6.1-terra');
+        expect(model?.status).toBe('active');
+        expect(model?.snapshotModelId).toBe('gpt-6.1-terra');
+        expect(model?.contextWindowTokens).toBe(1_050_000);
+        expect(model?.maxOutputTokens).toBe(128_000);
+        expect(model?.knowledgeCutoff).toBe('2026-06-01');
+        expect(model?.capabilities.reasoningEffortLevels).toEqual(['none', 'low', 'medium', 'high', 'xhigh', 'max']);
+        expect(model?.capabilities.supportsComputerUse).toBe(true);
+        expect(model?.pricing.inputUsdPerMillionTokens).toBe(1);
+        expect(model?.pricing.cachedInputUsdPerMillionTokens).toBe(0.05);
+        expect(model?.pricing.outputUsdPerMillionTokens).toBe(5);
+        expect(model?.pricing.longContextOutputUsdPerMillionTokens).toBe(7.5);
+
+        const evaluation = evaluateAiModelProfileCostPolicy({
+            provider: 'openai',
+            profile: 'balanced',
+            candidateModelKey: 'openai:gpt-6.1-terra'
+        });
+        expect(evaluation.isWithinPolicy).toBe(true);
+        expect(evaluation.inputPriceMultiplier).toBe(0.5);
+        expect(evaluation.cachedInputPriceMultiplier).toBe(0.25);
+        expect(evaluation.outputPriceMultiplier).toBe(0.416666666667);
+        expect(getPreferredAiModelId({ provider: 'openai', profile: 'balanced' })).toBe('gpt-6-sol');
+    });
+
+    it('keeps GPT-6 Rosalind limits unknown and declines estimates without a published pricing threshold', () => {
+        const model = getAiModelById('gpt-6-rosalind');
+        expect(model?.status).toBe('specialized');
+        expect(model?.snapshotModelId).toBeNull();
+        expect(model?.contextWindowTokens).toBeNull();
+        expect(model?.maxOutputTokens).toBeNull();
+        expect(model?.capabilities.supportsToolCalling).toBeNull();
+        expect(model?.pricing.inputUsdPerMillionTokens).toBe(15);
+        expect(model?.pricing.outputUsdPerMillionTokens).toBe(75);
+        expect(model?.pricing.longContextInputUsdPerMillionTokens).toBe(30);
+        expect(model?.pricing.longContextThresholdInputTokens).toBeNull();
+        expect(estimateAiModelCostUsd({ model: 'gpt-6-rosalind', inputTokens: 1_000, outputTokens: 100 })).toBeNull();
+        expect(estimateAiModelCostUsd({ model: 'gpt-rosalind-research', inputTokens: 1_000, outputTokens: 100 })?.totalCostUsd).toBe(
+            0.0075
+        );
+    });
+
     it('normalizes provider-prefixed and raw model identifiers into shared model keys', () => {
         expect(normalizeAiModelKey('gpt-6-astra')).toBe('openai:gpt-6-astra');
         expect(normalizeAiModelKey('gpt-6-sol')).toBe('openai:gpt-6-sol');
@@ -378,6 +421,7 @@ describe('AI model catalog helpers', () => {
         ['gpt-6-astra', 12.5, 25],
         ['gpt-6-sol', 2.5, 5],
         ['gpt-6.1-sol', 2.5, 5],
+        ['gpt-6.1-terra', 1.25, 2.5],
         ['gpt-6-luna', 0.125, 0.25],
         ['gpt-5.6-sol', 5, 10],
         ['gpt-5.6-terra', 2.5, 5],

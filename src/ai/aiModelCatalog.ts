@@ -1,9 +1,9 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-10-26';
-const GPT_5_6_VERIFIED_AT = '2026-10-26';
-const GPT_6_1_VERIFIED_AT = '2026-10-26';
-const CURRENT_AUDIT_VERIFIED_AT = '2026-10-26';
+const VERIFIED_AT = '2026-11-02';
+const GPT_5_6_VERIFIED_AT = '2026-11-02';
+const GPT_6_1_VERIFIED_AT = '2026-11-02';
+const CURRENT_AUDIT_VERIFIED_AT = '2026-11-02';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -380,6 +380,67 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
+        modelKey: 'openai:gpt-6.1-terra',
+        provider: 'openai',
+        modelId: 'gpt-6.1-terra',
+        snapshotModelId: 'gpt-6.1-terra',
+        aliases: [],
+        displayName: 'GPT-6.1 Terra',
+        family: 'gpt-6.1',
+        description: 'Fast, efficient OpenAI model for visual reasoning, precise computer use, and clear, natural writing.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: true,
+            supportsMcp: true,
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: OPENAI_GPT_6_REASONING_LEVELS_WITH_NONE,
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 1_050_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-06-01',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 1,
+            cachedInputUsdPerMillionTokens: 0.05,
+            outputUsdPerMillionTokens: 5,
+            cacheWriteUsdPerMillionTokens: 1.25,
+            cacheWrite12hUsdPerMillionTokens: 2.5,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 272_000,
+            longContextInputUsdPerMillionTokens: 2,
+            longContextCachedInputUsdPerMillionTokens: 0.1,
+            longContextCacheWriteUsdPerMillionTokens: 2.5,
+            longContextCacheWrite12hUsdPerMillionTokens: 5,
+            longContextOutputUsdPerMillionTokens: 7.5,
+            notes: 'Prompts above 272K input tokens are billed at 2x input and cache rates and 1.5x output for the full request. Responses API cache writes cost 1.25x input for the default 30m retention and 2.5x input for optional 12h retention.'
+        }),
+        sources: [
+            OPENAI_PROMPT_CACHING_SOURCE,
+            createOpenAiModelSource('gpt-6.1-terra', GPT_6_1_VERIFIED_AT),
+            OPENAI_PRICING_SOURCE,
+            OPENAI_LATEST_MODEL_GUIDE_SOURCE
+        ],
+        tags: ['reasoning', 'vision', 'computer-use', 'writing', 'balanced'],
+        parameterPolicies: OPENAI_GPT_5_1_PARAMETER_POLICIES
+    },
+    {
         modelKey: 'openai:gpt-6-luna',
         provider: 'openai',
         modelId: 'gpt-6-luna',
@@ -674,6 +735,61 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         }),
         sources: [createOpenAiModelSource('gpt-daybreak-red-latest'), createOpenAiModelSource('gpt-5.6-cyber'), OPENAI_CYBER_SAFETY_SOURCE],
         tags: ['deprecated', 'cybersecurity', 'restricted-access', 'compatibility']
+    },
+    {
+        modelKey: 'openai:gpt-6-rosalind',
+        provider: 'openai',
+        modelId: 'gpt-6-rosalind',
+        snapshotModelId: null,
+        aliases: [],
+        displayName: 'GPT-6 Rosalind',
+        family: 'gpt-rosalind',
+        description: 'Specialized biological reasoning with scientific tool use, restricted to approved internal life-sciences research.',
+        status: 'specialized',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: null,
+            supportsAudioInput: null,
+            supportsAudioOutput: null,
+            supportsVision: null,
+            supportsStreaming: null,
+            supportsToolCalling: null,
+            supportsStructuredOutputs: null,
+            supportsPromptCaching: true,
+            supportsWebSearch: null,
+            supportsFileSearch: null,
+            supportsComputerUse: null,
+            supportsMcp: null,
+            supportsReasoningEffort: null,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: null,
+        maxOutputTokens: null,
+        knowledgeCutoff: null,
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 15,
+            cachedInputUsdPerMillionTokens: 1.5,
+            outputUsdPerMillionTokens: 75,
+            cacheWriteUsdPerMillionTokens: 18.75,
+            cacheWrite12hUsdPerMillionTokens: 37.5,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: 30,
+            longContextCachedInputUsdPerMillionTokens: 3,
+            longContextCacheWriteUsdPerMillionTokens: 37.5,
+            longContextCacheWrite12hUsdPerMillionTokens: 75,
+            longContextOutputUsdPerMillionTokens: 112.5,
+            notes: 'Official pricing lists short- and long-context rates but no threshold. Cost estimates remain unavailable until the threshold is documented. Limits, snapshots, and feature support are not published on a per-model page. Access requires approval for internal life-sciences research.'
+        }),
+        sources: [OPENAI_PRICING_SOURCE, OPENAI_CHANGELOG_SOURCE],
+        tags: ['specialized', 'reasoning', 'research', 'life-sciences', 'restricted-access']
     },
     {
         modelKey: 'openai:gpt-rosalind-research',

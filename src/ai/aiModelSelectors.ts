@@ -648,6 +648,18 @@ export function estimateAiModelCostUsd(params: {
 
     if (!model) return null;
 
+    // Published tiered rates need a known threshold before an estimate can choose a price safely.
+    if (
+        model.pricing.longContextThresholdInputTokens === null &&
+        [
+            model.pricing.longContextInputUsdPerMillionTokens,
+            model.pricing.longContextCachedInputUsdPerMillionTokens,
+            model.pricing.longContextOutputUsdPerMillionTokens
+        ].some((rate) => rate !== null)
+    ) {
+        return null;
+    }
+
     const totalPromptTokens = params.inputTokens + cacheReadInputTokens + cacheWriteInputTokens;
 
     const isLongContextApplied =

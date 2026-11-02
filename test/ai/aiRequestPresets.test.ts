@@ -2,6 +2,25 @@ import { describe, expect, it } from 'vitest';
 import { listAiRequestPresets, resolveAiRequestConfig } from '../../src/ai/aiRequestSelectors.js';
 
 describe('AI request preset helpers', () => {
+    it.each(['none', 'medium'] as const)('validates explicit GPT-6.1 Terra requests at %s effort', (reasoningEffort) => {
+        const config = resolveAiRequestConfig({
+            preset: 'analysis',
+            model: 'openai:gpt-6.1-terra',
+            reasoningEffort,
+            temperature: 0.4,
+            maxOutputTokens: 200_000,
+            preferSnapshot: true
+        });
+
+        expect(config.provider).toBe('openai');
+        expect(config.modelKey).toBe('openai:gpt-6.1-terra');
+        expect(config.modelId).toBe('gpt-6.1-terra');
+        expect(config.reasoningEffort).toBe(reasoningEffort);
+        expect(config.temperature).toBe(reasoningEffort === 'none' ? 0.4 : null);
+        expect(config.maxOutputTokens).toBe(128_000);
+        expect(config.warnings.some((warning) => warning.includes('not found'))).toBe(false);
+    });
+
     it.each(['claude-haiku-4-5', 'claude-haiku-4-5-20251001'])(
         'upgrades legacy %s title requests without manual thinking or temperature',
         (model) => {

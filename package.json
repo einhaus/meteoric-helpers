@@ -1,6 +1,6 @@
 {
     "name": "@einhaus/meteoric-helpers",
-    "version": "1.0.177",
+    "version": "1.0.178",
     "files": [
         "dist",
         "docs/database-mcp.md",
@@ -80,13 +80,13 @@
     "devDependencies": {
         "@types/bcrypt": "^6.0.0",
         "@types/mime-types": "^3.0.1",
-        "@types/node": "^26.6.5",
+        "@types/node": "^26.6.6",
         "@types/pg": "^8.23.1",
         "concurrently": "^10.0.6",
         "oxlint": "^1.90.0",
         "oxlint-tsgolint": "^7.0.2005",
         "typescript": "^7.0.2",
-        "vitest": "^5.0.5",
+        "vitest": "^5.1.0",
         "zod": "^4.6.7"
     },
     "publishConfig": {
@@ -95,15 +95,15 @@
     },
     "private": false,
     "dependencies": {
-        "@aws-sdk/client-s3": "^3.1157.0",
-        "@aws-sdk/client-ses": "^3.1157.0",
-        "@aws-sdk/s3-request-presigner": "^3.1157.0",
+        "@aws-sdk/client-s3": "^3.1161.0",
+        "@aws-sdk/client-ses": "^3.1161.0",
+        "@aws-sdk/s3-request-presigner": "^3.1161.0",
         "@clickhouse/client": "^1.24.1",
         "@modelcontextprotocol/sdk": "1.32.2",
-        "@redis/client": "^6.3.0",
+        "@redis/client": "^6.3.1",
         "bcrypt": "^6.0.0",
         "dayjs": "^1.11.23",
-        "jose": "6.2.13",
+        "jose": "6.2.15",
         "mime-types": "^3.0.2",
         "mysql2": "^3.24.6",
         "nanoid": "^6.0.2",
