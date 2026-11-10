@@ -1,9 +1,9 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
 
-const VERIFIED_AT = '2026-11-02';
-const GPT_5_6_VERIFIED_AT = '2026-11-02';
-const GPT_6_1_VERIFIED_AT = '2026-11-02';
-const CURRENT_AUDIT_VERIFIED_AT = '2026-11-02';
+const VERIFIED_AT = '2026-11-09';
+const GPT_5_6_VERIFIED_AT = '2026-11-09';
+const GPT_6_1_VERIFIED_AT = '2026-11-09';
+const CURRENT_AUDIT_VERIFIED_AT = '2026-11-09';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -41,10 +41,10 @@ const OPENAI_LATEST_MODEL_GUIDE_SOURCE: AiModelSource = {
     verifiedAt: VERIFIED_AT
 };
 
-const OPENAI_DEEP_RESEARCH_GUIDE_SOURCE: AiModelSource = {
-    label: 'OpenAI deep research guide',
-    url: 'https://developers.openai.com/api/docs/guides/deep-research',
-    verifiedAt: CURRENT_AUDIT_VERIFIED_AT
+const OPENAI_LONG_WEB_RESEARCH_SOURCE: AiModelSource = {
+    label: 'OpenAI guidance for longer web research',
+    url: 'https://developers.openai.com/api/docs/guides/tools-web-search?api-mode=responses#run-longer-web-research',
+    verifiedAt: VERIFIED_AT
 };
 
 const OPENAI_PROMPT_CACHING_SOURCE: AiModelSource = {
@@ -56,6 +56,12 @@ const OPENAI_PROMPT_CACHING_SOURCE: AiModelSource = {
 const OPENAI_CYBER_SAFETY_SOURCE: AiModelSource = {
     label: 'OpenAI Daybreak models and Trusted Access',
     url: 'https://learn.chatgpt.com/docs/cyber-safety',
+    verifiedAt: VERIFIED_AT
+};
+
+const OPENAI_DAYBREAK_SOURCE: AiModelSource = {
+    label: 'OpenAI Daybreak API guide',
+    url: 'https://developers.openai.com/api/docs/guides/daybreak',
     verifiedAt: VERIFIED_AT
 };
 
@@ -195,7 +201,129 @@ const createAnthropicModelSource = (modelSlug: string, verifiedAt = VERIFIED_AT)
     verifiedAt
 });
 
+const createOpenAiImageModel = (params: {
+    modelId: string;
+    snapshotModelId: string;
+    displayName: string;
+    description: string;
+    replacementModelId?: string;
+    textInputPrice: number;
+    cachedTextInputPrice: number;
+    textOutputPrice: number | null;
+    imageTokenPricing: NonNullable<AiModelPricing['imageTokenPricing']>;
+}): AiModelCatalogEntry => ({
+    modelKey: `openai:${params.modelId}`,
+    provider: 'openai',
+    modelId: params.modelId,
+    snapshotModelId: params.snapshotModelId,
+    aliases: [],
+    displayName: params.displayName,
+    family: 'gpt-image',
+    description: params.description,
+    status: params.replacementModelId ? 'deprecated' : 'specialized',
+    recommendedReplacementModelKey: params.replacementModelId ? `openai:${params.replacementModelId}` : null,
+    inputModalities: ['text', 'image'],
+    outputModalities: params.textOutputPrice === null ? ['image'] : ['image', 'text'],
+    capabilities: createCapabilities({
+        supportsTextInput: true,
+        supportsTextOutput: params.textOutputPrice !== null,
+        supportsImageInput: true,
+        supportsAudioInput: false,
+        supportsAudioOutput: false,
+        supportsVision: true,
+        supportsStreaming: null,
+        supportsToolCalling: false,
+        supportsStructuredOutputs: false,
+        supportsPromptCaching: true,
+        supportsWebSearch: false,
+        supportsFileSearch: false,
+        supportsComputerUse: false,
+        supportsMcp: false,
+        supportsReasoningEffort: null,
+        reasoningEffortLevels: [],
+        supportsExtendedThinking: null,
+        supportsAdaptiveThinking: null
+    }),
+    contextWindowTokens: null,
+    maxOutputTokens: null,
+    knowledgeCutoff: null,
+    pricing: createPricing({
+        inputUsdPerMillionTokens: params.textInputPrice,
+        cachedInputUsdPerMillionTokens: params.cachedTextInputPrice,
+        outputUsdPerMillionTokens: params.textOutputPrice,
+        cacheWrite5mUsdPerMillionTokens: null,
+        cacheWrite1hUsdPerMillionTokens: null,
+        longContextThresholdInputTokens: null,
+        longContextInputUsdPerMillionTokens: null,
+        longContextCachedInputUsdPerMillionTokens: null,
+        longContextOutputUsdPerMillionTokens: null,
+        imageTokenPricing: params.imageTokenPricing,
+        notes: params.replacementModelId
+            ? 'Scheduled for API shutdown December 1, 2026. See the per-model pricing table for rates by image size and quality.'
+            : 'Image input, cached input, and output use separate token rates. See the per-model page for pricing details.'
+    }),
+    sources: [
+        createOpenAiModelSource(params.modelId),
+        OPENAI_PRICING_SOURCE,
+        params.replacementModelId ? OPENAI_DEPRECATIONS_SOURCE : OPENAI_CHANGELOG_SOURCE
+    ],
+    tags: params.replacementModelId ? ['image-generation', 'deprecated', 'compatibility'] : ['image-generation', 'specialized']
+});
+
 export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
+    createOpenAiImageModel({
+        modelId: 'gpt-image-2.6-flare',
+        snapshotModelId: 'gpt-image-2.6-flare',
+        displayName: 'GPT-Image-2.6 Flare',
+        description: 'Image generation and editing for fast iteration.',
+        textInputPrice: 5,
+        cachedTextInputPrice: 1.25,
+        textOutputPrice: null,
+        imageTokenPricing: { inputUsdPerMillionTokens: 8, cachedInputUsdPerMillionTokens: 2, outputUsdPerMillionTokens: 30 }
+    }),
+    createOpenAiImageModel({
+        modelId: 'gpt-image-2.6-sunburst',
+        snapshotModelId: 'gpt-image-2.6-sunburst',
+        displayName: 'GPT-Image-2.6 Sunburst',
+        description: 'Image generation and editing for detailed visual work.',
+        textInputPrice: 5,
+        cachedTextInputPrice: 1.25,
+        textOutputPrice: null,
+        imageTokenPricing: { inputUsdPerMillionTokens: 8, cachedInputUsdPerMillionTokens: 2, outputUsdPerMillionTokens: 30 }
+    }),
+    createOpenAiImageModel({
+        modelId: 'gpt-image-1-mini',
+        snapshotModelId: 'gpt-image-1-mini',
+        displayName: 'GPT-Image-1 Mini',
+        description: 'Deprecated economy image generation and editing model.',
+        replacementModelId: 'gpt-image-2.6-flare',
+        textInputPrice: 2,
+        cachedTextInputPrice: 0.2,
+        textOutputPrice: null,
+        imageTokenPricing: { inputUsdPerMillionTokens: 2.5, cachedInputUsdPerMillionTokens: 0.25, outputUsdPerMillionTokens: 8 }
+    }),
+    createOpenAiImageModel({
+        modelId: 'gpt-image-1.5',
+        snapshotModelId: 'gpt-image-1.5-2025-12-16',
+        displayName: 'GPT-Image-1.5',
+        description: 'Deprecated image generation and editing model.',
+        replacementModelId: 'gpt-image-2.6-sunburst',
+        textInputPrice: 5,
+        cachedTextInputPrice: 1.25,
+        textOutputPrice: 10,
+        imageTokenPricing: { inputUsdPerMillionTokens: 8, cachedInputUsdPerMillionTokens: 2, outputUsdPerMillionTokens: 32 }
+    }),
+    createOpenAiImageModel({
+        modelId: 'chatgpt-image-latest',
+        snapshotModelId: 'chatgpt-image-latest',
+        displayName: 'ChatGPT Image Latest',
+        description: 'Deprecated image snapshot formerly used in ChatGPT.',
+        replacementModelId: 'gpt-image-2.6-sunburst',
+        textInputPrice: 5,
+        cachedTextInputPrice: 1.25,
+        textOutputPrice: 10,
+        imageTokenPricing: { inputUsdPerMillionTokens: 8, cachedInputUsdPerMillionTokens: 2, outputUsdPerMillionTokens: 32 }
+    }),
     {
         modelKey: 'openai:gpt-6-astra',
         provider: 'openai',
@@ -554,7 +682,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextCacheWriteUsdPerMillionTokens: 10,
             longContextCacheWrite12hUsdPerMillionTokens: 20,
             longContextOutputUsdPerMillionTokens: 30,
-            notes: 'Promotional pricing is available at least through November 21, 2026. Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Responses API cache writes cost 1.25x input for the default 30m retention and 2.5x input for optional 12h retention.'
+            notes: 'Promotional pricing is available until November 30, 2026. Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Responses API cache writes cost 1.25x input for the default 30m retention and 2.5x input for optional 12h retention.'
         }),
         sources: [
             OPENAI_PROMPT_CACHING_SOURCE,
@@ -570,6 +698,59 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
+        modelKey: 'openai:gpt-6-cyber',
+        provider: 'openai',
+        modelId: 'gpt-6-cyber',
+        snapshotModelId: 'gpt-6-cyber',
+        aliases: [],
+        displayName: 'GPT-6 Cyber',
+        family: 'gpt-6',
+        description: 'Cybersecurity model for authorized testing. Requires Daybreak Red and separate model approval.',
+        status: 'specialized',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: true,
+            supportsMcp: true,
+            supportsReasoningEffort: null,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 1_050_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: null,
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 20,
+            cachedInputUsdPerMillionTokens: 2,
+            outputUsdPerMillionTokens: 100,
+            cacheWriteUsdPerMillionTokens: 25,
+            cacheWrite12hUsdPerMillionTokens: 50,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 272_000,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'OpenAI publishes only short-context rates for this model. The estimator uses the general 272K short-context boundary and declines long-context estimates.'
+        }),
+        sources: [createOpenAiModelSource('gpt-6-cyber'), OPENAI_PRICING_SOURCE, OPENAI_DAYBREAK_SOURCE, OPENAI_CHANGELOG_SOURCE],
+        tags: ['specialized', 'reasoning', 'cybersecurity', 'restricted-access', 'agent']
+    },
+    {
         modelKey: 'openai:gpt-5.6-cyber',
         provider: 'openai',
         modelId: 'gpt-5.6-cyber',
@@ -578,7 +759,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         displayName: 'GPT-5.6 Cyber',
         family: 'gpt-5.6',
         description:
-            'Restricted-access cybersecurity model for approved defenders conducting authorized vulnerability research, exploit validation, and security testing.',
+            'Restricted-access cybersecurity model for authorized vulnerability research and exploit validation. Requires Daybreak Red enabled for the project.',
         status: 'specialized',
         recommendedReplacementModelKey: null,
         inputModalities: ['text', 'image'],
@@ -611,6 +792,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             cachedInputUsdPerMillionTokens: 1.25,
             outputUsdPerMillionTokens: 75,
             cacheWriteUsdPerMillionTokens: 15.625,
+            cacheWrite12hUsdPerMillionTokens: 31.25,
             cacheWrite5mUsdPerMillionTokens: null,
             cacheWrite1hUsdPerMillionTokens: null,
             longContextThresholdInputTokens: 272_000,
@@ -618,16 +800,67 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextCachedInputUsdPerMillionTokens: 2.5,
             longContextCacheWriteUsdPerMillionTokens: 31.25,
             longContextOutputUsdPerMillionTokens: 112.5,
-            notes: 'Requires separate Daybreak approval and provisioning. Prompts above 272K input tokens are billed at 2x input and 1.5x output for the full request. Cache writes are billed at 1.25x the uncached input rate.'
+            notes: 'The per-model page documents a 272K input limit and a conditional long-context rate. The historical tier is retained for cost records. OpenAI publishes short-context 30m and 12h cache-write rates.'
         }),
         sources: [
             createOpenAiModelSource('gpt-5.6-cyber', GPT_5_6_VERIFIED_AT),
             createOpenAiModelSource('gpt-daybreak-red-latest', GPT_5_6_VERIFIED_AT),
             OPENAI_ALL_MODELS_SOURCE,
             OPENAI_PRICING_SOURCE,
-            OPENAI_CYBER_SAFETY_SOURCE
+            OPENAI_DAYBREAK_SOURCE
         ],
         tags: ['specialized', 'reasoning', 'cybersecurity', 'restricted-access', 'agent']
+    },
+    {
+        modelKey: 'openai:gpt-5.5-cyber-preview',
+        provider: 'openai',
+        modelId: 'gpt-5.5-cyber-preview',
+        snapshotModelId: null,
+        aliases: [],
+        displayName: 'GPT-5.5 Cyber Preview',
+        family: 'gpt-5.5',
+        description: 'Deprecated Daybreak cybersecurity preview available to organizations with existing access until February 1, 2027.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-5.6-cyber',
+        inputModalities: ['text'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: null,
+            supportsAudioInput: null,
+            supportsAudioOutput: null,
+            supportsVision: null,
+            supportsStreaming: null,
+            supportsToolCalling: null,
+            supportsStructuredOutputs: null,
+            supportsPromptCaching: true,
+            supportsWebSearch: null,
+            supportsFileSearch: null,
+            supportsComputerUse: null,
+            supportsMcp: null,
+            supportsReasoningEffort: null,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: null,
+        maxOutputTokens: null,
+        knowledgeCutoff: null,
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 12.5,
+            cachedInputUsdPerMillionTokens: 1.25,
+            outputUsdPerMillionTokens: 75,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 272_000,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'The Daybreak pricing table calls this model GPT-5.5 Cyber and publishes short-context rates only. The API guide names GPT-5.6 Cyber as the standard migration target.'
+        }),
+        sources: [OPENAI_DEPRECATIONS_SOURCE, OPENAI_DAYBREAK_SOURCE, OPENAI_PRICING_SOURCE],
+        tags: ['deprecated', 'cybersecurity', 'restricted-access', 'compatibility']
     },
     {
         modelKey: 'openai:gpt-daybreak-blue-latest',
@@ -2923,7 +3156,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         }),
         sources: [
             createOpenAiModelSource('o3-deep-research', CURRENT_AUDIT_VERIFIED_AT),
-            OPENAI_DEEP_RESEARCH_GUIDE_SOURCE,
+            OPENAI_LONG_WEB_RESEARCH_SOURCE,
             OPENAI_MODELS_SOURCE,
             OPENAI_ALL_MODELS_SOURCE,
             OPENAI_PRICING_SOURCE,
@@ -2981,7 +3214,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         }),
         sources: [
             createOpenAiModelSource('o3-deep-research'),
-            OPENAI_DEEP_RESEARCH_GUIDE_SOURCE,
+            OPENAI_LONG_WEB_RESEARCH_SOURCE,
             OPENAI_MODELS_SOURCE,
             OPENAI_ALL_MODELS_SOURCE,
             OPENAI_PRICING_SOURCE,
@@ -3039,7 +3272,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         }),
         sources: [
             createOpenAiModelSource('o4-mini-deep-research', CURRENT_AUDIT_VERIFIED_AT),
-            OPENAI_DEEP_RESEARCH_GUIDE_SOURCE,
+            OPENAI_LONG_WEB_RESEARCH_SOURCE,
             OPENAI_MODELS_SOURCE,
             OPENAI_ALL_MODELS_SOURCE,
             OPENAI_PRICING_SOURCE,
@@ -3097,7 +3330,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         }),
         sources: [
             createOpenAiModelSource('o4-mini-deep-research'),
-            OPENAI_DEEP_RESEARCH_GUIDE_SOURCE,
+            OPENAI_LONG_WEB_RESEARCH_SOURCE,
             OPENAI_MODELS_SOURCE,
             OPENAI_ALL_MODELS_SOURCE,
             OPENAI_PRICING_SOURCE,

@@ -110,6 +110,20 @@ describe('AI request preset helpers', () => {
     });
 
     it.each([
+        ['gpt-5.5-cyber-preview', 'gpt-5.6-cyber'],
+        ['gpt-image-1-mini', 'gpt-image-2.6-flare'],
+        ['gpt-image-1.5', 'gpt-image-2.6-sunburst'],
+        ['gpt-image-1.5-2025-12-16', 'gpt-image-2.6-sunburst'],
+        ['chatgpt-image-latest', 'gpt-image-2.6-sunburst']
+    ])('routes deprecated %s to the documented same-provider replacement', (model, replacement) => {
+        const config = resolveAiRequestConfig({ preset: 'analysis', model, preferSnapshot: true });
+
+        expect(config.catalogEntry?.status).toBe('specialized');
+        expect(config.modelId).toBe(replacement);
+        expect(config.warnings.some((warning) => warning.includes('was automatically upgraded'))).toBe(true);
+    });
+
+    it.each([
         ['gpt-daybreak-blue-latest', 'gpt-5.6-sol'],
         ['daybreak-blue-latest', 'gpt-5.6-sol'],
         ['gpt-daybreak-red-latest', 'gpt-5.6-cyber'],

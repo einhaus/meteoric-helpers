@@ -68,6 +68,11 @@ export type AiModelPricing = Readonly<{
     longContextCacheWrite5mUsdPerMillionTokens?: number | null;
     longContextCacheWrite1hUsdPerMillionTokens?: number | null;
     longContextOutputUsdPerMillionTokens: number | null;
+    imageTokenPricing?: Readonly<{
+        inputUsdPerMillionTokens: number;
+        cachedInputUsdPerMillionTokens: number;
+        outputUsdPerMillionTokens: number;
+    }>;
     notes: string | null;
 }>;
 

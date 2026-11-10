@@ -59,6 +59,43 @@ describe('AI model catalog helpers', () => {
         );
     });
 
+    it('estimates GPT-6 Cyber short-context rates and declines unpublished long-context rates', () => {
+        const model = getAiModelById('gpt-6-cyber');
+        expect(model?.status).toBe('specialized');
+        expect(model?.snapshotModelId).toBe('gpt-6-cyber');
+        expect(model?.contextWindowTokens).toBe(1_050_000);
+        expect(model?.maxOutputTokens).toBe(128_000);
+        expect(model?.capabilities.supportsComputerUse).toBe(true);
+        expect(model?.capabilities.supportsReasoningEffort).toBeNull();
+        expect(
+            estimateAiModelCostUsd({
+                model: 'gpt-6-cyber',
+                inputTokens: 1_000,
+                outputTokens: 100,
+                cacheReadInputTokens: 1_000,
+                cacheWriteInputTokens: 1_000,
+                cacheWriteMode: '12h'
+            })
+        ).toMatchObject({ totalCostUsd: 0.082, longContextApplied: false });
+        expect(estimateAiModelCostUsd({ model: 'gpt-6-cyber', inputTokens: 272_001, outputTokens: 100 })).toBeNull();
+        expect(getAiModelById('gpt-5.6-cyber')?.pricing.cacheWrite12hUsdPerMillionTokens).toBe(31.25);
+    });
+
+    it.each(['gpt-image-2.6-flare', 'gpt-image-2.6-sunburst'])('catalogs %s with distinct text and image token prices', (modelId) => {
+        expect(getAiModelById(modelId)).toMatchObject({
+            snapshotModelId: modelId,
+            status: 'specialized',
+            outputModalities: ['image'],
+            pricing: {
+                inputUsdPerMillionTokens: 5,
+                cachedInputUsdPerMillionTokens: 1.25,
+                outputUsdPerMillionTokens: null,
+                imageTokenPricing: { inputUsdPerMillionTokens: 8, cachedInputUsdPerMillionTokens: 2, outputUsdPerMillionTokens: 30 }
+            }
+        });
+        expect(estimateAiModelCostUsd({ model: modelId, inputTokens: 1_000, outputTokens: 100 })).toBeNull();
+    });
+
     it('normalizes provider-prefixed and raw model identifiers into shared model keys', () => {
         expect(normalizeAiModelKey('gpt-6-astra')).toBe('openai:gpt-6-astra');
         expect(normalizeAiModelKey('gpt-6-sol')).toBe('openai:gpt-6-sol');
