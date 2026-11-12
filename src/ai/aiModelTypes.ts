@@ -1,8 +1,19 @@
 export type AiProvider = 'openai' | 'anthropic';
 
+/** Catalog providers include Google without widening existing text request routing. */
+export type AiCatalogProvider = AiProvider | 'google';
+
 export type AiModelStatus = 'active' | 'specialized' | 'legacy' | 'deprecated' | 'retired';
 
-export type AiModelProfile = 'reasoning' | 'balanced' | 'fast' | 'cheap' | 'title' | 'webSearch' | 'deepResearch';
+export type AiModelProfile =
+    | 'reasoning'
+    | 'balanced'
+    | 'fast'
+    | 'cheap'
+    | 'title'
+    | 'webSearch'
+    | 'deepResearch'
+    | 'creativeWritingPremium';
 
 export type AiReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
@@ -76,7 +87,7 @@ export type AiModelPricing = Readonly<{
     notes: string | null;
 }>;
 
-export type AiModelCatalogEntry<Provider extends AiProvider | 'google' = AiProvider> = Readonly<{
+export type AiModelCatalogEntry<Provider extends AiCatalogProvider = AiProvider> = Readonly<{
     modelKey: string;
     provider: Provider;
     modelId: string;

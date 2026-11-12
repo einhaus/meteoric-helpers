@@ -1,5 +1,5 @@
 import { getAiModelById, getAiModelByKey, resolveCurrentAiCatalogModel } from './aiModelSelectors.js';
-import { GEMINI_MODEL_CATALOG } from './geminiModelCatalog.js';
+import { getAiCatalogModelByKey } from './aiCatalogSelectors.js';
 
 export const AI_MEDIA_MODEL_PROFILES = {
     imageGeneration: 'openai:gpt-image-2.6-flare',
@@ -35,10 +35,13 @@ export function resolveAiMediaModelId(params: { profile: AiMediaModelProfile; mo
         return resolved.modelId;
     }
 
-    const findGeminiModel = (key: string) => GEMINI_MODEL_CATALOG.find((model) => model.modelKey === key) ?? null;
-    const model = findGeminiModel(modelId ? `google:${modelId}` : defaultKey);
+    const model = getAiCatalogModelByKey(modelId ? `google:${modelId}` : defaultKey);
     if (!model && modelId) return modelId;
     if (!model) throw new Error(`Missing shared model "${defaultKey}".`);
 
-    return resolveCurrentAiCatalogModel(model, findGeminiModel).modelId;
+    const resolved = resolveCurrentAiCatalogModel(model, getAiCatalogModelByKey);
+    if (!resolved.inputModalities.includes('video') || !resolved.outputModalities.includes('text')) {
+        throw new Error(`AI model "${resolved.modelKey}" does not support video input and text output.`);
+    }
+    return resolved.modelId;
 }

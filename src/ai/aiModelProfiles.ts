@@ -43,6 +43,10 @@ const createCostPolicy = (policy: AiModelProfileCostPolicy): AiModelProfileCostP
 
 export const AI_PROVIDER_MODEL_PROFILE_DEFAULTS: Readonly<Record<AiProvider, AiProviderModelProfileDefaultMap>> = {
     openai: {
+        creativeWritingPremium: {
+            modelKey: 'openai:gpt-6-sol',
+            inferenceProfileKey: 'reasoning_medium'
+        },
         reasoning: {
             modelKey: 'openai:gpt-6-sol',
             inferenceProfileKey: 'reasoning_high'
@@ -73,6 +77,10 @@ export const AI_PROVIDER_MODEL_PROFILE_DEFAULTS: Readonly<Record<AiProvider, AiP
         }
     },
     anthropic: {
+        creativeWritingPremium: {
+            modelKey: 'anthropic:claude-opus-5-5',
+            inferenceProfileKey: 'reasoning_medium'
+        },
         reasoning: {
             modelKey: 'anthropic:claude-opus-5-5',
             inferenceProfileKey: 'reasoning_high'
@@ -106,6 +114,24 @@ export const AI_PROVIDER_MODEL_PROFILE_DEFAULTS: Readonly<Record<AiProvider, AiP
 
 export const AI_PROVIDER_MODEL_PROFILE_COST_POLICIES: Readonly<Record<AiProvider, AiProviderModelProfileCostPolicyMap>> = {
     openai: {
+        creativeWritingPremium: createCostPolicy({
+            costTier: 'premium',
+            referenceModelKey: 'openai:gpt-5.6-terra',
+            maxInputUsdPerMillionTokens: 2,
+            maxCachedInputUsdPerMillionTokens: 0.2,
+            maxOutputUsdPerMillionTokens: 12,
+            maxCacheWrite5mUsdPerMillionTokens: null,
+            maxCacheWrite1hUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: 4,
+            maxLongContextCachedInputUsdPerMillionTokens: 0.4,
+            maxLongContextOutputUsdPerMillionTokens: 18,
+            maxInputPriceMultiplier: 1.01,
+            maxCachedInputPriceMultiplier: 1.01,
+            maxOutputPriceMultiplier: 1.01,
+            maxCacheWritePriceMultiplier: null,
+            approvedHigherCostModels: [],
+            notes: 'Premium creative writing is selected independently of general reasoning. Review writing quality, request compatibility, and cost before promoting a replacement.'
+        }),
         reasoning: createCostPolicy({
             costTier: 'premium',
             referenceModelKey: 'openai:gpt-5.6-terra',
@@ -234,6 +260,24 @@ export const AI_PROVIDER_MODEL_PROFILE_COST_POLICIES: Readonly<Record<AiProvider
         })
     },
     anthropic: {
+        creativeWritingPremium: createCostPolicy({
+            costTier: 'premium',
+            referenceModelKey: 'anthropic:claude-opus-5-5',
+            maxInputUsdPerMillionTokens: 4,
+            maxCachedInputUsdPerMillionTokens: 0.2,
+            maxOutputUsdPerMillionTokens: 20,
+            maxCacheWrite5mUsdPerMillionTokens: 5,
+            maxCacheWrite1hUsdPerMillionTokens: 8,
+            maxLongContextInputUsdPerMillionTokens: null,
+            maxLongContextCachedInputUsdPerMillionTokens: null,
+            maxLongContextOutputUsdPerMillionTokens: null,
+            maxInputPriceMultiplier: 1.01,
+            maxCachedInputPriceMultiplier: 1.01,
+            maxOutputPriceMultiplier: 1.01,
+            maxCacheWritePriceMultiplier: 1.01,
+            approvedHigherCostModels: [],
+            notes: 'Premium creative writing is selected independently of general reasoning. Review writing quality, request compatibility, and cost before promoting a replacement.'
+        }),
         reasoning: createCostPolicy({
             costTier: 'premium',
             referenceModelKey: 'anthropic:claude-opus-4-8',
@@ -365,6 +409,7 @@ export const AI_PROVIDER_MODEL_PROFILE_COST_POLICIES: Readonly<Record<AiProvider
 
 export const AI_PROVIDER_MODEL_PROFILES: Readonly<Record<AiProvider, AiProviderProfileMap>> = {
     openai: {
+        creativeWritingPremium: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.openai.creativeWritingPremium.modelKey,
         reasoning: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.openai.reasoning.modelKey,
         balanced: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.openai.balanced.modelKey,
         fast: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.openai.fast.modelKey,
@@ -374,6 +419,7 @@ export const AI_PROVIDER_MODEL_PROFILES: Readonly<Record<AiProvider, AiProviderP
         deepResearch: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.openai.deepResearch.modelKey
     },
     anthropic: {
+        creativeWritingPremium: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.anthropic.creativeWritingPremium.modelKey,
         reasoning: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.anthropic.reasoning.modelKey,
         balanced: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.anthropic.balanced.modelKey,
         fast: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.anthropic.fast.modelKey,
@@ -385,6 +431,7 @@ export const AI_PROVIDER_MODEL_PROFILES: Readonly<Record<AiProvider, AiProviderP
 } as const;
 
 export const AI_GLOBAL_MODEL_PROFILE_DEFAULTS: Readonly<Record<AiModelProfile, AiModelProfileDefault>> = {
+    creativeWritingPremium: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.anthropic.creativeWritingPremium,
     reasoning: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.openai.reasoning,
     balanced: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.openai.balanced,
     fast: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.openai.fast,
@@ -395,6 +442,7 @@ export const AI_GLOBAL_MODEL_PROFILE_DEFAULTS: Readonly<Record<AiModelProfile, A
 } as const;
 
 export const AI_GLOBAL_MODEL_PROFILES: Readonly<Record<AiModelProfile, string | null>> = {
+    creativeWritingPremium: AI_PROVIDER_MODEL_PROFILES.anthropic.creativeWritingPremium,
     reasoning: AI_PROVIDER_MODEL_PROFILES.openai.reasoning,
     balanced: AI_PROVIDER_MODEL_PROFILES.openai.balanced,
     fast: AI_PROVIDER_MODEL_PROFILES.openai.fast,

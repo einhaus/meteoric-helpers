@@ -1,7 +1,8 @@
 import process from 'node:process';
-import { AI_MODEL_CATALOG } from './aiModelCatalog.js';
-import { GEMINI_MODEL_CATALOG } from './geminiModelCatalog.js';
-import type { AiModelCatalogEntry, AiModelStatus, AiProvider } from './aiModelTypes.js';
+import { listCatalogModelsForProvider, validateAiModelCatalog } from './aiCatalogSelectors.js';
+import type { AiCatalogProvider, AiModelStatus } from './aiModelTypes.js';
+
+export { listCatalogModelsForProvider } from './aiCatalogSelectors.js';
 
 export type DiscoveredProviderModel = Readonly<{
     modelId: string;
@@ -9,7 +10,7 @@ export type DiscoveredProviderModel = Readonly<{
 }>;
 
 export type AiCatalogAuditProviderResult = Readonly<{
-    provider: AiProvider | 'google';
+    provider: AiCatalogProvider;
     skipped: boolean;
     reason: string | null;
     discoveredModels: readonly DiscoveredProviderModel[];
@@ -23,14 +24,14 @@ export type AiCatalogAuditResult = Readonly<{
     providers: readonly AiCatalogAuditProviderResult[];
 }>;
 
-function getKnownCatalogModelIds(provider: AiProvider | 'google', includeLegacyCatalogEntries: boolean): string[] {
+function getKnownCatalogModelIds(provider: AiCatalogProvider, includeLegacyCatalogEntries: boolean): string[] {
     const statusesToInclude = includeLegacyCatalogEntries
         ? new Set<AiModelStatus>(['active', 'specialized', 'legacy', 'deprecated', 'retired'])
         : new Set<AiModelStatus>(['active', 'specialized']);
 
     const knownIds = new Set<string>();
 
-    const catalog = provider === 'google' ? GEMINI_MODEL_CATALOG : AI_MODEL_CATALOG;
+    const catalog = listCatalogModelsForProvider(provider);
     for (const model of catalog) {
         if (model.provider !== provider || !statusesToInclude.has(model.status)) continue;
 
@@ -182,7 +183,7 @@ export async function discoverGeminiModels(apiKey: string): Promise<DiscoveredPr
 }
 
 export function auditProviderModels(params: {
-    provider: AiProvider | 'google';
+    provider: AiCatalogProvider;
     discoveredModels: readonly DiscoveredProviderModel[];
     includeLegacyCatalogEntries?: boolean;
 }): AiCatalogAuditProviderResult {
@@ -212,6 +213,7 @@ export async function auditAiModelCatalog(params?: {
     geminiApiKey?: string | null;
     includeLegacyCatalogEntries?: boolean;
 }): Promise<AiCatalogAuditResult> {
+    validateAiModelCatalog();
     const includeLegacyCatalogEntries = params?.includeLegacyCatalogEntries ?? false;
     const results: AiCatalogAuditProviderResult[] = [];
 
@@ -293,8 +295,4 @@ export function buildAiCatalogAuditSummary(result: AiCatalogAuditResult): string
             return `${providerResult.provider}: discovered=${providerResult.discoveredModels.length}, missingFromCatalog=${providerResult.missingFromCatalog.length}, missingFromProvider=${providerResult.missingFromProvider.length}`;
         })
         .join('\n');
-}
-
-export function listCatalogModelsForProvider(provider: AiProvider): readonly AiModelCatalogEntry[] {
-    return AI_MODEL_CATALOG.filter((model) => model.provider === provider);
 }

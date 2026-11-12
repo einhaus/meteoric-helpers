@@ -6,6 +6,7 @@ export type AiRequestPreset =
     | 'analysis'
     | 'classification'
     | 'creativeWriting'
+    | 'creativeWritingPremium'
     | 'deepResearch'
     | 'sqlGeneration'
     | 'structuredExtraction'

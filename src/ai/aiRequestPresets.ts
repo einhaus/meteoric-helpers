@@ -79,6 +79,21 @@ export const AI_REQUEST_PRESETS: readonly AiRequestPresetDefinition[] = [
         tags: ['creative', 'longform', 'copy']
     }),
     createRequestPreset({
+        key: 'creativeWritingPremium',
+        description: 'Long-form creative or motivational writing where quality matters more than low latency.',
+        modelProfile: 'creativeWritingPremium',
+        preferredProvider: 'anthropic',
+        temperature: null,
+        maxOutputTokens: 6_000,
+        useStructuredOutputs: false,
+        useToolCalling: false,
+        parallelToolCalls: null,
+        toolChoice: null,
+        useBuiltInWebSearch: false,
+        builtInWebSearchContextSize: null,
+        tags: ['creative', 'longform', 'copy', 'premium']
+    }),
+    createRequestPreset({
         key: 'sqlGeneration',
         description: 'SQL authoring and query synthesis with deterministic output and stronger reasoning.',
         modelProfile: 'reasoning',

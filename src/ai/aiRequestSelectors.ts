@@ -259,6 +259,7 @@ function resolveReasoningEffort(params: {
 
 function resolveRequestedReasoningEffort(params: {
     provider: AiProvider;
+    catalogEntry: AiModelCatalogEntry | null;
     overrideValue: AiResolvedRequestConfig['reasoningEffort'] | null | undefined;
     preset: AiRequestPresetDefinition;
     inferenceProfile: AiInferenceProfileDefinition | null;
@@ -269,7 +270,7 @@ function resolveRequestedReasoningEffort(params: {
         return params.overrideValue;
     }
 
-    if (params.provider !== 'openai') return null;
+    if (params.provider !== 'openai' && params.catalogEntry?.capabilities.supportsReasoningEffort !== true) return null;
     if (params.inferenceProfile) return params.inferenceProfile.reasoningEffort;
 
     return params.preset.reasoningEffort ?? null;
@@ -425,6 +426,7 @@ export function resolveAiRequestConfig(
 
     const requestedReasoningEffort = resolveRequestedReasoningEffort({
         provider,
+        catalogEntry: resolvedModel.catalogEntry,
         overrideValue: params.reasoningEffort,
         preset,
         inferenceProfile,

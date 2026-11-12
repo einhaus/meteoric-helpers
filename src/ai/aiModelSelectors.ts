@@ -628,7 +628,16 @@ export function evaluateAiModelProfileCostPolicy(params: {
 export function listAiModelProfileCostPolicyEvaluations(): AiModelProfileCostPolicyEvaluation[] {
     const evaluations: AiModelProfileCostPolicyEvaluation[] = [];
     const providers: readonly AiProvider[] = ['openai', 'anthropic'];
-    const profiles: readonly AiModelProfile[] = ['reasoning', 'balanced', 'fast', 'cheap', 'title', 'webSearch', 'deepResearch'];
+    const profiles: readonly AiModelProfile[] = [
+        'reasoning',
+        'balanced',
+        'fast',
+        'cheap',
+        'title',
+        'webSearch',
+        'deepResearch',
+        'creativeWritingPremium'
+    ];
 
     for (const provider of providers) {
         for (const profile of profiles) {
