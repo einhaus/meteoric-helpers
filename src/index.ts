@@ -84,6 +84,8 @@ export * from './math/standardDeviationNumberArray.js';
 export * from './math/getStandardDeviation.js';
 export * from './object/getNestedValue.js';
 export * from './ai/aiModelTypes.js';
+export * from './ai/geminiModelCatalog.js';
+export * from './ai/aiMediaModelProfiles.js';
 export * from './ai/aiRequestTypes.js';
 export * from './ai/aiModelProfiles.js';
 export * from './ai/speechModelCatalog.js';

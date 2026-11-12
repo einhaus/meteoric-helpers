@@ -1,5 +1,6 @@
 import process from 'node:process';
 import { AI_MODEL_CATALOG } from './aiModelCatalog.js';
+import { GEMINI_MODEL_CATALOG } from './geminiModelCatalog.js';
 import type { AiModelCatalogEntry, AiModelStatus, AiProvider } from './aiModelTypes.js';
 
 export type DiscoveredProviderModel = Readonly<{
@@ -8,7 +9,7 @@ export type DiscoveredProviderModel = Readonly<{
 }>;
 
 export type AiCatalogAuditProviderResult = Readonly<{
-    provider: AiProvider;
+    provider: AiProvider | 'google';
     skipped: boolean;
     reason: string | null;
     discoveredModels: readonly DiscoveredProviderModel[];
@@ -22,21 +23,22 @@ export type AiCatalogAuditResult = Readonly<{
     providers: readonly AiCatalogAuditProviderResult[];
 }>;
 
-function getKnownCatalogModelIds(provider: AiProvider, includeLegacyCatalogEntries: boolean): string[] {
+function getKnownCatalogModelIds(provider: AiProvider | 'google', includeLegacyCatalogEntries: boolean): string[] {
     const statusesToInclude = includeLegacyCatalogEntries
         ? new Set<AiModelStatus>(['active', 'specialized', 'legacy', 'deprecated', 'retired'])
         : new Set<AiModelStatus>(['active', 'specialized']);
 
     const knownIds = new Set<string>();
 
-    for (const model of AI_MODEL_CATALOG) {
+    const catalog = provider === 'google' ? GEMINI_MODEL_CATALOG : AI_MODEL_CATALOG;
+    for (const model of catalog) {
         if (model.provider !== provider || !statusesToInclude.has(model.status)) continue;
 
         knownIds.add(model.modelId);
         if (model.snapshotModelId) knownIds.add(model.snapshotModelId);
 
         for (const alias of model.aliases) {
-            knownIds.add(alias);
+            knownIds.add(provider === 'google' ? alias.replace(/^models\//, '') : alias);
         }
     }
 
@@ -46,13 +48,15 @@ function getKnownCatalogModelIds(provider: AiProvider, includeLegacyCatalogEntri
 export function getAiCatalogAuditConfigFromEnv(env: NodeJS.ProcessEnv = process.env): {
     openAiApiKey: string | null;
     anthropicApiKey: string | null;
+    geminiApiKey: string | null;
 } {
     const openAiApiKey = env.OPENAI_API_KEY?.trim() || env.OPEN_API_KEY?.trim() || null;
     const anthropicApiKey = env.ANTHROPIC_API_KEY?.trim() || null;
 
     return {
         openAiApiKey,
-        anthropicApiKey
+        anthropicApiKey,
+        geminiApiKey: env.GEMINI_API_KEY?.trim() || env.GOOGLE_API_KEY?.trim() || null
     };
 }
 
@@ -139,8 +143,46 @@ export async function discoverAnthropicModels(apiKey: string): Promise<Discovere
     return discoveredModels.sort((a, b) => a.modelId.localeCompare(b.modelId));
 }
 
+export async function discoverGeminiModels(apiKey: string): Promise<DiscoveredProviderModel[]> {
+    const models = new Map<string, DiscoveredProviderModel>();
+    const url = new URL('https://generativelanguage.googleapis.com/v1beta/models');
+    url.searchParams.set('pageSize', '100');
+    const pageTokens = new Set<string>();
+
+    while (true) {
+        const response = await fetch(url, {
+            headers: { 'x-goog-api-key': apiKey },
+            signal: AbortSignal.timeout(15_000)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Gemini models.list failed (HTTP ${response.status}).`);
+        }
+
+        const body = (await response.json()) as {
+            models?: { name?: string; displayName?: string }[];
+            nextPageToken?: string;
+        };
+
+        for (const model of body.models ?? []) {
+            const modelId = model.name?.trim().replace(/^models\//, '');
+            if (modelId) models.set(modelId, { modelId, displayName: model.displayName?.trim() || null });
+        }
+
+        if (!body.nextPageToken) break;
+        if (pageTokens.has(body.nextPageToken)) {
+            throw new Error('Gemini models.list returned a repeated page token.');
+        }
+
+        pageTokens.add(body.nextPageToken);
+        url.searchParams.set('pageToken', body.nextPageToken);
+    }
+
+    return Array.from(models.values()).sort((a, b) => a.modelId.localeCompare(b.modelId));
+}
+
 export function auditProviderModels(params: {
-    provider: AiProvider;
+    provider: AiProvider | 'google';
     discoveredModels: readonly DiscoveredProviderModel[];
     includeLegacyCatalogEntries?: boolean;
 }): AiCatalogAuditProviderResult {
@@ -167,6 +209,7 @@ export function auditProviderModels(params: {
 export async function auditAiModelCatalog(params?: {
     openAiApiKey?: string | null;
     anthropicApiKey?: string | null;
+    geminiApiKey?: string | null;
     includeLegacyCatalogEntries?: boolean;
 }): Promise<AiCatalogAuditResult> {
     const includeLegacyCatalogEntries = params?.includeLegacyCatalogEntries ?? false;
@@ -212,6 +255,26 @@ export async function auditAiModelCatalog(params?: {
                 includeLegacyCatalogEntries
             })
         );
+    }
+
+    if (params?.geminiApiKey) {
+        results.push(
+            auditProviderModels({
+                provider: 'google',
+                discoveredModels: await discoverGeminiModels(params.geminiApiKey),
+                includeLegacyCatalogEntries
+            })
+        );
+    } else {
+        results.push({
+            provider: 'google',
+            skipped: true,
+            reason: 'GEMINI_API_KEY not provided',
+            discoveredModels: [],
+            catalogKnownModelIds: getKnownCatalogModelIds('google', includeLegacyCatalogEntries),
+            missingFromCatalog: [],
+            missingFromProvider: []
+        });
     }
 
     return {

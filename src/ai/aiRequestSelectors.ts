@@ -7,13 +7,13 @@ import {
     getPreferredAiModelProfileDefault,
     inferAiProviderFromModel,
     normalizeAiModelKey,
+    resolveCurrentAiCatalogModel,
     resolveAiModelId
 } from './aiModelSelectors.js';
 import type { AiModelCatalogEntry, AiModelProfile, AiProvider } from './aiModelTypes.js';
 import type { AiRequestConfigOverride, AiRequestPreset, AiRequestPresetDefinition, AiResolvedRequestConfig } from './aiRequestTypes.js';
 
 const AI_REQUEST_PRESETS_BY_KEY = new Map(AI_REQUEST_PRESETS.map((preset) => [preset.key, preset]));
-const OUTDATED_AI_MODEL_STATUSES: ReadonlySet<AiModelCatalogEntry['status']> = new Set(['legacy', 'deprecated', 'retired']);
 
 function normalizeNonEmptyString(value: string | null | undefined): string | null {
     const normalized = value?.trim() ?? '';
@@ -102,51 +102,6 @@ function resolveInferenceProfile(inferenceProfileKey: AiInferenceProfileKey | nu
     return inferenceProfile;
 }
 
-function resolveCurrentCatalogModel(params: { model: AiModelCatalogEntry; warnings: string[] }): AiModelCatalogEntry {
-    const requestedModel = params.model;
-    const replacementPath = [requestedModel.modelKey];
-    const visitedModelKeys = new Set(replacementPath);
-    let resolvedModel = requestedModel;
-
-    while (OUTDATED_AI_MODEL_STATUSES.has(resolvedModel.status)) {
-        const replacementModelKey = resolvedModel.recommendedReplacementModelKey;
-
-        if (!replacementModelKey) {
-            throw new Error(
-                `Outdated model "${resolvedModel.modelKey}" (${resolvedModel.status}) has no recommended replacement in the shared catalog.`
-            );
-        }
-
-        const replacementModel = getAiModelByKey(replacementModelKey);
-
-        if (!replacementModel) {
-            throw new Error(`Outdated model "${resolvedModel.modelKey}" recommends missing catalog model "${replacementModelKey}".`);
-        }
-
-        if (replacementModel.provider !== requestedModel.provider) {
-            throw new Error(
-                `Outdated model "${resolvedModel.modelKey}" recommends cross-provider replacement "${replacementModel.modelKey}".`
-            );
-        }
-
-        if (visitedModelKeys.has(replacementModel.modelKey)) {
-            throw new Error(`AI model replacement cycle detected: ${[...replacementPath, replacementModel.modelKey].join(' -> ')}.`);
-        }
-
-        replacementPath.push(replacementModel.modelKey);
-        visitedModelKeys.add(replacementModel.modelKey);
-        resolvedModel = replacementModel;
-    }
-
-    if (resolvedModel !== requestedModel) {
-        params.warnings.push(
-            `Outdated model "${requestedModel.modelKey}" (${requestedModel.status}) was automatically upgraded: ${replacementPath.join(' -> ')}.`
-        );
-    }
-
-    return resolvedModel;
-}
-
 function resolveCatalogModel(params: {
     provider: AiProvider;
     explicitModel: string | null;
@@ -166,10 +121,7 @@ function resolveCatalogModel(params: {
                 );
             }
 
-            const currentCatalogModel = resolveCurrentCatalogModel({
-                model: matchingCatalogModel,
-                warnings: params.warnings
-            });
+            const currentCatalogModel = resolveCurrentAiCatalogModel(matchingCatalogModel, getAiModelByKey, params.warnings);
 
             return {
                 catalogEntry: currentCatalogModel,
@@ -194,10 +146,7 @@ function resolveCatalogModel(params: {
         );
     }
 
-    const currentPreferredModel = resolveCurrentCatalogModel({
-        model: preferredModel,
-        warnings: params.warnings
-    });
+    const currentPreferredModel = resolveCurrentAiCatalogModel(preferredModel, getAiModelByKey, params.warnings);
 
     return {
         catalogEntry: currentPreferredModel,

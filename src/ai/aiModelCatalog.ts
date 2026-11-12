@@ -207,6 +207,8 @@ const createOpenAiImageModel = (params: {
     displayName: string;
     description: string;
     replacementModelId?: string;
+    shutdownDate?: string;
+    verifiedAt?: string;
     textInputPrice: number;
     cachedTextInputPrice: number;
     textOutputPrice: number | null;
@@ -259,18 +261,33 @@ const createOpenAiImageModel = (params: {
         longContextOutputUsdPerMillionTokens: null,
         imageTokenPricing: params.imageTokenPricing,
         notes: params.replacementModelId
-            ? 'Scheduled for API shutdown December 1, 2026. See the per-model pricing table for rates by image size and quality.'
+            ? `Scheduled for API shutdown ${params.shutdownDate ?? 'December 1, 2026'}. See the per-model pricing table for rates by image size and quality.`
             : 'Image input, cached input, and output use separate token rates. See the per-model page for pricing details.'
     }),
     sources: [
-        createOpenAiModelSource(params.modelId),
+        createOpenAiModelSource(params.modelId, params.verifiedAt),
         OPENAI_PRICING_SOURCE,
-        params.replacementModelId ? OPENAI_DEPRECATIONS_SOURCE : OPENAI_CHANGELOG_SOURCE
+        params.replacementModelId
+            ? { ...OPENAI_DEPRECATIONS_SOURCE, verifiedAt: params.verifiedAt ?? OPENAI_DEPRECATIONS_SOURCE.verifiedAt }
+            : OPENAI_CHANGELOG_SOURCE
     ],
     tags: params.replacementModelId ? ['image-generation', 'deprecated', 'compatibility'] : ['image-generation', 'specialized']
 });
 
 export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
+    createOpenAiImageModel({
+        modelId: 'gpt-image-2',
+        snapshotModelId: 'gpt-image-2-2026-04-21',
+        displayName: 'GPT-Image-2',
+        description: 'Deprecated image generation and editing model.',
+        replacementModelId: 'gpt-image-2.6-flare',
+        shutdownDate: 'February 10, 2027',
+        verifiedAt: '2026-11-12',
+        textInputPrice: 5,
+        cachedTextInputPrice: 1.25,
+        textOutputPrice: null,
+        imageTokenPricing: { inputUsdPerMillionTokens: 8, cachedInputUsdPerMillionTokens: 2, outputUsdPerMillionTokens: 30 }
+    }),
     createOpenAiImageModel({
         modelId: 'gpt-image-2.6-flare',
         snapshotModelId: 'gpt-image-2.6-flare',

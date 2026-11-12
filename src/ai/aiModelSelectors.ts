@@ -19,6 +19,8 @@ import type {
     AiProvider
 } from './aiModelTypes.js';
 
+const OUTDATED_AI_MODEL_STATUSES: ReadonlySet<AiModelStatus> = new Set(['legacy', 'deprecated', 'retired']);
+
 const AI_MODEL_CATALOG_BY_KEY = new Map(AI_MODEL_CATALOG.map((model) => [model.modelKey, model]));
 
 export type AiModelProfileCostPolicyEvaluation = Readonly<{
@@ -139,6 +141,54 @@ function addMultiplierViolation(params: {
             `${params.modelKey} ${params.label} price multiplier ${params.multiplier} exceeds profile limit ${params.maxMultiplier}.`
         );
     }
+}
+
+export function resolveCurrentAiCatalogModel<Model extends AiModelCatalogEntry<AiProvider | 'google'>>(
+    requestedModel: Model,
+    getModelByKey: (key: string) => Model | null,
+    warnings?: string[]
+): Model {
+    const replacementPath = [requestedModel.modelKey];
+    const visitedModelKeys = new Set(replacementPath);
+    let resolvedModel = requestedModel;
+
+    while (OUTDATED_AI_MODEL_STATUSES.has(resolvedModel.status)) {
+        const replacementModelKey = resolvedModel.recommendedReplacementModelKey;
+
+        if (!replacementModelKey) {
+            throw new Error(
+                `Outdated model "${resolvedModel.modelKey}" (${resolvedModel.status}) has no recommended replacement in the shared catalog.`
+            );
+        }
+
+        const replacementModel = getModelByKey(replacementModelKey);
+
+        if (!replacementModel) {
+            throw new Error(`Outdated model "${resolvedModel.modelKey}" recommends missing catalog model "${replacementModelKey}".`);
+        }
+
+        if (replacementModel.provider !== requestedModel.provider) {
+            throw new Error(
+                `Outdated model "${resolvedModel.modelKey}" recommends cross-provider replacement "${replacementModel.modelKey}".`
+            );
+        }
+
+        if (visitedModelKeys.has(replacementModel.modelKey)) {
+            throw new Error(`AI model replacement cycle detected: ${[...replacementPath, replacementModel.modelKey].join(' -> ')}.`);
+        }
+
+        replacementPath.push(replacementModel.modelKey);
+        visitedModelKeys.add(replacementModel.modelKey);
+        resolvedModel = replacementModel;
+    }
+
+    if (resolvedModel !== requestedModel) {
+        warnings?.push(
+            `Outdated model "${requestedModel.modelKey}" (${requestedModel.status}) was automatically upgraded: ${replacementPath.join(' -> ')}.`
+        );
+    }
+
+    return resolvedModel;
 }
 
 export function getAiModelCatalog(): readonly AiModelCatalogEntry[] {

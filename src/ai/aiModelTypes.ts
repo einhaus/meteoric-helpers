@@ -76,9 +76,9 @@ export type AiModelPricing = Readonly<{
     notes: string | null;
 }>;
 
-export type AiModelCatalogEntry = Readonly<{
+export type AiModelCatalogEntry<Provider extends AiProvider | 'google' = AiProvider> = Readonly<{
     modelKey: string;
-    provider: AiProvider;
+    provider: Provider;
     modelId: string;
     snapshotModelId: string | null;
     aliases: readonly string[];
