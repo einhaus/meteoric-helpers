@@ -1,5 +1,6 @@
 import { type DateInterval, ymd, ymdhms, ymdhmss } from './constants.js';
 import dayjs from './dayjsTimezone.js';
+import { formatZoneOffset, getZoneCalendarMs, resolveZoneCalendarMs } from './internal/zoneWallClock.js';
 
 export const getDate = (config?: {
     format?:
@@ -61,9 +62,26 @@ export const getDate = (config?: {
     if (operator && interval && intervalType)
         dateObject = operator === '+' ? dateObject.add(interval, intervalType) : dateObject.subtract(interval, intervalType);
 
-    if (timezone) dateObject = dateObject.tz(timezone);
-    if (startOf) dateObject = dateObject.startOf(startOf);
-    if (endOf) dateObject = dateObject.endOf(endOf);
+    if (timezone && dateObject.isValid()) {
+        // Keep the instant separate from its wall clock: Dayjs .tz() reparses through the host zone and can shift both
+        // by an hour inside that zone's spring-forward gap. UTC calendar arithmetic cannot fall into a host-local gap.
+        let instantMs = dateObject.valueOf();
+        dateObject = dayjs.utc(getZoneCalendarMs(instantMs, timezone));
+        if (startOf) dateObject = dateObject.startOf(startOf);
+        if (endOf) dateObject = dateObject.endOf(endOf);
+        if (startOf || endOf) {
+            instantMs = resolveZoneCalendarMs(dateObject.valueOf(), timezone, instantMs);
+            dateObject = dayjs.utc(getZoneCalendarMs(instantMs, timezone));
+        }
+
+        if (returnFormat === 'iso') return new Date(instantMs).toISOString();
+        if (returnFormat === 'unix') return Math.floor(instantMs / 1000).toString();
+        if (returnFormat === 'iso8601')
+            return dateObject.format('YYYY-MM-DDTHH:mm:ss') + formatZoneOffset(dateObject.valueOf() - instantMs);
+    } else {
+        if (startOf) dateObject = dateObject.startOf(startOf);
+        if (endOf) dateObject = dateObject.endOf(endOf);
+    }
 
     let dateFormatted: string | number = returnFormat === 'ymd' ? dateObject.format(ymd) : '';
     dateFormatted = returnFormat === 'ymdhms' ? dateObject.format(ymdhms) : dateFormatted;
