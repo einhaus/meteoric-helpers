@@ -259,6 +259,7 @@ function resolveReasoningEffort(params: {
 
 function resolveRequestedReasoningEffort(params: {
     provider: AiProvider;
+    modelProfile: AiModelProfile;
     catalogEntry: AiModelCatalogEntry | null;
     overrideValue: AiResolvedRequestConfig['reasoningEffort'] | null | undefined;
     preset: AiRequestPresetDefinition;
@@ -270,6 +271,8 @@ function resolveRequestedReasoningEffort(params: {
         return params.overrideValue;
     }
 
+    // Existing Anthropic profiles leave effort to the caller/provider. Only the new premium profile opts into inference defaults.
+    if (params.provider === 'anthropic' && params.modelProfile !== 'creativeWritingPremium') return null;
     if (params.provider !== 'openai' && params.catalogEntry?.capabilities.supportsReasoningEffort !== true) return null;
     if (params.inferenceProfile) return params.inferenceProfile.reasoningEffort;
 
@@ -426,6 +429,7 @@ export function resolveAiRequestConfig(
 
     const requestedReasoningEffort = resolveRequestedReasoningEffort({
         provider,
+        modelProfile,
         catalogEntry: resolvedModel.catalogEntry,
         overrideValue: params.reasoningEffort,
         preset,

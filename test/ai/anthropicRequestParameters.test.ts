@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildAnthropicTextRequestParameters } from '../../src/ai/anthropicRequestParameters.js';
-import { resolveAiRequestConfig } from '../../src/ai/aiRequestSelectors.js';
+import { listAiRequestPresets, resolveAiRequestConfig } from '../../src/ai/aiRequestSelectors.js';
 import { evaluateAiModelProfileCostPolicy, getAiModelById } from '../../src/ai/aiModelSelectors.js';
 
 describe('premium creative writing requests', () => {
@@ -24,8 +24,26 @@ describe('premium creative writing requests', () => {
     });
 
     it('keeps the general reasoning and balanced writing selections independent', () => {
-        expect(resolveAiRequestConfig({ preset: 'agentChat', provider: 'anthropic' }).reasoningEffort).toBe('high');
+        expect(resolveAiRequestConfig({ preset: 'agentChat', provider: 'anthropic' }).reasoningEffort).toBeNull();
         expect(resolveAiRequestConfig({ preset: 'creativeWriting', provider: 'anthropic' }).modelId).toBe('claude-sonnet-5-5');
+    });
+
+    it.each(listAiRequestPresets().filter((preset) => preset.key !== 'creativeWritingPremium'))(
+        'preserves the existing $key Anthropic effort default',
+        (preset) => {
+            const config = resolveAiRequestConfig({ preset: preset.key, provider: 'anthropic', model: 'claude-opus-5-5' });
+            expect(config.reasoningEffort).toBeNull();
+            expect(buildAnthropicTextRequestParameters(config)).not.toHaveProperty('output_config');
+        }
+    );
+
+    it('opts into effort through the premium model profile and still honors deliberate caller overrides', () => {
+        expect(
+            resolveAiRequestConfig({ preset: 'creativeWriting', provider: 'anthropic', modelProfile: 'creativeWritingPremium' })
+                .reasoningEffort
+        ).toBe('medium');
+        expect(resolveAiRequestConfig({ preset: 'agentChat', provider: 'anthropic', reasoningEffort: 'low' }).reasoningEffort).toBe('low');
+        expect(resolveAiRequestConfig({ preset: 'agentChat', provider: 'openai' }).reasoningEffort).toBe('high');
     });
 
     it('uses validated effort overrides and clamps output to the selected model limit', () => {
