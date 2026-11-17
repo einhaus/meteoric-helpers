@@ -1,7 +1,7 @@
 import type { AiModelSource } from './aiModelTypes.js';
 import type { SpeechModelCapabilities, SpeechModelCatalogEntry, SpeechModelPricing } from './speechModelTypes.js';
 
-const VERIFIED_AT = '2026-09-28';
+const VERIFIED_AT = '2026-11-16';
 
 const ELEVENLABS_MODELS_SOURCE: AiModelSource = {
     label: 'ElevenLabs models overview',
@@ -22,8 +22,8 @@ const ELEVENLABS_PRICING_SOURCE: AiModelSource = {
 };
 
 const ELEVENLABS_V4_SOURCE: AiModelSource = {
-    label: 'ElevenLabs Eleven v4 capabilities',
-    url: 'https://elevenlabs.io/docs/overview/capabilities/text-to-speech/eleven-v4',
+    label: 'ElevenLabs Eleven v4 and v4 Turbo capabilities',
+    url: 'https://elevenlabs.io/v4',
     verifiedAt: VERIFIED_AT
 };
 
@@ -97,7 +97,7 @@ export const SPEECH_MODEL_CATALOG: readonly SpeechModelCatalogEntry[] = [
         status: 'active',
         recommendedReplacementModelKey: null,
         maxCharactersPerRequest: 10_000,
-        languageCount: 85,
+        languageCount: 94,
         medianLatencyMs: null,
         capabilities: ELEVENLABS_V4_CAPABILITIES,
         pricing: ELEVENLABS_BASE_RATE_PRICING,
@@ -124,18 +124,16 @@ export const SPEECH_MODEL_CATALOG: readonly SpeechModelCatalogEntry[] = [
         status: 'active',
         recommendedReplacementModelKey: null,
         maxCharactersPerRequest: 10_000,
-        languageCount: 85,
+        languageCount: 94,
         medianLatencyMs: 100,
-        capabilities: createCapabilities({
-            ...ELEVENLABS_V4_CAPABILITIES,
-            supportsPronunciationDictionaryPhonemes: null
-        }),
+        capabilities: ELEVENLABS_V4_CAPABILITIES,
         pricing: ELEVENLABS_HALF_RATE_PRICING,
         sources: [
             ELEVENLABS_V4_SOURCE,
             ELEVENLABS_V4_ANNOUNCEMENT_SOURCE,
             ELEVENLABS_MODELS_SOURCE,
             ELEVENLABS_MODELS_API_SOURCE,
+            ELEVENLABS_PRONUNCIATION_DICTIONARIES_SOURCE,
             ELEVENLABS_PRICING_SOURCE
         ],
         tags: ['realtime', 'low-latency', 'expressive', 'multilingual', 'audio-tags']
@@ -181,12 +179,12 @@ export const SPEECH_MODEL_CATALOG: readonly SpeechModelCatalogEntry[] = [
         displayName: 'Eleven v3 Conversational',
         family: 'eleven_v3',
         description:
-            'Previous-generation expressive model tuned for conversational agents at roughly 280 ms latency and half the credit cost. Superseded by Eleven v4 Turbo.',
+            'Previous-generation expressive model tuned for conversational agents at roughly 165 ms median inference latency and half the credit cost. Superseded by Eleven v4 Turbo.',
         status: 'legacy',
         recommendedReplacementModelKey: 'elevenlabs:eleven_v4_turbo',
         maxCharactersPerRequest: 5_000,
         languageCount: 74,
-        medianLatencyMs: 280,
+        medianLatencyMs: 165,
         capabilities: createCapabilities({
             supportsAudioTags: true,
             supportsStyleSetting: false,
@@ -241,12 +239,12 @@ export const SPEECH_MODEL_CATALOG: readonly SpeechModelCatalogEntry[] = [
         displayName: 'Eleven Flash v2.5',
         family: 'eleven_flash',
         description:
-            'Ultra-low-latency model (roughly 75 ms) in 32 languages with the largest per-request character limit and half the credit cost. Best for speed and cost over expressiveness.',
+            'Ultra-low-latency model (roughly 100 ms median inference latency) in 32 languages with the largest per-request character limit and half the credit cost. Best for speed and cost over expressiveness.',
         status: 'active',
         recommendedReplacementModelKey: null,
         maxCharactersPerRequest: 40_000,
         languageCount: 32,
-        medianLatencyMs: 75,
+        medianLatencyMs: 100,
         capabilities: ELEVENLABS_V2_GENERATION_CAPABILITIES,
         pricing: ELEVENLABS_HALF_RATE_PRICING,
         sources: [ELEVENLABS_MODELS_SOURCE, ELEVENLABS_MODELS_API_SOURCE, ELEVENLABS_TEXT_TO_SPEECH_SOURCE, ELEVENLABS_PRICING_SOURCE],
@@ -265,7 +263,7 @@ export const SPEECH_MODEL_CATALOG: readonly SpeechModelCatalogEntry[] = [
         recommendedReplacementModelKey: null,
         maxCharactersPerRequest: 30_000,
         languageCount: 1,
-        medianLatencyMs: 75,
+        medianLatencyMs: 135,
         capabilities: createCapabilities({
             ...ELEVENLABS_V2_GENERATION_CAPABILITIES,
             supportsPronunciationDictionaryPhonemes: true

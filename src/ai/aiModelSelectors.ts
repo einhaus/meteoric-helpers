@@ -143,11 +143,9 @@ function addMultiplierViolation(params: {
     }
 }
 
-export function resolveCurrentAiCatalogModel<Model extends AiModelCatalogEntry<AiProvider | 'google'>>(
-    requestedModel: Model,
-    getModelByKey: (key: string) => Model | null,
-    warnings?: string[]
-): Model {
+export function resolveCurrentAiCatalogModel<
+    Model extends Pick<AiModelCatalogEntry, 'modelKey' | 'status' | 'recommendedReplacementModelKey'> & { readonly provider: string }
+>(requestedModel: Model, getModelByKey: (key: string) => Model | null, warnings?: string[]): Model {
     const replacementPath = [requestedModel.modelKey];
     const visitedModelKeys = new Set(replacementPath);
     let resolvedModel = requestedModel;

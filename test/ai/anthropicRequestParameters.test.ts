@@ -18,7 +18,7 @@ describe('premium creative writing requests', () => {
             evaluateAiModelProfileCostPolicy({
                 provider: 'anthropic',
                 profile: 'creativeWritingPremium',
-                candidateModelKey: 'anthropic:claude-fable-5-1'
+                candidateModelKey: 'anthropic:claude-fable-5-2'
             }).isWithinPolicy
         ).toBe(false);
     });
@@ -54,6 +54,23 @@ describe('premium creative writing requests', () => {
         });
         const invalidEffort = resolveAiRequestConfig({ preset: 'creativeWritingPremium', reasoningEffort: 'none' });
         expect(buildAnthropicTextRequestParameters(invalidEffort)).not.toHaveProperty('output_config');
+    });
+
+    it('builds the Messages payload from the current Fable model after following legacy replacements', () => {
+        const config = resolveAiRequestConfig({
+            preset: 'agentChat',
+            model: 'claude-fable-5',
+            maxOutputTokens: 200_000,
+            reasoningEffort: 'xhigh',
+            anthropicThinkingBudgetTokens: 4_000,
+            temperature: 0.7
+        });
+        expect(buildAnthropicTextRequestParameters(config)).toEqual({
+            model: 'claude-fable-5-2',
+            max_tokens: 128_000,
+            output_config: { effort: 'xhigh' },
+            thinking: { type: 'adaptive' }
+        });
     });
 
     it('rejects a configuration for the wrong provider or an invalid output limit', () => {

@@ -13,10 +13,24 @@ describe('shared media model profiles', () => {
     it('preserves supported overrides and updates retired model IDs', () => {
         expect(resolveAiMediaModelId({ profile: 'imageGeneration', model: 'gpt-image-2.6-sunburst' })).toBe('gpt-image-2.6-sunburst');
         expect(resolveAiMediaModelId({ profile: 'imageGeneration', model: 'gpt-image-2-2026-04-21' })).toBe('gpt-image-2.6-flare');
+        expect(resolveAiMediaModelId({ profile: 'imageGeneration', model: 'gpt-image-1' })).toBe('gpt-image-2.5-sunburst');
+        expect(resolveAiMediaModelId({ profile: 'imageGeneration', model: 'gpt-image-2.5-flare-2026-09-08' })).toBe('gpt-image-2.5-flare');
         expect(resolveAiMediaModelId({ profile: 'videoExtraction', model: 'google:gemini-3.8-flash' })).toBe('gemini-3.8-flash');
         expect(resolveAiMediaModelId({ profile: 'videoExtraction', model: 'models/gemini-2.5-flash' })).toBe('gemini-3.5-flash-lite');
+        expect(resolveAiMediaModelId({ profile: 'videoExtraction', model: ' GOOGLE:MODELS/GEMINI-2.5-FLASH ' })).toBe(
+            'gemini-3.5-flash-lite'
+        );
         expect(resolveAiMediaModelId({ profile: 'videoExtraction', model: 'models/gemini-experimental' })).toBe('gemini-experimental');
         expect(() => resolveAiMediaModelId({ profile: 'imageGeneration', model: 'gpt-6-sol' })).toThrow('does not support image output');
+    });
+
+    it('rejects media models that cannot serve the YouTube extraction request', () => {
+        expect(() => resolveAiMediaModelId({ profile: 'videoExtraction', model: 'gemini-3.8-flash-tts' })).toThrow(
+            'does not support video input and text output'
+        );
+        expect(() => resolveAiMediaModelId({ profile: 'videoExtraction', model: 'gemini-nano-banana-2.1' })).toThrow(
+            'is not documented for the Gemini video understanding API'
+        );
     });
 });
 

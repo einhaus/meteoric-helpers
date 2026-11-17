@@ -11,18 +11,15 @@ import {
     listSpeechModels,
     normalizeSpeechModelKey,
     resolveSpeechModelConfig,
-    resolveSpeechModelId
+    resolveSpeechModelId,
+    validateSpeechModelCatalog
 } from '../../src/ai/speechModelSelectors.js';
-
-const OUTDATED_STATUSES = new Set(['deprecated', 'retired']);
 
 describe('speech model catalog', () => {
     it('keeps catalog entries internally consistent', () => {
         const catalog = getSpeechModelCatalog();
-        const modelKeys = catalog.map((model) => model.modelKey);
-
         expect(catalog.length).toBeGreaterThan(0);
-        expect(new Set(modelKeys).size).toBe(modelKeys.length);
+        expect(() => validateSpeechModelCatalog()).not.toThrow();
 
         for (const model of catalog) {
             expect(model.modelKey).toBe(`${model.provider}:${model.modelId}`);
@@ -30,18 +27,27 @@ describe('speech model catalog', () => {
             for (const source of model.sources) {
                 expect(source.verifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
             }
-
-            if (model.recommendedReplacementModelKey) {
-                const replacement = getSpeechModelByKey(model.recommendedReplacementModelKey);
-                expect(replacement).not.toBeNull();
-                expect(OUTDATED_STATUSES.has(replacement!.status)).toBe(false);
-                expect(replacement!.status).not.toBe('legacy');
-            }
-
-            if (OUTDATED_STATUSES.has(model.status) || model.status === 'legacy') {
-                expect(model.recommendedReplacementModelKey).not.toBeNull();
-            }
         }
+    });
+
+    it('validates multi-hop speech replacements and rejects broken graphs', () => {
+        const legacy = getSpeechModelByKey('elevenlabs:eleven_v3')!;
+        const deprecated = getSpeechModelByKey('elevenlabs:eleven_turbo_v2_5')!;
+        const active = getSpeechModelByKey('elevenlabs:eleven_flash_v2_5')!;
+        const firstHop = { ...legacy, recommendedReplacementModelKey: deprecated.modelKey };
+
+        expect(() => validateSpeechModelCatalog([firstHop, deprecated, active])).not.toThrow();
+        expect(() => validateSpeechModelCatalog([firstHop, deprecated])).toThrow('missing catalog model');
+        expect(() => validateSpeechModelCatalog([{ ...legacy, recommendedReplacementModelKey: null }])).toThrow(
+            'no recommended replacement'
+        );
+        expect(() => validateSpeechModelCatalog([firstHop, { ...deprecated, recommendedReplacementModelKey: firstHop.modelKey }])).toThrow(
+            'replacement cycle'
+        );
+        expect(() => validateSpeechModelCatalog([active, active])).toThrow('Duplicate speech model key');
+        expect(() => validateSpeechModelCatalog([{ ...active, modelKey: 'openai:eleven_flash_v2_5' }])).toThrow(
+            'invalid provider or model ID'
+        );
     });
 
     it('resolves the shared profile defaults to current catalog models', () => {
@@ -119,16 +125,16 @@ describe('speech model catalog', () => {
         expect(resolveSpeechModelId({ profile: 'narration', model: null })).toBe('eleven_v4');
     });
 
-    it('honors explicit current and legacy overrides', () => {
+    it('honors explicit current overrides and upgrades legacy overrides', () => {
         const explicit = resolveSpeechModelConfig({ profile: 'narration', model: 'eleven_multilingual_v2' });
         expect(explicit.modelId).toBe('eleven_multilingual_v2');
         expect(explicit.overridesApplied).toEqual(['model']);
         expect(explicit.warnings).toEqual([]);
 
         const legacy = resolveSpeechModelConfig({ profile: 'narration', model: 'elevenlabs:eleven_v3' });
-        expect(legacy.modelId).toBe('eleven_v3');
-        expect(legacy.modelKey).toBe('elevenlabs:eleven_v3');
-        expect(legacy.warnings).toEqual([expect.stringContaining('legacy')]);
+        expect(legacy.modelId).toBe('eleven_v4');
+        expect(legacy.modelKey).toBe('elevenlabs:eleven_v4');
+        expect(legacy.warnings).toEqual([expect.stringContaining('was automatically upgraded')]);
     });
 
     it('upgrades deprecated overrides to their recommended replacement', () => {
@@ -158,14 +164,14 @@ describe('speech model catalog', () => {
                     displayName: 'Eleven v4',
                     characterCostMultiplier: 1,
                     maxCharactersPerRequest: 10_000,
-                    languageCount: 85
+                    languageCount: 94
                 },
                 {
                     modelId: 'eleven_v4_turbo',
                     displayName: 'Eleven v4 Turbo',
                     characterCostMultiplier: 0.75,
                     maxCharactersPerRequest: 10_000,
-                    languageCount: 85
+                    languageCount: 94
                 },
                 {
                     modelId: 'eleven_v5_preview',

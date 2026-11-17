@@ -170,7 +170,7 @@ describe('AI request preset helpers', () => {
         });
 
         expect(config.provider).toBe('anthropic');
-        expect(config.modelKey).toBe('anthropic:claude-fable-5-1');
+        expect(config.modelKey).toBe('anthropic:claude-fable-5-2');
         expect(config.inferenceProfileKey).toBe('reasoning_high');
         expect(config.anthropicThinkingBudgetTokens).toBeNull();
         expect(config.warnings.some((warning) => warning.includes('does not advertise extended-thinking support'))).toBe(false);

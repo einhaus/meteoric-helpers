@@ -1,5 +1,6 @@
 import process from 'node:process';
 import { SPEECH_MODEL_CATALOG } from './speechModelCatalog.js';
+import { validateSpeechModelCatalog } from './speechModelSelectors.js';
 import type { AiModelStatus } from './aiModelTypes.js';
 import type { SpeechModelCatalogEntry, SpeechProvider } from './speechModelTypes.js';
 
@@ -183,6 +184,7 @@ export async function auditSpeechModelCatalog(params?: {
     elevenLabsBaseUrl?: string;
     includeLegacyCatalogEntries?: boolean;
 }): Promise<SpeechCatalogAuditResult> {
+    validateSpeechModelCatalog();
     const includeLegacyCatalogEntries = params?.includeLegacyCatalogEntries ?? false;
     const results: SpeechCatalogAuditProviderResult[] = [];
 

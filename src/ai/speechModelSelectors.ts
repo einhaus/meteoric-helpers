@@ -1,4 +1,5 @@
 import { SPEECH_MODEL_CATALOG } from './speechModelCatalog.js';
+import { resolveCurrentAiCatalogModel } from './aiModelSelectors.js';
 import {
     SPEECH_PROVIDER_MODEL_PROFILE_COST_POLICIES,
     SPEECH_PROVIDER_MODEL_PROFILES,
@@ -10,7 +11,7 @@ import type { SpeechModelCatalogEntry, SpeechModelProfile, SpeechProvider, Speec
 const SPEECH_MODEL_CATALOG_BY_KEY = new Map(SPEECH_MODEL_CATALOG.map((model) => [model.modelKey, model]));
 const SPEECH_PROVIDERS: readonly SpeechProvider[] = ['elevenlabs'];
 const DEFAULT_SPEECH_PROVIDER: SpeechProvider = 'elevenlabs';
-const OUTDATED_SPEECH_MODEL_STATUSES: ReadonlySet<AiModelStatus> = new Set(['deprecated', 'retired']);
+const OUTDATED_SPEECH_MODEL_STATUSES: ReadonlySet<AiModelStatus> = new Set(['legacy', 'deprecated', 'retired']);
 
 export type SpeechModelProfileCostPolicyEvaluation = Readonly<{
     provider: SpeechProvider;
@@ -87,6 +88,26 @@ function buildResolvedConfig(params: {
 
 export function getSpeechModelCatalog(): readonly SpeechModelCatalogEntry[] {
     return SPEECH_MODEL_CATALOG;
+}
+
+export function validateSpeechModelCatalog(catalog: readonly SpeechModelCatalogEntry[] = SPEECH_MODEL_CATALOG): void {
+    const modelsByKey = new Map<string, SpeechModelCatalogEntry>();
+    for (const model of catalog) {
+        if (
+            !SPEECH_PROVIDERS.includes(model.provider) ||
+            !model.modelId.trim() ||
+            model.modelKey !== `${model.provider}:${model.modelId}`
+        ) {
+            throw new Error(`Speech model "${model.modelKey}" has an invalid provider or model ID.`);
+        }
+        if (modelsByKey.has(model.modelKey)) {
+            throw new Error(`Duplicate speech model key "${model.modelKey}".`);
+        }
+        modelsByKey.set(model.modelKey, model);
+    }
+    for (const model of catalog) {
+        resolveCurrentAiCatalogModel(model, (key) => modelsByKey.get(key) ?? null);
+    }
 }
 
 export function getSpeechModelByKey(modelKey: string): SpeechModelCatalogEntry | null {
@@ -217,10 +238,8 @@ export function listSpeechModelProfileCostPolicyViolations(): SpeechModelProfile
 /**
  * Resolves the speech model an app should send to its provider.
  *
- * An explicit `model` (typically an env override) wins over the profile default. Deprecated and retired catalog
- * models are upgraded to their recommended replacement with a warning; legacy models are honored with a warning;
- * identifiers outside the catalog are passed through unchanged with a warning so custom or fine-tuned models keep
- * working.
+ * An explicit `model` (typically an env override) wins over the profile default. Outdated catalog selections
+ * follow same-provider replacements with a warning. Custom or fine-tuned models outside the catalog pass through.
  */
 export function resolveSpeechModelConfig(params: {
     provider?: SpeechProvider;
@@ -259,42 +278,15 @@ export function resolveSpeechModelConfig(params: {
             });
         }
 
-        if (OUTDATED_SPEECH_MODEL_STATUSES.has(catalogEntry.status)) {
-            const replacement = catalogEntry.recommendedReplacementModelKey
-                ? getSpeechModelByKey(catalogEntry.recommendedReplacementModelKey)
-                : null;
-
-            if (replacement) {
-                warnings.push(
-                    `Speech model "${catalogEntry.modelKey}" is ${catalogEntry.status} and was automatically upgraded to "${replacement.modelKey}".`
-                );
-                return buildResolvedConfig({
-                    provider,
-                    profile: params.profile,
-                    requestedModel,
-                    modelKey: replacement.modelKey,
-                    modelId: replacement.modelId,
-                    catalogEntry: replacement,
-                    warnings,
-                    overridesApplied
-                });
-            }
-
-            warnings.push(`Speech model "${catalogEntry.modelKey}" is ${catalogEntry.status} and has no recommended replacement.`);
-        } else if (catalogEntry.status === 'legacy') {
-            const replacementHint = catalogEntry.recommendedReplacementModelKey
-                ? ` Consider "${catalogEntry.recommendedReplacementModelKey}".`
-                : '';
-            warnings.push(`Speech model "${catalogEntry.modelKey}" is a legacy model.${replacementHint}`);
-        }
+        const resolvedModel = resolveCurrentAiCatalogModel(catalogEntry, getSpeechModelByKey, warnings);
 
         return buildResolvedConfig({
             provider,
             profile: params.profile,
             requestedModel,
-            modelKey: catalogEntry.modelKey,
-            modelId: catalogEntry.modelId,
-            catalogEntry,
+            modelKey: resolvedModel.modelKey,
+            modelId: resolvedModel.modelId,
+            catalogEntry: resolvedModel,
             warnings,
             overridesApplied
         });
@@ -305,13 +297,15 @@ export function resolveSpeechModelConfig(params: {
         throw new Error(`No default ${provider} speech model is configured for the "${params.profile}" profile.`);
     }
 
+    const resolvedModel = resolveCurrentAiCatalogModel(preferredModel, getSpeechModelByKey, warnings);
+
     return buildResolvedConfig({
         provider,
         profile: params.profile,
         requestedModel: null,
-        modelKey: preferredModel.modelKey,
-        modelId: preferredModel.modelId,
-        catalogEntry: preferredModel,
+        modelKey: resolvedModel.modelKey,
+        modelId: resolvedModel.modelId,
+        catalogEntry: resolvedModel,
         warnings,
         overridesApplied
     });

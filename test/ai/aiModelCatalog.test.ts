@@ -673,7 +673,8 @@ describe('AI model catalog helpers', () => {
         expect(isAiAgentChatCandidate('chat-latest')).toBe(true);
         expect(isAiAgentChatCandidate('o3-deep-research')).toBe(false);
         expect(isAiAgentChatCandidate('gpt-5.5-pro')).toBe(false);
-        expect(isAiAgentChatCandidate('claude-fable-5-1')).toBe(true);
+        expect(isAiAgentChatCandidate('claude-fable-5-2')).toBe(true);
+        expect(isAiAgentChatCandidate('claude-fable-5-1')).toBe(false);
         expect(isAiAgentChatCandidate('claude-fable-5')).toBe(false);
         expect(isAiAgentChatCandidate('claude-mythos-5-1')).toBe(true);
         expect(isAiAgentChatCandidate('claude-mythos-5')).toBe(true);

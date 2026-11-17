@@ -137,6 +137,12 @@ const ANTHROPIC_SONNET_5_SOURCE: AiModelSource = {
     verifiedAt: VERIFIED_AT
 };
 
+const ANTHROPIC_FABLE_5_2_EFFORT_SOURCE: AiModelSource = {
+    label: 'Anthropic effort levels',
+    url: 'https://platform.claude.com/docs/en/build-with-claude/effort',
+    verifiedAt: '2026-11-16'
+};
+
 const ANTHROPIC_ADAPTIVE_THINKING_SOURCE: AiModelSource = {
     label: 'Anthropic adaptive thinking',
     url: 'https://platform.claude.com/docs/en/build-with-claude/adaptive-thinking',
@@ -207,6 +213,7 @@ const createOpenAiImageModel = (params: {
     displayName: string;
     description: string;
     replacementModelId?: string;
+    retired?: boolean;
     shutdownDate?: string;
     verifiedAt?: string;
     textInputPrice: number;
@@ -222,7 +229,7 @@ const createOpenAiImageModel = (params: {
     displayName: params.displayName,
     family: 'gpt-image',
     description: params.description,
-    status: params.replacementModelId ? 'deprecated' : 'specialized',
+    status: params.retired ? 'retired' : params.replacementModelId ? 'deprecated' : 'specialized',
     recommendedReplacementModelKey: params.replacementModelId ? `openai:${params.replacementModelId}` : null,
     inputModalities: ['text', 'image'],
     outputModalities: params.textOutputPrice === null ? ['image'] : ['image', 'text'],
@@ -271,7 +278,9 @@ const createOpenAiImageModel = (params: {
             ? { ...OPENAI_DEPRECATIONS_SOURCE, verifiedAt: params.verifiedAt ?? OPENAI_DEPRECATIONS_SOURCE.verifiedAt }
             : OPENAI_CHANGELOG_SOURCE
     ],
-    tags: params.replacementModelId ? ['image-generation', 'deprecated', 'compatibility'] : ['image-generation', 'specialized']
+    tags: params.replacementModelId
+        ? ['image-generation', params.retired ? 'retired' : 'deprecated', 'compatibility']
+        : ['image-generation', 'specialized']
 });
 
 export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
@@ -282,7 +291,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         description: 'Deprecated image generation and editing model.',
         replacementModelId: 'gpt-image-2.6-flare',
         shutdownDate: 'February 10, 2027',
-        verifiedAt: '2026-11-12',
+        verifiedAt: '2026-11-16',
         textInputPrice: 5,
         cachedTextInputPrice: 1.25,
         textOutputPrice: null,
@@ -293,6 +302,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         snapshotModelId: 'gpt-image-2.6-flare',
         displayName: 'GPT-Image-2.6 Flare',
         description: 'Image generation and editing for fast iteration.',
+        verifiedAt: '2026-11-16',
         textInputPrice: 5,
         cachedTextInputPrice: 1.25,
         textOutputPrice: null,
@@ -303,10 +313,47 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         snapshotModelId: 'gpt-image-2.6-sunburst',
         displayName: 'GPT-Image-2.6 Sunburst',
         description: 'Image generation and editing for detailed visual work.',
+        verifiedAt: '2026-11-16',
         textInputPrice: 5,
         cachedTextInputPrice: 1.25,
         textOutputPrice: null,
         imageTokenPricing: { inputUsdPerMillionTokens: 8, cachedInputUsdPerMillionTokens: 2, outputUsdPerMillionTokens: 30 }
+    }),
+    createOpenAiImageModel({
+        modelId: 'gpt-image-2.5-flare',
+        snapshotModelId: 'gpt-image-2.5-flare-2026-09-08',
+        displayName: 'GPT-Image-2.5 Flare',
+        description: 'Fast image generation and editing for everyday use.',
+        verifiedAt: '2026-11-16',
+        textInputPrice: 5,
+        cachedTextInputPrice: 1.25,
+        textOutputPrice: null,
+        imageTokenPricing: { inputUsdPerMillionTokens: 8, cachedInputUsdPerMillionTokens: 2, outputUsdPerMillionTokens: 30 }
+    }),
+    createOpenAiImageModel({
+        modelId: 'gpt-image-2.5-sunburst',
+        snapshotModelId: 'gpt-image-2.5-sunburst-2026-09-08',
+        displayName: 'GPT-Image-2.5 Sunburst',
+        description: 'Image generation and editing for work that requires finer editing control.',
+        verifiedAt: '2026-11-16',
+        textInputPrice: 5,
+        cachedTextInputPrice: 1.25,
+        textOutputPrice: null,
+        imageTokenPricing: { inputUsdPerMillionTokens: 8, cachedInputUsdPerMillionTokens: 2, outputUsdPerMillionTokens: 30 }
+    }),
+    createOpenAiImageModel({
+        modelId: 'gpt-image-1',
+        snapshotModelId: 'gpt-image-1',
+        displayName: 'GPT-Image-1',
+        description: 'Retired image generation and editing model.',
+        replacementModelId: 'gpt-image-2.5-sunburst',
+        retired: true,
+        shutdownDate: 'October 23, 2026',
+        verifiedAt: '2026-11-16',
+        textInputPrice: 5,
+        cachedTextInputPrice: 1.25,
+        textOutputPrice: null,
+        imageTokenPricing: { inputUsdPerMillionTokens: 10, cachedInputUsdPerMillionTokens: 2.5, outputUsdPerMillionTokens: 40 }
     }),
     createOpenAiImageModel({
         modelId: 'gpt-image-1-mini',
@@ -3356,6 +3403,140 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         tags: ['retired', 'deep-research', 'fast', 'compatibility']
     },
     {
+        modelKey: 'anthropic:claude-fable-5-2',
+        provider: 'anthropic',
+        modelId: 'claude-fable-5-2',
+        snapshotModelId: 'claude-fable-5-2',
+        aliases: [],
+        displayName: 'Claude Fable 5.2',
+        family: 'claude-fable-5.2',
+        description: 'Anthropic’s latest Fable model for demanding reasoning, coding, and long-horizon agentic work.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: null,
+            supportsFileSearch: null,
+            supportsComputerUse: true,
+            supportsMcp: null,
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+            supportsExtendedThinking: false,
+            supportsAdaptiveThinking: true,
+            requiresAdaptiveThinking: true
+        }),
+        contextWindowTokens: 1_000_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-06',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 8,
+            cachedInputUsdPerMillionTokens: 0.2,
+            outputUsdPerMillionTokens: 40,
+            cacheWrite5mUsdPerMillionTokens: 10,
+            cacheWrite1hUsdPerMillionTokens: 16,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'Full 1M context window is included at standard pricing. Claude Fable 5.2 uses 30-day data retention and is not available under zero data retention unless Anthropic has authorized an exception.'
+        }),
+        sources: [
+            ANTHROPIC_MODELS_API_SOURCE,
+            createAnthropicModelSource('fable-5-2', '2026-11-16'),
+            ANTHROPIC_FABLE_5_2_EFFORT_SOURCE,
+            ANTHROPIC_MODELS_SOURCE,
+            ANTHROPIC_MODEL_IDS_SOURCE,
+            ANTHROPIC_PRICING_SOURCE,
+            ANTHROPIC_MODEL_DEPRECATIONS_SOURCE,
+            { ...ANTHROPIC_RELEASE_NOTES_SOURCE, verifiedAt: '2026-11-16' },
+            ANTHROPIC_ADAPTIVE_THINKING_SOURCE,
+            ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE
+        ],
+        tags: ['latest', 'reasoning', 'coding', 'agent'],
+        parameterPolicies: {
+            temperature: 'unsupported',
+            forcedToolChoice: 'unsupported'
+        }
+    },
+    {
+        modelKey: 'anthropic:claude-mythos-5-2',
+        provider: 'anthropic',
+        modelId: 'claude-mythos-5-2',
+        snapshotModelId: 'claude-mythos-5-2',
+        aliases: [],
+        displayName: 'Claude Mythos 5.2',
+        family: 'claude-mythos-5.2',
+        description: 'Claude Fable 5.2 capabilities for verified organizations.',
+        status: 'specialized',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: null,
+            supportsFileSearch: null,
+            supportsComputerUse: true,
+            supportsMcp: null,
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+            supportsExtendedThinking: false,
+            supportsAdaptiveThinking: true,
+            requiresAdaptiveThinking: true
+        }),
+        contextWindowTokens: 1_000_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-06',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 8,
+            cachedInputUsdPerMillionTokens: 0.2,
+            outputUsdPerMillionTokens: 40,
+            cacheWrite5mUsdPerMillionTokens: 10,
+            cacheWrite1hUsdPerMillionTokens: 16,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'Verification required. Full 1M context window is included at standard pricing. Claude Mythos 5.2 uses 30-day data retention and is not available under zero data retention unless Anthropic has authorized an exception.'
+        }),
+        sources: [
+            ANTHROPIC_MODELS_API_SOURCE,
+            createAnthropicModelSource('mythos-5-2', '2026-11-16'),
+            ANTHROPIC_FABLE_5_2_EFFORT_SOURCE,
+            ANTHROPIC_MODELS_SOURCE,
+            ANTHROPIC_MODEL_IDS_SOURCE,
+            ANTHROPIC_PRICING_SOURCE,
+            ANTHROPIC_MODEL_DEPRECATIONS_SOURCE,
+            { ...ANTHROPIC_RELEASE_NOTES_SOURCE, verifiedAt: '2026-11-16' },
+            ANTHROPIC_ADAPTIVE_THINKING_SOURCE,
+            ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE
+        ],
+        tags: ['latest', 'specialized', 'reasoning', 'coding', 'agent', 'limited-availability'],
+        parameterPolicies: {
+            temperature: 'unsupported',
+            forcedToolChoice: 'unsupported'
+        }
+    },
+    {
         modelKey: 'anthropic:claude-fable-5-1',
         provider: 'anthropic',
         modelId: 'claude-fable-5-1',
@@ -3363,9 +3544,9 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         aliases: [],
         displayName: 'Claude Fable 5.1',
         family: 'claude-fable-5.1',
-        description: 'Anthropic’s latest Fable model for demanding reasoning, coding, and long-horizon agentic work.',
-        status: 'active',
-        recommendedReplacementModelKey: null,
+        description: 'Previous-generation Claude Fable model for demanding reasoning and long-horizon agentic work.',
+        status: 'legacy',
+        recommendedReplacementModelKey: 'anthropic:claude-fable-5-2',
         inputModalities: ['text', 'image'],
         outputModalities: ['text'],
         capabilities: createCapabilities({
@@ -3383,9 +3564,10 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsFileSearch: null,
             supportsComputerUse: true,
             supportsMcp: null,
-            supportsReasoningEffort: false,
-            reasoningEffortLevels: [],
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
             supportsExtendedThinking: false,
+            requiresAdaptiveThinking: true,
             supportsAdaptiveThinking: true,
             supportsBetweenToolsThinking: false
         }),
@@ -3412,13 +3594,15 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             ANTHROPIC_PRICING_SOURCE,
             ANTHROPIC_MODEL_DEPRECATIONS_SOURCE,
             ANTHROPIC_RELEASE_NOTES_SOURCE,
+            ANTHROPIC_FABLE_5_2_EFFORT_SOURCE,
             ANTHROPIC_ADAPTIVE_THINKING_SOURCE,
             ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE,
             ANTHROPIC_COMPUTER_USE_SOURCE
         ],
-        tags: ['latest', 'reasoning', 'coding', 'agent'],
+        tags: ['legacy', 'reasoning', 'coding', 'agent'],
         parameterPolicies: {
-            temperature: 'unsupported'
+            temperature: 'unsupported',
+            forcedToolChoice: 'unsupported'
         }
     },
     {
@@ -3449,9 +3633,10 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsFileSearch: null,
             supportsComputerUse: true,
             supportsMcp: null,
-            supportsReasoningEffort: false,
-            reasoningEffortLevels: [],
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
             supportsExtendedThinking: false,
+            requiresAdaptiveThinking: true,
             supportsAdaptiveThinking: true
         }),
         contextWindowTokens: 1_000_000,
@@ -3476,13 +3661,15 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             ANTHROPIC_PRICING_SOURCE,
             ANTHROPIC_MODEL_DEPRECATIONS_SOURCE,
             ANTHROPIC_RELEASE_NOTES_SOURCE,
+            ANTHROPIC_FABLE_5_2_EFFORT_SOURCE,
             ANTHROPIC_ADAPTIVE_THINKING_SOURCE,
             ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE,
             ANTHROPIC_COMPUTER_USE_SOURCE
         ],
         tags: ['latest', 'specialized', 'reasoning', 'coding', 'agent', 'limited-availability'],
         parameterPolicies: {
-            temperature: 'unsupported'
+            temperature: 'unsupported',
+            forcedToolChoice: 'unsupported'
         }
     },
     {
@@ -3513,9 +3700,10 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsFileSearch: null,
             supportsComputerUse: true,
             supportsMcp: null,
-            supportsReasoningEffort: false,
-            reasoningEffortLevels: [],
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
             supportsExtendedThinking: false,
+            requiresAdaptiveThinking: true,
             supportsAdaptiveThinking: true,
             supportsBetweenToolsThinking: false
         }),
@@ -3543,6 +3731,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             ANTHROPIC_MODEL_DEPRECATIONS_SOURCE,
             ANTHROPIC_FABLE_5_SOURCE,
             ANTHROPIC_MIGRATION_GUIDE_SOURCE,
+            ANTHROPIC_FABLE_5_2_EFFORT_SOURCE,
             ANTHROPIC_ADAPTIVE_THINKING_SOURCE,
             ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE,
             ANTHROPIC_WEB_SEARCH_SOURCE,
@@ -3550,7 +3739,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         ],
         tags: ['legacy', 'reasoning', 'coding', 'agent'],
         parameterPolicies: {
-            temperature: 'unsupported'
+            temperature: 'unsupported',
+            forcedToolChoice: 'unsupported'
         }
     },
     {
@@ -3581,9 +3771,10 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             supportsFileSearch: null,
             supportsComputerUse: true,
             supportsMcp: null,
-            supportsReasoningEffort: false,
-            reasoningEffortLevels: [],
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
             supportsExtendedThinking: false,
+            requiresAdaptiveThinking: true,
             supportsAdaptiveThinking: true
         }),
         contextWindowTokens: 1_000_000,
@@ -3609,6 +3800,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             ANTHROPIC_MODEL_DEPRECATIONS_SOURCE,
             ANTHROPIC_FABLE_5_SOURCE,
             ANTHROPIC_MIGRATION_GUIDE_SOURCE,
+            ANTHROPIC_FABLE_5_2_EFFORT_SOURCE,
             ANTHROPIC_ADAPTIVE_THINKING_SOURCE,
             ANTHROPIC_STRUCTURED_OUTPUTS_SOURCE,
             ANTHROPIC_WEB_SEARCH_SOURCE,
@@ -3616,7 +3808,8 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         ],
         tags: ['specialized', 'reasoning', 'coding', 'agent', 'limited-availability'],
         parameterPolicies: {
-            temperature: 'unsupported'
+            temperature: 'unsupported',
+            forcedToolChoice: 'unsupported'
         }
     },
     {

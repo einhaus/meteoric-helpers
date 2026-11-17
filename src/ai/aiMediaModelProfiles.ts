@@ -15,7 +15,7 @@ export function resolveAiMediaModelId(params: { profile: AiMediaModelProfile; mo
     const modelId =
         override
             ?.replace(new RegExp(`^${provider}:`, 'i'), '')
-            .replace(/^models\//, '')
+            .replace(/^models\//i, '')
             .trim() || null;
 
     if (override && (!modelId || modelId.includes(':'))) {
@@ -35,13 +35,16 @@ export function resolveAiMediaModelId(params: { profile: AiMediaModelProfile; mo
         return resolved.modelId;
     }
 
-    const model = getAiCatalogModelByKey(modelId ? `google:${modelId}` : defaultKey);
+    const model = getAiCatalogModelByKey(modelId ? `google:${modelId.toLowerCase()}` : defaultKey);
     if (!model && modelId) return modelId;
     if (!model) throw new Error(`Missing shared model "${defaultKey}".`);
 
     const resolved = resolveCurrentAiCatalogModel(model, getAiCatalogModelByKey);
     if (!resolved.inputModalities.includes('video') || !resolved.outputModalities.includes('text')) {
         throw new Error(`AI model "${resolved.modelKey}" does not support video input and text output.`);
+    }
+    if (!resolved.tags.includes('video-understanding')) {
+        throw new Error(`AI model "${resolved.modelKey}" is not documented for the Gemini video understanding API.`);
     }
     return resolved.modelId;
 }
