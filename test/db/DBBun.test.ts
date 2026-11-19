@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { bunDbExpr, type BunDbRuntimeSchemaMetadata, type BunDbSchemaTable } from '../../src/db/bunDbTypes.js';
 import { DBBun, type DBBunConfig } from '../../src/db/bun.js';
 
@@ -7,9 +7,7 @@ type MockRuntimeSqlClient = {
     begin: <T>(fn: (sql: MockRuntimeTransactionSqlClient) => Promise<T> | T) => Promise<T>;
     close: () => Promise<void>;
     reserve: () => Promise<MockRuntimeReservedSqlClient>;
-    options?: {
-        adapter?: 'postgres' | 'mysql' | 'mariadb' | 'sqlite';
-    };
+    options?: { adapter?: 'postgres' | 'mysql' | 'mariadb' | 'sqlite' } | undefined;
 };
 
 type MockRuntimeTransactionSqlClient = MockRuntimeSqlClient & {
@@ -20,9 +18,10 @@ type MockRuntimeReservedSqlClient = MockRuntimeSqlClient & {
     release: () => Promise<void> | void;
 };
 
-type MockBunGlobal = {
-    SQL: new (options?: Record<string, unknown> | string | URL, optionsOverride?: Record<string, unknown>) => MockRuntimeSqlClient;
-};
+type MockSqlConstructor = new (
+    options?: Record<string, unknown> | string | URL,
+    optionsOverride?: Record<string, unknown>
+) => MockRuntimeSqlClient;
 
 interface TestSchema {
     users: BunDbSchemaTable<
@@ -81,50 +80,21 @@ const bigintSchemaMetadata = {
 } as const satisfies BunDbRuntimeSchemaMetadata<TestSchema>;
 
 describe('DBBun raw SQL helpers', () => {
-    const runtime = globalThis as typeof globalThis & { Bun?: MockBunGlobal };
-    const originalBun = runtime.Bun;
-    const originalSqlDescriptor = originalBun ? Object.getOwnPropertyDescriptor(originalBun, 'SQL') : undefined;
+    const originalSql = Bun.SQL;
     const openDbs: Array<DBBun> = [];
 
     afterEach(async () => {
-        while (openDbs.length > 0) {
-            const db = openDbs.pop();
-
-            if (db) {
+        try {
+            for (const db of openDbs.splice(0)) {
                 await db.close();
             }
+        } finally {
+            Object.defineProperty(Bun, 'SQL', { value: originalSql });
         }
-
-        if (originalBun) {
-            if (originalSqlDescriptor) {
-                Object.defineProperty(originalBun, 'SQL', originalSqlDescriptor);
-            } else {
-                Reflect.deleteProperty(originalBun, 'SQL');
-            }
-
-            runtime.Bun = originalBun;
-        } else {
-            Reflect.deleteProperty(runtime, 'Bun');
-        }
-
-        vi.restoreAllMocks();
     });
 
-    function installMockSql(MockSQL: MockBunGlobal['SQL']): void {
-        if (!runtime.Bun) {
-            Object.defineProperty(runtime, 'Bun', {
-                configurable: true,
-                writable: true,
-                value: { SQL: MockSQL }
-            });
-            return;
-        }
-
-        Object.defineProperty(runtime.Bun, 'SQL', {
-            configurable: true,
-            writable: true,
-            value: MockSQL
-        });
+    function installMockSql(MockSQL: MockSqlConstructor): void {
+        Object.defineProperty(Bun, 'SQL', { value: MockSQL });
     }
 
     function installMockClient(client: MockRuntimeSqlClient): void {
@@ -158,7 +128,7 @@ describe('DBBun raw SQL helpers', () => {
             begin: async () => {
                 throw new Error('begin should not be called in this test');
             },
-            close: vi.fn(async () => {}),
+            close: mock(async () => {}),
             reserve: async () => {
                 throw new Error('reserve should not be called in this test');
             },
@@ -176,13 +146,13 @@ describe('DBBun raw SQL helpers', () => {
     }
 
     it('executes root-level unsafe and query calls through Bun.SQL.unsafe', async () => {
-        const rootUnsafe = vi.fn(async (_queryString: string, _values?: readonly unknown[]) => [{ value: 1 }]);
+        const rootUnsafe = mock(async (_queryString: string, _values?: readonly unknown[]) => [{ value: 1 }]);
         const rootClient: MockRuntimeSqlClient = {
             unsafe: rootUnsafe,
             begin: async () => {
                 throw new Error('begin should not be called in this test');
             },
-            close: vi.fn(async () => {}),
+            close: mock(async () => {}),
             reserve: async () => {
                 throw new Error('reserve should not be called in this test');
             },
@@ -201,14 +171,14 @@ describe('DBBun raw SQL helpers', () => {
     });
 
     it('exposes unsafe and query on reserved and transaction clients', async () => {
-        const reservedUnsafe = vi.fn(async (_queryString: string, _values?: readonly unknown[]) => [{ value: 2 }]);
-        const reservedRelease = vi.fn(async () => {});
+        const reservedUnsafe = mock(async (_queryString: string, _values?: readonly unknown[]) => [{ value: 2 }]);
+        const reservedRelease = mock(async () => {});
         const reservedClient: MockRuntimeReservedSqlClient = {
             unsafe: reservedUnsafe,
             begin: async () => {
                 throw new Error('nested begin should not be called in this test');
             },
-            close: vi.fn(async () => {}),
+            close: mock(async () => {}),
             reserve: async () => {
                 throw new Error('nested reserve should not be called in this test');
             },
@@ -216,11 +186,11 @@ describe('DBBun raw SQL helpers', () => {
             options: { adapter: 'postgres' }
         };
 
-        const transactionUnsafe = vi.fn(async (_queryString: string, _values?: readonly unknown[]) => [{ value: 3 }]);
+        const transactionUnsafe = mock(async (_queryString: string, _values?: readonly unknown[]) => [{ value: 3 }]);
         const transactionClient: MockRuntimeTransactionSqlClient = {
             unsafe: transactionUnsafe,
             begin: async <T>(fn: (sql: MockRuntimeTransactionSqlClient) => Promise<T> | T) => fn(transactionClient),
-            close: vi.fn(async () => {}),
+            close: mock(async () => {}),
             reserve: async () => {
                 throw new Error('reserve should not be called in this test');
             },
@@ -229,10 +199,10 @@ describe('DBBun raw SQL helpers', () => {
         };
 
         const rootClient: MockRuntimeSqlClient = {
-            unsafe: vi.fn(async () => []),
-            begin: vi.fn(async <T>(fn: (sql: MockRuntimeTransactionSqlClient) => Promise<T> | T) => fn(transactionClient)),
-            close: vi.fn(async () => {}),
-            reserve: vi.fn(async () => reservedClient),
+            unsafe: mock(async () => []),
+            begin: async <T>(fn: (sql: MockRuntimeTransactionSqlClient) => Promise<T> | T) => fn(transactionClient),
+            close: mock(async () => {}),
+            reserve: mock(async () => reservedClient),
             options: { adapter: 'postgres' }
         };
 
@@ -272,13 +242,13 @@ describe('DBBun raw SQL helpers', () => {
     });
 
     it('supports computed expressions in typed updates', async () => {
-        const rootUnsafe = vi.fn(async (_queryString: string, _values?: readonly unknown[]) => [{ __affected: 1 }]);
+        const rootUnsafe = mock(async (_queryString: string, _values?: readonly unknown[]) => [{ __affected: 1 }]);
         const rootClient: MockRuntimeSqlClient = {
             unsafe: rootUnsafe,
             begin: async () => {
                 throw new Error('begin should not be called in this test');
             },
-            close: vi.fn(async () => {}),
+            close: mock(async () => {}),
             reserve: async () => {
                 throw new Error('reserve should not be called in this test');
             },
@@ -323,13 +293,13 @@ describe('DBBun raw SQL helpers', () => {
     });
 
     it('supports computed expressions in typed upserts', async () => {
-        const rootUnsafe = vi.fn(async (_queryString: string, _values?: readonly unknown[]) => [{ __insert_id: 7 }]);
+        const rootUnsafe = mock(async (_queryString: string, _values?: readonly unknown[]) => [{ __insert_id: 7 }]);
         const rootClient: MockRuntimeSqlClient = {
             unsafe: rootUnsafe,
             begin: async () => {
                 throw new Error('begin should not be called in this test');
             },
-            close: vi.fn(async () => {}),
+            close: mock(async () => {}),
             reserve: async () => {
                 throw new Error('reserve should not be called in this test');
             },
@@ -397,7 +367,7 @@ describe('DBBun raw SQL helpers', () => {
         });
 
         it('coerces only the selected bigint columns', async () => {
-            const unsafe = vi.fn(async (_queryString: string, _values?: readonly unknown[]) => [{ user_id: '4', memo: 'refund' }]);
+            const unsafe = mock(async (_queryString: string, _values?: readonly unknown[]) => [{ user_id: '4', memo: 'refund' }]);
             const db = createSchemaDb(createMockClient(unsafe));
 
             const row = await db.selectOne('ledger_entries', {
@@ -429,7 +399,7 @@ describe('DBBun raw SQL helpers', () => {
         });
 
         it('coerces bigint columns on transaction, savepoint and reserved connection handles', async () => {
-            const scopedUnsafe = vi.fn(async (_queryString: string, _values?: readonly unknown[]) => [
+            const scopedUnsafe = mock(async (_queryString: string, _values?: readonly unknown[]) => [
                 { id: '17', user_id: '4', amount_cents: '100', memo: 'refund', position: 1 }
             ]);
             const transactionClient: MockRuntimeTransactionSqlClient = {
@@ -439,7 +409,7 @@ describe('DBBun raw SQL helpers', () => {
             };
             const reservedClient: MockRuntimeReservedSqlClient = {
                 ...createMockClient(scopedUnsafe),
-                release: vi.fn(async () => {})
+                release: mock(async () => {})
             };
             const db = createSchemaDb(
                 createMockClient(
@@ -479,7 +449,7 @@ describe('DBBun raw SQL helpers', () => {
         });
 
         it('returns bigint primary keys from inserts as numbers', async () => {
-            const unsafe = vi.fn(async (_queryString: string, _values?: readonly unknown[]) => [
+            const unsafe = mock(async (_queryString: string, _values?: readonly unknown[]) => [
                 { __insert_id: '41' },
                 { __insert_id: '42' }
             ]);
@@ -513,14 +483,16 @@ describe('DBBun raw SQL helpers', () => {
 
         it('leaves rows untouched for tables without bigint metadata and for MySQL', async () => {
             const postgresDb = createSchemaDb(createMockClient(async () => [{ id: '17', email: 'test@example.com' }]));
-            expect(await postgresDb.select('users', { columns: ['id', 'email'] })).toEqual([{ id: '17', email: 'test@example.com' }]);
+            expect<unknown>(await postgresDb.select('users', { columns: ['id', 'email'] })).toEqual([
+                { id: '17', email: 'test@example.com' }
+            ]);
 
             // Bun.SQL's MySQL adapter already returns BIGINT values in the safe integer range as numbers.
             const mysqlDb = createSchemaDb(
                 createMockClient(async () => [{ id: '17' }]),
                 'mysql'
             );
-            expect(await mysqlDb.select('ledger_entries', { columns: ['id'] })).toEqual([{ id: '17' }]);
+            expect<unknown>(await mysqlDb.select('ledger_entries', { columns: ['id'] })).toEqual([{ id: '17' }]);
         });
     });
 });

@@ -1,18 +1,18 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from 'bun:test';
 
-const { createConnection, createPool } = vi.hoisted(() => ({
-    createPool: vi.fn(),
-    createConnection: vi.fn()
-}));
+const createPool = mock();
+const createConnection = mock();
 
-vi.mock('mysql2/promise.js', () => ({
+await mock.module('mysql2/promise.js', () => ({
     default: {
         createPool,
         createConnection
     }
 }));
 
-import { DBMysql } from '../../src/db/mysql.js';
+const { DBMysql } = await import('../../src/db/mysql.js');
+
+afterEach(() => mock.restore());
 
 type MockStreamablePool = {
     end: () => Promise<void>;
@@ -36,10 +36,10 @@ let testInstanceId = 0;
 
 const createMockPool = () => {
     const stream = { label: 'result-stream' };
-    const streamFactory = vi.fn(() => stream);
-    const query = vi.fn(() => ({ stream: streamFactory }));
-    const format = vi.fn((queryString: string) => queryString);
-    const end = vi.fn(async () => undefined);
+    const streamFactory = mock(() => stream);
+    const query = mock(() => ({ stream: streamFactory }));
+    const format = mock((queryString: string) => queryString);
+    const end = mock(async () => {});
 
     const pool = {
         end,
@@ -71,7 +71,7 @@ describe('DBMysql connection config', () => {
         const db = DBMysql.getInstance(TEST_DB_CONFIG, `config-pool-${testInstanceId++}`);
         db.getPool();
 
-        expect(createPool).toHaveBeenCalledOnce();
+        expect(createPool).toHaveBeenCalledTimes(1);
         expect(createPool).toHaveBeenCalledWith(expect.objectContaining({ jsonStrings: true, dateStrings: true }));
     });
 
@@ -105,10 +105,10 @@ describe('DBMysql connection config', () => {
         db.getPool();
 
         DBMysql.getInstance({ ...TEST_DB_CONFIG, port: 33306 }, instanceKey);
-        expect(db.getPool()).toBe(secondPool.pool);
+        expect<unknown>(db.getPool()).toBe(secondPool.pool);
         expect(createPool).toHaveBeenCalledTimes(2);
         expect(createPool).toHaveBeenLastCalledWith(expect.objectContaining({ port: 33306 }));
-        expect(firstPool.end).toHaveBeenCalledOnce();
+        expect(firstPool.end).toHaveBeenCalledTimes(1);
     });
 
     it('routes repeated synchronous reconfiguration to the latest port', () => {
@@ -123,10 +123,10 @@ describe('DBMysql connection config', () => {
         DBMysql.getInstance({ ...TEST_DB_CONFIG, port: 33306 }, instanceKey);
         DBMysql.getInstance({ ...TEST_DB_CONFIG, port: 33307 }, instanceKey);
 
-        expect(db.getPool()).toBe(thirdPool.pool);
+        expect<unknown>(db.getPool()).toBe(thirdPool.pool);
         expect(createPool).toHaveBeenLastCalledWith(expect.objectContaining({ port: 33307 }));
-        expect(firstPool.end).toHaveBeenCalledOnce();
-        expect(secondPool.end).toHaveBeenCalledOnce();
+        expect(firstPool.end).toHaveBeenCalledTimes(1);
+        expect(secondPool.end).toHaveBeenCalledTimes(1);
     });
 
     it('keeps the pool when an explicit port is equivalent to the driver default', () => {
@@ -136,7 +136,7 @@ describe('DBMysql connection config', () => {
         db.getPool();
 
         DBMysql.getInstance({ ...TEST_DB_CONFIG, port: 3306 }, instanceKey);
-        expect(createPool).toHaveBeenCalledOnce();
+        expect(createPool).toHaveBeenCalledTimes(1);
     });
 
     it('allows opting into driver-decoded JSON columns', () => {
@@ -154,18 +154,18 @@ describe('DBMysql connection config', () => {
         const instanceKey = `config-pool-${testInstanceId++}`;
         const db = DBMysql.getInstance(TEST_DB_CONFIG, instanceKey);
         db.getPool();
-        expect(createPool).toHaveBeenCalledOnce();
+        expect(createPool).toHaveBeenCalledTimes(1);
 
         DBMysql.getInstance({ ...TEST_DB_CONFIG, jsonStrings: false }, instanceKey);
 
-        await vi.waitFor(() => expect(createPool).toHaveBeenCalledTimes(2));
+        expect(createPool).toHaveBeenCalledTimes(2);
         expect(createPool).toHaveBeenLastCalledWith(expect.objectContaining({ jsonStrings: false }));
     });
 });
 
-const createMutationPool = (query: ReturnType<typeof vi.fn>) => ({
-    end: vi.fn(async () => undefined),
-    format: vi.fn((queryString: string) => queryString),
+const createMutationPool = (query: ReturnType<typeof mock>) => ({
+    end: mock(async () => undefined),
+    format: mock((queryString: string) => queryString),
     query
 });
 
@@ -185,8 +185,8 @@ const createDb = (maxRetries: number) =>
 const resetMutationMocks = () => {
     createConnection.mockReset();
     createPool.mockReset();
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    spyOn(console, 'error').mockImplementation(() => undefined);
+    spyOn(console, 'warn').mockImplementation(() => undefined);
 };
 
 const createDbError = (message: string, code: string) => Object.assign(new Error(message), { code });
@@ -199,8 +199,7 @@ describe('DBMysql bound connection retry ownership', () => {
         async (code) => {
             for (const method of ['select', 'query', 'insert']) {
                 const failure = createDbError('transaction failed', code);
-                const query = vi
-                    .fn()
+                const query = mock()
                     .mockRejectedValueOnce(failure)
                     .mockResolvedValue([{ insertId: 1 }]);
                 createConnection.mockResolvedValue(createMutationPool(query));
@@ -213,7 +212,7 @@ describe('DBMysql bound connection retry ownership', () => {
                           ? db.doQuery({ queryString: 'DELETE FROM titles', connection })
                           : db.doInsert({ queryString: 'INSERT INTO titles (name) VALUES (?)', parameters: ['a'], connection });
                 await expect(result).rejects.toBe(failure);
-                expect(query).toHaveBeenCalledOnce();
+                expect(query).toHaveBeenCalledTimes(1);
             }
         }
     );
@@ -227,25 +226,26 @@ describe('DBMysql.delete connection ownership', () => {
 
     it('deletes through the supplied connection without acquiring a second pool connection', async () => {
         const header = { affectedRows: 1, insertId: 0 };
-        const query = vi.fn().mockResolvedValue([header]);
+        const query = mock().mockResolvedValue([header]);
         createConnection.mockResolvedValue(createMutationPool(query));
         const db = createDb(3);
         const connection = await db.createConnection();
 
-        expect(await db.delete<{ id: number }>({ table: 'titles', where: { column: 'id', value: 1 }, connection })).toBe(header);
-        expect(query).toHaveBeenCalledExactlyOnceWith('DELETE FROM `titles` WHERE `id` = ?;');
+        expect<unknown>(await db.delete<{ id: number }>({ table: 'titles', where: { column: 'id', value: 1 }, connection })).toBe(header);
+        expect(query).toHaveBeenCalledWith('DELETE FROM `titles` WHERE `id` = ?;');
+        expect(query).toHaveBeenCalledTimes(1);
         expect(createPool).not.toHaveBeenCalled();
     });
 
     it('returns a bound delete failure to its transaction owner without retrying the statement', async () => {
         const failure = createDbError('transaction failed', 'ER_LOCK_DEADLOCK');
-        const query = vi.fn().mockRejectedValue(failure);
+        const query = mock().mockRejectedValue(failure);
         createConnection.mockResolvedValue(createMutationPool(query));
         const db = createDb(3);
         const connection = await db.createConnection();
 
         await expect(db.delete<{ id: number }>({ table: 'titles', where: { column: 'id', value: 1 }, connection })).rejects.toBe(failure);
-        expect(query).toHaveBeenCalledOnce();
+        expect(query).toHaveBeenCalledTimes(1);
         expect(createPool).not.toHaveBeenCalled();
     });
 });
@@ -255,13 +255,13 @@ describe('DBMysql.doSelectMultiple', () => {
 
     it('does not replace a newly configured pool when an old select reports closure', async () => {
         const deferred = createDeferred<[{ id: number }[]]>();
-        const oldPool = createMutationPool(vi.fn(() => deferred.promise));
-        const newPool = createMutationPool(vi.fn(async () => [[{ id: 1 }]]));
+        const oldPool = createMutationPool(mock(() => deferred.promise));
+        const newPool = createMutationPool(mock(async () => [[{ id: 1 }]]));
         createPool.mockReturnValueOnce(oldPool).mockReturnValueOnce(newPool);
         const instanceKey = `select-pool-${testInstanceId++}`;
         const db = DBMysql.getInstance({ ...TEST_DB_CONFIG, maxRetries: 3, retryDelayMs: 0 }, instanceKey);
         const result = db.doSelectMultiple<{ id: number }>('SELECT id FROM titles');
-        await vi.waitFor(() => expect(oldPool.query).toHaveBeenCalledOnce());
+        expect(oldPool.query).toHaveBeenCalledTimes(1);
 
         DBMysql.getInstance({ ...TEST_DB_CONFIG, port: 33306, maxRetries: 3, retryDelayMs: 0 }, instanceKey);
         deferred.reject(createDbError('Pool is closed.', 'PROTOCOL_ENQUEUE_AFTER_QUIT'));
@@ -275,18 +275,17 @@ describe('DBMysql.doSelectMultiple', () => {
         const first = createDeferred<[{ id: number }[]]>();
         const second = createDeferred<[{ id: number }[]]>();
         const oldPool = createMutationPool(
-            vi
-                .fn()
+            mock()
                 .mockImplementationOnce(() => first.promise)
                 .mockImplementationOnce(() => second.promise)
         );
-        const newPool = createMutationPool(vi.fn(async () => [[{ id: 2 }]]));
+        const newPool = createMutationPool(mock(async () => [[{ id: 2 }]]));
         createPool.mockReturnValueOnce(oldPool).mockReturnValueOnce(newPool);
         const instanceKey = `select-pool-${testInstanceId++}`;
         const db = DBMysql.getInstance({ ...TEST_DB_CONFIG, maxRetries: 3, retryDelayMs: 0 }, instanceKey);
         const firstResult = db.doSelectMultiple<{ id: number }>('SELECT id FROM titles');
         const secondResult = db.doSelectMultiple<{ id: number }>('SELECT id FROM titles');
-        await vi.waitFor(() => expect(oldPool.query).toHaveBeenCalledTimes(2));
+        expect(oldPool.query).toHaveBeenCalledTimes(2);
 
         DBMysql.getInstance({ ...TEST_DB_CONFIG, port: 33306, maxRetries: 3, retryDelayMs: 0 }, instanceKey);
         first.reject(createDbError('Pool is closed.', 'PROTOCOL_ENQUEUE_AFTER_QUIT'));
@@ -303,18 +302,18 @@ describe('DBMysql.doQuery', () => {
 
     it('returns the result set header on success', async () => {
         const header = { affectedRows: 2, insertId: 0 };
-        const query = vi.fn(async () => [header]);
+        const query = mock(async () => [header]);
         createPool.mockReturnValue(createMutationPool(query));
 
         const result = await createDb(3).doQuery({ queryString: 'DELETE FROM titles WHERE id = ?', parameters: [1] });
 
-        expect(result).toBe(header);
-        expect(query).toHaveBeenCalledOnce();
+        expect<unknown>(result).toBe(header);
+        expect(query).toHaveBeenCalledTimes(1);
     });
 
     it('rethrows non-transient errors without retrying', async () => {
         const foreignKeyError = createDbError('Cannot delete or update a parent row', 'ER_ROW_IS_REFERENCED_2');
-        const query = vi.fn(async () => {
+        const query = mock(async () => {
             throw foreignKeyError;
         });
         createPool.mockReturnValue(createMutationPool(query));
@@ -322,24 +321,24 @@ describe('DBMysql.doQuery', () => {
         await expect(createDb(3).doQuery({ queryString: 'DELETE FROM titles WHERE id = ?', parameters: [1] })).rejects.toBe(
             foreignKeyError
         );
-        expect(query).toHaveBeenCalledOnce();
+        expect(query).toHaveBeenCalledTimes(1);
     });
 
     it('retries transient errors and returns the eventual result', async () => {
         const deadlockError = createDbError('Deadlock found', 'ER_LOCK_DEADLOCK');
         const header = { affectedRows: 1, insertId: 0 };
-        const query = vi.fn().mockRejectedValueOnce(deadlockError).mockResolvedValueOnce([header]);
+        const query = mock().mockRejectedValueOnce(deadlockError).mockResolvedValueOnce([header]);
         createPool.mockReturnValue(createMutationPool(query));
 
         const result = await createDb(3).doQuery({ queryString: 'UPDATE titles SET name = ? WHERE id = ?', parameters: ['a', 1] });
 
-        expect(result).toBe(header);
+        expect<unknown>(result).toBe(header);
         expect(query).toHaveBeenCalledTimes(2);
     });
 
     it('rethrows the transient error once retries are exhausted', async () => {
         const lockWaitError = createDbError('Lock wait timeout exceeded', 'ER_LOCK_WAIT_TIMEOUT');
-        const query = vi.fn(async () => {
+        const query = mock(async () => {
             throw lockWaitError;
         });
         createPool.mockReturnValue(createMutationPool(query));
@@ -352,18 +351,18 @@ describe('DBMysql.doQuery', () => {
 
     it('does not replace a newly configured pool when an old query reports closure', async () => {
         const deferred = createDeferred<[{ affectedRows: number; insertId: number }]>();
-        const oldPool = createMutationPool(vi.fn(() => deferred.promise));
-        const newPool = createMutationPool(vi.fn(async () => [{ affectedRows: 1, insertId: 0 }]));
+        const oldPool = createMutationPool(mock(() => deferred.promise));
+        const newPool = createMutationPool(mock(async () => [{ affectedRows: 1, insertId: 0 }]));
         createPool.mockReturnValueOnce(oldPool).mockReturnValueOnce(newPool);
         const instanceKey = `mutation-pool-${testInstanceId++}`;
         const db = DBMysql.getInstance({ ...TEST_DB_CONFIG, maxRetries: 3, retryDelayMs: 0 }, instanceKey);
         const result = db.doQuery({ queryString: 'UPDATE titles SET name = ? WHERE id = ?', parameters: ['b', 1] });
-        await vi.waitFor(() => expect(oldPool.query).toHaveBeenCalledOnce());
+        expect(oldPool.query).toHaveBeenCalledTimes(1);
 
         DBMysql.getInstance({ ...TEST_DB_CONFIG, port: 33306, maxRetries: 3, retryDelayMs: 0 }, instanceKey);
         deferred.reject(createDbError('Pool is closed.', 'PROTOCOL_ENQUEUE_AFTER_QUIT'));
 
-        await expect(result).resolves.toEqual({ affectedRows: 1, insertId: 0 });
+        expect<unknown>(await result).toEqual({ affectedRows: 1, insertId: 0 });
         expect(createPool).toHaveBeenCalledTimes(2);
         expect(newPool.end).not.toHaveBeenCalled();
     });
@@ -373,39 +372,38 @@ describe('DBMysql.insert', () => {
     beforeEach(resetMutationMocks);
 
     it('returns the generated insert id', async () => {
-        const query = vi.fn(async () => [{ affectedRows: 1, insertId: 17 }]);
+        const query = mock(async () => [{ affectedRows: 1, insertId: 17 }]);
         createPool.mockReturnValue(createMutationPool(query));
 
         await expect(createDb(3).insert<{ name: string }>({ table: 'titles', params: { name: 'a' } })).resolves.toBe(17);
-        expect(query).toHaveBeenCalledOnce();
+        expect(query).toHaveBeenCalledTimes(1);
     });
 
     it('rethrows a duplicate-key error without retrying', async () => {
         const duplicateError = createDbError("Duplicate entry 'a' for key 'uniq_name'", 'ER_DUP_ENTRY');
-        const query = vi.fn(async () => {
+        const query = mock(async () => {
             throw duplicateError;
         });
         createPool.mockReturnValue(createMutationPool(query));
 
         await expect(createDb(3).insert<{ name: string }>({ table: 'titles', params: { name: 'a' } })).rejects.toBe(duplicateError);
-        expect(query).toHaveBeenCalledOnce();
+        expect(query).toHaveBeenCalledTimes(1);
     });
 
     it('does not retry a lost connection because the insert may already have been applied', async () => {
         const connectionLostError = createDbError('Connection lost: The server closed the connection.', 'PROTOCOL_CONNECTION_LOST');
-        const query = vi.fn(async () => {
+        const query = mock(async () => {
             throw connectionLostError;
         });
         createPool.mockReturnValue(createMutationPool(query));
 
         await expect(createDb(3).insert<{ name: string }>({ table: 'titles', params: { name: 'a' } })).rejects.toBe(connectionLostError);
-        expect(query).toHaveBeenCalledOnce();
+        expect(query).toHaveBeenCalledTimes(1);
     });
 
     it('retries deadlocks and returns the eventual insert id', async () => {
         const deadlockError = createDbError('Deadlock found', 'ER_LOCK_DEADLOCK');
-        const query = vi
-            .fn()
+        const query = mock()
             .mockRejectedValueOnce(deadlockError)
             .mockResolvedValueOnce([{ affectedRows: 1, insertId: 23 }]);
         createPool.mockReturnValue(createMutationPool(query));
@@ -416,7 +414,7 @@ describe('DBMysql.insert', () => {
 
     it('rethrows the original deadlock error once retries are exhausted', async () => {
         const deadlockError = createDbError('Deadlock found', 'ER_LOCK_DEADLOCK');
-        const query = vi.fn(async () => {
+        const query = mock(async () => {
             throw deadlockError;
         });
         createPool.mockReturnValue(createMutationPool(query));
@@ -427,13 +425,13 @@ describe('DBMysql.insert', () => {
 
     it('does not replace a newly configured pool when an old insert reports closure', async () => {
         const deferred = createDeferred<[{ affectedRows: number; insertId: number }]>();
-        const oldPool = createMutationPool(vi.fn(() => deferred.promise));
-        const newPool = createMutationPool(vi.fn(async () => [{ affectedRows: 1, insertId: 31 }]));
+        const oldPool = createMutationPool(mock(() => deferred.promise));
+        const newPool = createMutationPool(mock(async () => [{ affectedRows: 1, insertId: 31 }]));
         createPool.mockReturnValueOnce(oldPool).mockReturnValueOnce(newPool);
         const instanceKey = `mutation-pool-${testInstanceId++}`;
         const db = DBMysql.getInstance({ ...TEST_DB_CONFIG, maxRetries: 3, retryDelayMs: 0 }, instanceKey);
         const result = db.insert<{ name: string }>({ table: 'titles', params: { name: 'a' } });
-        await vi.waitFor(() => expect(oldPool.query).toHaveBeenCalledOnce());
+        expect(oldPool.query).toHaveBeenCalledTimes(1);
 
         DBMysql.getInstance({ ...TEST_DB_CONFIG, port: 33306, maxRetries: 3, retryDelayMs: 0 }, instanceKey);
         deferred.reject(createDbError('Pool is closed.', 'PROTOCOL_ENQUEUE_AFTER_QUIT'));
@@ -448,20 +446,20 @@ describe('DBMysql.insertMultiple', () => {
     beforeEach(resetMutationMocks);
 
     it('writes every row in one statement and returns the first insert id', async () => {
-        const query = vi.fn(async () => [{ affectedRows: 2, insertId: 40 }]);
+        const query = mock(async () => [{ affectedRows: 2, insertId: 40 }]);
         const pool = createMutationPool(query);
         createPool.mockReturnValue(pool);
 
         const result = await createDb(3).insertMultiple<{ name: string }>({ table: 'titles', values: [{ name: 'a' }, { name: 'b' }] });
 
         expect(result).toBe(40);
-        expect(query).toHaveBeenCalledOnce();
+        expect(query).toHaveBeenCalledTimes(1);
         expect(pool.format).toHaveBeenCalledWith(expect.stringContaining('VALUES (?), (?)'), ['a', 'b']);
     });
 
     it('rethrows insert errors', async () => {
         const missingDefaultError = createDbError("Field 'cryptoId' doesn't have a default value", 'ER_NO_DEFAULT_FOR_FIELD');
-        const query = vi.fn(async () => {
+        const query = mock(async () => {
             throw missingDefaultError;
         });
         createPool.mockReturnValue(createMutationPool(query));
@@ -469,11 +467,11 @@ describe('DBMysql.insertMultiple', () => {
         await expect(createDb(3).insertMultiple<{ name: string }>({ table: 'titles', values: [{ name: 'a' }] })).rejects.toBe(
             missingDefaultError
         );
-        expect(query).toHaveBeenCalledOnce();
+        expect(query).toHaveBeenCalledTimes(1);
     });
 
     it('returns 0 without querying when there are no rows', async () => {
-        const query = vi.fn();
+        const query = mock();
         createPool.mockReturnValue(createMutationPool(query));
 
         await expect(createDb(3).insertMultiple<{ name: string }>({ table: 'titles', values: [] })).resolves.toBe(0);
@@ -482,7 +480,7 @@ describe('DBMysql.insertMultiple', () => {
     });
 
     it('throws when the first row is missing', async () => {
-        const query = vi.fn();
+        const query = mock();
         createPool.mockReturnValue(createMutationPool(query));
 
         await expect(
@@ -506,10 +504,10 @@ describe('DBMysql.createResultStream', () => {
 
         const resultStream = db.createResultStream('SELECT * FROM titles WHERE id = ?', [123]);
 
-        expect(createPool).toHaveBeenCalledOnce();
+        expect(createPool).toHaveBeenCalledTimes(1);
         expect(mockPool.format).toHaveBeenCalledWith('SELECT * FROM titles WHERE id = ?', [123]);
         expect(mockPool.query).toHaveBeenCalledWith('SELECT * FROM titles WHERE id = ?');
-        expect(mockPool.streamFactory).toHaveBeenCalledOnce();
-        expect(resultStream).toBe(mockPool.stream);
+        expect(mockPool.streamFactory).toHaveBeenCalledTimes(1);
+        expect<unknown>(resultStream).toBe(mockPool.stream);
     });
 });

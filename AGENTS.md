@@ -64,7 +64,7 @@ Both barrel files are generated; add new modules under `src/**` and regenerate b
 - `bun run build:barrel`: regenerate `src/index.ts` and `src/node.ts`.
 - `bun run watch`: TypeScript watch + auto-regeneration workflow for local iteration.
 - `bun run type-check`: run the built-in `bun check` without emitting files (Bun 1.4.4 or later). Keep TypeScript for builds and watch mode.
-- `bun run test`: run Vitest (expects tests under `test/` when present).
+- `bun run test`: run the native Bun test suite under `test/` with per-file isolation.
 - `bun publish`: publish using the registry and access settings in `package.json`; publishing requires `GITHUB_PACKAGE_TOKEN`.
 
 ## Coding Style & Naming Conventions
@@ -76,9 +76,9 @@ Both barrel files are generated; add new modules under `src/**` and regenerate b
 
 ## Testing Guidelines
 
-- Framework: Vitest.
+- Framework: native Bun. Run one suite with `bun test --isolate ./test/path/to/suite.test.ts`.
 - Conventions: place tests in `test/` and name files `*.test.ts`.
-- Prefer unit tests over integration; avoid real AWS/DB calls (mock clients instead).
+- Mock external services in unit tests. The opt-in database MCP integration suite uses disposable loopback MariaDB.
 
 ## Commit & Pull Request Guidelines
 

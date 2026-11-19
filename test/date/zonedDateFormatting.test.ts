@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { getDate } from '../../src/date/getDate.js';
 import { getDateFromUtc } from '../../src/date/getDateFromUtc.js';
 

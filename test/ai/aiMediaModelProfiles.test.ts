@@ -1,8 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, mock, spyOn } from 'bun:test';
 import { resolveAiMediaModelId } from '../../src/ai/aiMediaModelProfiles.js';
 import { auditAiModelCatalog } from '../../src/ai/aiModelCatalogSync.js';
 
-afterEach(() => vi.unstubAllGlobals());
+const fetchRuntime: { fetch: (...args: Parameters<typeof fetch>) => ReturnType<typeof fetch> } = globalThis;
+afterEach(() => mock.restore());
 
 describe('shared media model profiles', () => {
     it('selects the shared image and video defaults', () => {
@@ -36,8 +37,10 @@ describe('shared media model profiles', () => {
 
 describe('Gemini catalog discovery', () => {
     it('audits every page without promoting a newly discovered model', async () => {
-        const fetchMock = vi
-            .fn<typeof fetch>()
+        const fetchMock = spyOn(fetchRuntime, 'fetch')
+            .mockImplementation(() => {
+                throw new Error('Unexpected fetch');
+            })
             .mockResolvedValueOnce(
                 Response.json({
                     models: [{ name: 'models/gemini-4-hydrogen', displayName: 'Gemini 4 Hydrogen' }],
@@ -49,7 +52,6 @@ describe('Gemini catalog discovery', () => {
                     models: [{ name: 'models/gemini-new-model', displayName: 'Gemini New Model' }]
                 })
             );
-        vi.stubGlobal('fetch', fetchMock);
 
         const audit = await auditAiModelCatalog({ geminiApiKey: 'test-key' });
 

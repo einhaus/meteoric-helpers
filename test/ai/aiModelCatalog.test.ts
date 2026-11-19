@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import {
     aiModelSupportsVision,
     estimateAiModelCostUsd,
@@ -316,7 +316,7 @@ describe('AI model catalog helpers', () => {
             const model = getAiModelById(modelId);
             expect(model?.status).toBe(modelId === 'claude-sonnet-4-5' ? 'deprecated' : 'legacy');
             expect(defaultAnthropicModels).not.toContain(model);
-            expect(listAiModels({ provider: 'anthropic', includeLegacy: true })).toContain(model);
+            expect<readonly unknown[]>(listAiModels({ provider: 'anthropic', includeLegacy: true })).toContain(model);
         }
     });
 
@@ -353,7 +353,7 @@ describe('AI model catalog helpers', () => {
 
             expect(model?.status).toBe('deprecated');
             expect(getAiModelById(model?.snapshotModelId ?? '')).toBe(model);
-            expect(listAiModels({ provider: 'openai', includeLegacy: true })).toContain(model);
+            expect<readonly unknown[]>(listAiModels({ provider: 'openai', includeLegacy: true })).toContain(model);
             expect(isAiAgentChatCandidate(modelId)).toBe(false);
         }
     );
@@ -531,7 +531,7 @@ describe('AI model catalog helpers', () => {
         expect(model?.status).toBe('deprecated');
         expect(getAiModelById(`daybreak-${colour}-latest`)?.modelKey).toBe(model?.modelKey);
         const replacement = getAiModelById(model?.recommendedReplacementModelKey ?? '');
-        expect(['active', 'specialized']).toContain(replacement?.status);
+        expect(replacement?.status).toMatch(/^(active|specialized)$/);
         expect(model?.pricing.inputUsdPerMillionTokens).toBe(replacement?.pricing.inputUsdPerMillionTokens);
     });
 

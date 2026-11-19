@@ -69,7 +69,7 @@ A failed audit sink withholds the tool result and disables subsequent access unt
 bun run type-check
 bun run lint
 bun run test
-MCP_TEST_MARIADB_BASEDIR=/path/to/mariadb bun run test test/mcp
+MCP_TEST_MARIADB_BASEDIR=/path/to/mariadb bun test --isolate ./test/mcp/mariadb.integration.test.ts
 ```
 
 The optional integration suite starts its own MariaDB process with `--no-defaults`, a temporary data directory, a Unix socket and a free loopback port. It creates only synthetic data and test accounts, exercises the official MCP HTTP client, checks real database denials and cancellation, and removes its own data directory. Never point a test at a production data directory. The default suite covers SQL attacks, grants, OAuth signatures/claims, identity isolation, HTTP limits and audit failures without a database.

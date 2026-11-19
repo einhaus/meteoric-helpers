@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'fs';
 import os from 'os';
 import path from 'path';
@@ -12,7 +12,7 @@ describe('Logger', () => {
         Logger.resetInstanceForTests();
         console.error = originalConsoleError;
         console.log = originalConsoleLog;
-        vi.restoreAllMocks();
+        mock.restore();
     });
 
     it('formats ClickHouse timestamps in UTC using epoch milliseconds', () => {
@@ -171,7 +171,7 @@ describe('Logger', () => {
     it('redacts secrets embedded in console.error messages before forwarding and writing logs', () => {
         const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'meteoric-logger-redaction-'));
         const logDir = path.join(tempRoot, 'logs');
-        const forwardedConsoleError = vi.fn();
+        const forwardedConsoleError = mock();
 
         console.error = forwardedConsoleError as typeof console.error;
 

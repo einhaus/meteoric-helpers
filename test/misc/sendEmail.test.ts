@@ -1,12 +1,10 @@
 import type { SendEmailCommandInput } from '@aws-sdk/client-ses';
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { beforeEach, describe, expect, test, mock } from 'bun:test';
 
-const { destroyMock, sendMock } = vi.hoisted(() => ({
-    destroyMock: vi.fn(),
-    sendMock: vi.fn()
-}));
+const destroyMock = mock();
+const sendMock = mock();
 
-vi.mock('@aws-sdk/client-ses', () => ({
+await mock.module('@aws-sdk/client-ses', () => ({
     SendEmailCommand: class SendEmailCommand {
         constructor(readonly input: unknown) {}
     },
@@ -16,7 +14,7 @@ vi.mock('@aws-sdk/client-ses', () => ({
     }
 }));
 
-import { sendEmail } from '../../src/misc/sendEmail.js';
+const { sendEmail } = await import('../../src/misc/sendEmail.js');
 
 const config = {
     awsRegion: 'us-west-2',

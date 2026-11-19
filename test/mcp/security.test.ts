@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { parseDatabaseMcpConfig } from '../../src/mcp/database/config.js';
 import { createDatabaseMcpAuthenticator } from '../../src/mcp/database/auth.js';
 import { assertDatabaseMcpGrants } from '../../src/mcp/database/mariadb.js';

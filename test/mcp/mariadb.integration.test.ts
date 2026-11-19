@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -18,7 +18,7 @@ import type { DatabaseMcpAuditEvent } from '../../src/mcp/database/config.js';
 import { testConfig, testToken, secondToken } from './fixtures.js';
 
 const basedir = process.env.MCP_TEST_MARIADB_BASEDIR;
-describe.runIf(Boolean(basedir))('database MCP with disposable MariaDB and real HTTP client', () => {
+describe.skipIf(!basedir)('database MCP with disposable MariaDB and real HTTP client', () => {
     let directory: string;
     let process: ChildProcess;
     let admin: Connection;

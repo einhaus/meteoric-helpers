@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { auditProviderSpeechModels, buildSpeechCatalogAuditSummary } from '../../src/ai/speechModelCatalogSync.js';
 import { SPEECH_PROVIDER_MODEL_PROFILES } from '../../src/ai/speechModelProfiles.js';
 import {

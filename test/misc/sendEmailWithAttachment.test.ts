@@ -2,14 +2,12 @@ import type { SendRawEmailCommandInput } from '@aws-sdk/client-ses';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, mock } from 'bun:test';
 
-const { destroyMock, sendMock } = vi.hoisted(() => ({
-    destroyMock: vi.fn(),
-    sendMock: vi.fn()
-}));
+const destroyMock = mock();
+const sendMock = mock();
 
-vi.mock('@aws-sdk/client-ses', () => ({
+await mock.module('@aws-sdk/client-ses', () => ({
     SendRawEmailCommand: class SendRawEmailCommand {
         constructor(readonly input: unknown) {}
     },
@@ -19,7 +17,7 @@ vi.mock('@aws-sdk/client-ses', () => ({
     }
 }));
 
-import { sendEmailWithAttachment } from '../../src/misc/sendEmailWithAttachment.js';
+const { sendEmailWithAttachment } = await import('../../src/misc/sendEmailWithAttachment.js');
 
 const decodeRawMessage = (): string => {
     const [command] = sendMock.mock.calls[0] as [{ input: SendRawEmailCommandInput }];
@@ -100,7 +98,7 @@ describe('sendEmailWithAttachment', () => {
         expect(raw.indexOf('Content-Type: text/plain')).toBeLessThan(raw.indexOf('Content-Type: text/html'));
         expect(raw).toContain('Content-Disposition: attachment; filename="report.csv"');
         expect(decodeBase64Parts(raw)).toEqual(['Report − ready', '<p>Report − ready</p>', 'Symbol,ARORC\nARKG,41.2\n']);
-        expect(destroyMock).toHaveBeenCalledOnce();
+        expect(destroyMock).toHaveBeenCalledTimes(1);
     });
 
     test('splits a long non-ASCII subject into folded encoded-words that decode back exactly', async () => {
@@ -174,7 +172,7 @@ describe('sendEmailWithAttachment', () => {
                 subject: 'Report'
             })
         ).rejects.toBe(error);
-        expect(destroyMock).toHaveBeenCalledOnce();
+        expect(destroyMock).toHaveBeenCalledTimes(1);
     });
 
     test('rejects a missing recipient before calling SES', async () => {

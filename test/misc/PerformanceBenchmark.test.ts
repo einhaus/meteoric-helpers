@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'bun:test';
 import { PerformanceBenchmark } from '../../src/misc/PerformanceBenchmark.js';
 
 describe('PerformanceBenchmark', () => {

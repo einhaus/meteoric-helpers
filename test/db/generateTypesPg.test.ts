@@ -1,7 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, mock, spyOn } from 'bun:test';
 import { generateTypesPg } from '../../src/db/generateTypesPg.js';
 import { DBPostgres } from '../../src/db/postgres.js';
 
@@ -67,19 +67,19 @@ describe('generateTypesPg', () => {
             fs.rmSync(dir, { recursive: true, force: true });
         }
 
-        vi.restoreAllMocks();
+        mock.restore();
     });
 
     it('emits scalar int8 columns as bigintColumns in the Bun schema metadata', async () => {
         const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'generate-types-pg-'));
         tempDirs.push(outputDir);
         const outputPath = path.join(outputDir, 'dbTypes.ts');
-        const closeConnection = vi.fn(async () => {});
+        const closeConnection = mock(async () => {});
 
-        vi.spyOn(DBPostgres, 'getInstance').mockReturnValue({ doQuery: catalogQuery, closeConnection } as unknown as DBPostgres);
-        vi.spyOn(console, 'log').mockImplementation(() => {});
+        spyOn(DBPostgres, 'getInstance').mockReturnValue({ doQuery: catalogQuery, closeConnection } as unknown as DBPostgres);
+        spyOn(console, 'log').mockImplementation(() => {});
         // The generator reports failures through console.error instead of throwing.
-        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const consoleError = spyOn(console, 'error').mockImplementation(() => {});
 
         await generateTypesPg({
             host: 'localhost',

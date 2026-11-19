@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { getAiCatalogModelByKey, listCatalogModelsForProvider, validateAiModelCatalog } from '../../src/ai/aiCatalogSelectors.js';
 import { getAiModelCatalog } from '../../src/ai/aiModelSelectors.js';
 import { listCatalogModelsForProvider as listNodeCatalogModels } from '../../src/ai/aiModelCatalogSync.js';

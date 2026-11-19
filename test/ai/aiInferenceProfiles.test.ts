@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { getAiInferenceProfile, listAiInferenceProfiles, serializeAiInferenceProfile } from '../../src/ai/aiInferenceProfiles.js';
 
 describe('AI inference profile helpers', () => {

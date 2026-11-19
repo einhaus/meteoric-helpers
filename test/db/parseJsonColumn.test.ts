@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 
 import {
     parseJsonColumn,
@@ -36,8 +36,8 @@ describe('parseJsonColumn', () => {
     });
 
     it('throws with context for invalid JSON strings', () => {
-        expect(() => parseJsonColumn<string[]>('US,CA', 'provider 42 regions')).toThrowError(/provider 42 regions contains invalid JSON/);
-        expect(() => parseJsonColumn<string[]>('[object Object]', 'user 7 loginTokens')).toThrowError(
+        expect(() => parseJsonColumn<string[]>('US,CA', 'provider 42 regions')).toThrow(/provider 42 regions contains invalid JSON/);
+        expect(() => parseJsonColumn<string[]>('[object Object]', 'user 7 loginTokens')).toThrow(
             /user 7 loginTokens contains invalid JSON/
         );
     });
@@ -51,10 +51,10 @@ describe('parseJsonStringArrayColumn', () => {
     });
 
     it('rejects wrong shapes from both sources', () => {
-        expect(() => parseJsonStringArrayColumn('{"a":1}' as never, 'question 9 titles')).toThrowError(
+        expect(() => parseJsonStringArrayColumn('{"a":1}' as never, 'question 9 titles')).toThrow(
             /question 9 titles must be a JSON array of strings/
         );
-        expect(() => parseJsonStringArrayColumn([1, 2] as never, 'question 9 titles')).toThrowError(
+        expect(() => parseJsonStringArrayColumn([1, 2] as never, 'question 9 titles')).toThrow(
             /question 9 titles must be a JSON array of strings/
         );
     });
@@ -68,10 +68,10 @@ describe('parseJsonNumberArrayColumn', () => {
     });
 
     it('rejects wrong shapes from both sources', () => {
-        expect(() => parseJsonNumberArrayColumn('["157"]' as never, 'release 5 providers')).toThrowError(
+        expect(() => parseJsonNumberArrayColumn('["157"]' as never, 'release 5 providers')).toThrow(
             /release 5 providers must be a JSON array of numbers/
         );
-        expect(() => parseJsonNumberArrayColumn(['157'] as never, 'release 5 providers')).toThrowError(
+        expect(() => parseJsonNumberArrayColumn(['157'] as never, 'release 5 providers')).toThrow(
             /release 5 providers must be a JSON array of numbers/
         );
     });
@@ -85,7 +85,7 @@ describe('parseJsonObjectColumn', () => {
     });
 
     it('rejects arrays and scalars from both sources', () => {
-        expect(() => parseJsonObjectColumn('["a"]' as never, 'person 3 photos')).toThrowError(/person 3 photos must be a JSON object/);
-        expect(() => parseJsonObjectColumn('5' as never, 'person 3 photos')).toThrowError(/person 3 photos must be a JSON object/);
+        expect(() => parseJsonObjectColumn('["a"]' as never, 'person 3 photos')).toThrow(/person 3 photos must be a JSON object/);
+        expect(() => parseJsonObjectColumn('5' as never, 'person 3 photos')).toThrow(/person 3 photos must be a JSON object/);
     });
 });

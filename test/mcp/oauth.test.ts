@@ -1,28 +1,29 @@
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, mock } from 'bun:test';
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
-import { createDatabaseMcpAuthenticator } from '../../src/mcp/database/auth.js';
 import type { DatabaseMcpConfig } from '../../src/mcp/database/config.js';
 
-const resolver = vi.hoisted(() => ({ value: undefined as unknown }));
-vi.mock('jose', async (importOriginal) => ({
-    ...(await importOriginal<typeof import('jose')>()),
-    createRemoteJWKSet: () => resolver.value
+let resolver: ReturnType<typeof createLocalJWKSet>;
+const jose = await import('jose');
+await mock.module('jose', () => ({
+    ...jose,
+    createRemoteJWKSet: () => resolver
 }));
+const { createDatabaseMcpAuthenticator } = await import('../../src/mcp/database/auth.js');
 
 describe('OAuth access token verification', () => {
     let privateKey: Awaited<ReturnType<typeof generateKeyPair>>['privateKey'];
-    const auth: DatabaseMcpConfig['auth'] = {
+    const auth = {
         type: 'oauth',
         issuer: 'https://auth.example.com',
         audience: 'https://db.example.com/mcp',
         jwksUrl: 'https://auth.example.com/jwks',
         requiredScope: 'database:read',
         subjects: { approved: 'catalog' }
-    };
+    } satisfies DatabaseMcpConfig['auth'];
     beforeAll(async () => {
         const keys = await generateKeyPair('ES256');
         privateKey = keys.privateKey;
-        resolver.value = createLocalJWKSet({ keys: [await exportJWK(keys.publicKey)] });
+        resolver = createLocalJWKSet({ keys: [await exportJWK(keys.publicKey)] });
     });
     async function token(overrides: Record<string, unknown> = {}): Promise<string> {
         return new SignJWT({

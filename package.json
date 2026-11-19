@@ -1,6 +1,6 @@
 {
     "name": "@einhaus/meteoric-helpers",
-    "version": "1.0.184",
+    "version": "1.0.185",
     "files": [
         "dist",
         "docs/database-mcp.md",
@@ -61,7 +61,7 @@
     "scripts": {
         "clean": "rm -rf ./dist",
         "build": "bun run clean && tsc -v && bun -v && bun './utilities/buildBarrelFile.ts' && tsc -p .",
-        "test": "vitest run --dir ./test",
+        "test": "bun test --parallel=6 ./test",
         "build:barrel": "bun './utilities/buildBarrelFile.ts'",
         "watch:barrel": "bun './utilities/watchBarrelFile.ts'",
         "watch": "bun run clean && bun run build:barrel && tsc -p . && concurrently \"tsc -p . --watch --preserveWatchOutput\" \"bun run watch:barrel -- --no-initial\"",
@@ -82,11 +82,11 @@
         "@types/mime-types": "^3.0.1",
         "@types/node": "^26.6.6",
         "@types/pg": "^8.23.1",
+        "bun-types": "^1.4.5",
         "concurrently": "^10.0.7",
         "oxlint": "^1.94.0",
         "oxlint-tsgolint": "^7.0.2007",
         "typescript": "^7.0.2",
-        "vitest": "^5.1.0",
         "zod": "^4.6.7"
     },
     "publishConfig": {
@@ -95,15 +95,15 @@
     },
     "private": false,
     "dependencies": {
-        "@aws-sdk/client-s3": "^3.1170.0",
-        "@aws-sdk/client-ses": "^3.1170.0",
-        "@aws-sdk/s3-request-presigner": "^3.1170.0",
+        "@aws-sdk/client-s3": "^3.1172.0",
+        "@aws-sdk/client-ses": "^3.1172.0",
+        "@aws-sdk/s3-request-presigner": "^3.1172.0",
         "@clickhouse/client": "^1.25.0",
         "@modelcontextprotocol/sdk": "1.32.2",
         "@redis/client": "^6.3.1",
         "bcrypt": "^6.0.0",
         "dayjs": "^1.11.23",
-        "jose": "6.2.17",
+        "jose": "6.2.18",
         "mime-types": "^3.0.2",
         "mysql2": "^3.24.6",
         "nanoid": "^6.0.2",

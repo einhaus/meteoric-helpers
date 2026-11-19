@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { getDateFromUnix } from '../../src/date/getDateFromUnix.js';
 
 const REGULAR_SESSION = 1794407460; // 2026-11-11 09:31:00 EST = 14:31:00 UTC

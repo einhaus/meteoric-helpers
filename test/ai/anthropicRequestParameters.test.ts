@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { buildAnthropicTextRequestParameters } from '../../src/ai/anthropicRequestParameters.js';
 import { listAiRequestPresets, resolveAiRequestConfig } from '../../src/ai/aiRequestSelectors.js';
 import { evaluateAiModelProfileCostPolicy, getAiModelById } from '../../src/ai/aiModelSelectors.js';
