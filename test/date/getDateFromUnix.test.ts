@@ -34,6 +34,8 @@ describe.each(PROCESS_ZONES)('getDateFromUnix with an explicit zone in a %s proc
     it('formats the wall clock of the requested zone', () => {
         expect(format(REGULAR_SESSION, 'ymdhms', 'America/New_York')).toBe('2026-11-11 09:31:00');
         expect(format(REGULAR_SESSION, 'ymdhms', 'America/Chicago')).toBe('2026-11-11 08:31:00');
+        expect(format(REGULAR_SESSION, 'ymdhms', 'America/Denver')).toBe('2026-11-11 07:31:00');
+        expect(format(REGULAR_SESSION, 'ymdhms', 'America/Los_Angeles')).toBe('2026-11-11 06:31:00');
         expect(format(REGULAR_SESSION, 'ymdhms', 'Etc/UTC')).toBe('2026-11-11 14:31:00');
         expect(format(REGULAR_SESSION, 'ymdhm', 'America/New_York')).toBe('2026-11-11 09:31');
         expect(format(REGULAR_SESSION, 'readable1', 'America/New_York')).toBe('Wed Nov 11 2026 09:31');
@@ -41,6 +43,8 @@ describe.each(PROCESS_ZONES)('getDateFromUnix with an explicit zone in a %s proc
 
     it('keeps the calendar date of the requested zone when UTC has already rolled over', () => {
         expect(format(EVENING, 'ymd', 'America/New_York')).toBe('2026-11-11');
+        expect(format(EVENING, 'ymd', 'America/Los_Angeles')).toBe('2026-11-11');
+        expect(format(EVENING, 'ymdhms', 'America/Los_Angeles')).toBe('2026-11-11 17:30:00');
         expect(format(EVENING, 'ymd', 'Etc/UTC')).toBe('2026-11-12');
         expect(format(EVENING, 'readable1', 'America/New_York')).toBe('Wed Nov 11 2026 20:30');
         expect(format(EVENING, 'readable1', 'Etc/UTC')).toBe('Thu Nov 12 2026 01:30');
@@ -50,11 +54,15 @@ describe.each(PROCESS_ZONES)('getDateFromUnix with an explicit zone in a %s proc
         expect(format(BEFORE_SPRING_FORWARD, 'ymdhms', 'America/New_York')).toBe('2026-03-08 01:59:59');
         expect(format(AFTER_SPRING_FORWARD, 'ymdhms', 'America/New_York')).toBe('2026-03-08 03:00:00');
         expect(format(AFTER_SPRING_FORWARD, 'ymdhms', 'America/Chicago')).toBe('2026-03-08 01:00:00');
+        expect(format(Date.parse('2026-03-08T09:59:59Z') / 1000, 'ymdhms', 'America/Los_Angeles')).toBe('2026-03-08 01:59:59');
+        expect(format(Date.parse('2026-03-08T10:00:00Z') / 1000, 'ymdhms', 'America/Los_Angeles')).toBe('2026-03-08 03:00:00');
     });
 
     it('repeats the wall clock across the fall-back hour', () => {
         expect(format(FIRST_REPEATED_HOUR, 'ymdhms', 'America/New_York')).toBe('2026-11-01 01:30:00');
         expect(format(SECOND_REPEATED_HOUR, 'ymdhms', 'America/New_York')).toBe('2026-11-01 01:30:00');
+        expect(format(Date.parse('2026-11-01T08:30:00Z') / 1000, 'ymdhms', 'America/Los_Angeles')).toBe('2026-11-01 01:30:00');
+        expect(format(Date.parse('2026-11-01T09:30:00Z') / 1000, 'ymdhms', 'America/Los_Angeles')).toBe('2026-11-01 01:30:00');
         expect(format(SECOND_REPEATED_HOUR, 'ymdhms', 'Etc/UTC')).toBe('2026-11-01 06:30:00');
     });
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { getDate } from '../../src/date/getDate.js';
 import { getDateFromUtc } from '../../src/date/getDateFromUtc.js';
+import { getDateString } from '../../src/date/getDateString.js';
 
 const PROCESS_ZONES = ['Etc/UTC', 'America/New_York', 'America/Chicago', 'America/Los_Angeles', 'Europe/London', 'Australia/Sydney'];
 const LONDON_GAP = 1774762200; // 2026-03-29T05:30:00Z = 01:30 Eastern (a missing London wall clock).
@@ -42,9 +43,8 @@ describe.each(PROCESS_ZONES)('explicit-zone date helpers in a %s process', (proc
     ] as const)('supports the %s target and its calendar date', (zone, clock) => {
         expect(fromUtc(LONDON_GAP * 1000, 'ymdhms', zone)).toBe(clock);
         expect(fromUtc(LONDON_GAP * 1000, 'unix', zone)).toBe(LONDON_GAP);
-        if (zone !== 'America/Denver' && zone !== 'America/Los_Angeles') {
-            expect(date({ date: LONDON_GAP, timezone: zone, format: 'ymdhms' })).toBe(clock);
-        }
+        expect(date({ date: LONDON_GAP, timezone: zone, format: 'ymdhms' })).toBe(clock);
+        expect(date({ date: LONDON_GAP, timezone: zone, format: 'ymd' })).toBe(clock.slice(0, 10));
     });
 
     it('preserves formats, milliseconds and numeric input units', () => {
@@ -119,13 +119,40 @@ describe.each(PROCESS_ZONES)('explicit-zone date helpers in a %s process', (proc
         }
     });
 
-    it('resolves UTC/Chicago boundaries, and preserves start-before-end ordering', () => {
+    it('resolves UTC, Chicago, and Los Angeles boundaries and DST transitions, and preserves start-before-end ordering', () => {
         expect(date({ date: LONDON_GAP, timezone: 'Etc/UTC', startOf: 'day', format: 'iso' })).toBe('2026-03-29T00:00:00.000Z');
         expect(date({ date: '2026-03-08T12:00:00Z', timezone: 'America/Chicago', startOf: 'day', format: 'iso' })).toBe(
             '2026-03-08T06:00:00.000Z'
         );
         expect(date({ date: '2026-03-08T12:00:00Z', timezone: 'America/Chicago', endOf: 'day', format: 'iso' })).toBe(
             '2026-03-09T04:59:59.999Z'
+        );
+        expect(date({ date: '2026-03-08T12:00:00Z', timezone: 'America/Los_Angeles', startOf: 'day', format: 'iso' })).toBe(
+            '2026-03-08T08:00:00.000Z'
+        );
+        expect(date({ date: '2026-03-08T12:00:00Z', timezone: 'America/Los_Angeles', endOf: 'day', format: 'iso' })).toBe(
+            '2026-03-09T06:59:59.999Z'
+        );
+        expect(date({ date: '2026-11-01T12:00:00Z', timezone: 'America/Los_Angeles', startOf: 'day', format: 'iso' })).toBe(
+            '2026-11-01T07:00:00.000Z'
+        );
+        expect(date({ date: '2026-11-01T12:00:00Z', timezone: 'America/Los_Angeles', endOf: 'day', format: 'iso' })).toBe(
+            '2026-11-02T07:59:59.999Z'
+        );
+        expect(date({ date: '2026-03-08T09:59:59Z', timezone: 'America/Los_Angeles', format: 'iso8601' })).toBe(
+            '2026-03-08T01:59:59-08:00'
+        );
+        expect(date({ date: '2026-03-08T10:00:00Z', timezone: 'America/Los_Angeles', format: 'iso8601' })).toBe(
+            '2026-03-08T03:00:00-07:00'
+        );
+        expect(date({ date: '2026-11-01T08:30:00Z', timezone: 'America/Los_Angeles', format: 'iso8601' })).toBe(
+            '2026-11-01T01:30:00-07:00'
+        );
+        expect(date({ date: '2026-11-01T09:30:00Z', timezone: 'America/Los_Angeles', format: 'iso8601' })).toBe(
+            '2026-11-01T01:30:00-08:00'
+        );
+        expect(inProcessZone(processZone, () => getDateString('ymdhms', null, 'America/Los_Angeles', '2026-11-22T07:30:00Z'))).toBe(
+            '2026-11-21 23:30:00'
         );
         expect(date({ date: LONDON_GAP, timezone: 'America/New_York', startOf: 'year', endOf: 'month', format: 'iso' })).toBe(
             '2026-02-01T04:59:59.999Z'

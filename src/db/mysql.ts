@@ -9,6 +9,41 @@ import { type LoggerConfig, Logger } from '../misc/Logger.js';
 // Default values that will be used if not specified in the config
 const DEFAULT_MAX_RETRIES = 4;
 const DEFAULT_RETRY_DELAY_MS = 10000;
+// MySQL/MariaDB numeric offsets span -13:59 through +14:00 (e.g. "+00:00", "-08:00").
+const MYSQL_NUMERIC_TIME_ZONE_PATTERN = /^(?:[+-](?:0\d|1[0-3]):[0-5]\d|\+14:00)$/u;
+const MYSQL_NAMED_TIME_ZONE_PATTERN = /^[A-Za-z0-9_/+.-]+$/u;
+
+const normalizeSessionTimeZone = (sessionTimeZone?: string): string | undefined => {
+    if (sessionTimeZone === undefined) return undefined;
+
+    const trimmed = sessionTimeZone.trim();
+    if (!trimmed) {
+        throw new Error('Invalid MySQL sessionTimeZone: expected a non-empty time zone or offset.');
+    }
+
+    if (trimmed === 'SYSTEM' || MYSQL_NUMERIC_TIME_ZONE_PATTERN.test(trimmed)) {
+        return trimmed;
+    }
+
+    if (MYSQL_NAMED_TIME_ZONE_PATTERN.test(trimmed)) {
+        try {
+            new Intl.DateTimeFormat('en-US', { timeZone: trimmed });
+            return trimmed;
+        } catch {
+            // Fall through to unified error message below.
+        }
+    }
+
+    throw new Error(
+        `Invalid MySQL sessionTimeZone "${sessionTimeZone}". Use a numeric offset like "+00:00", "SYSTEM", or a valid IANA time zone.`
+    );
+};
+
+const normalizeDbConfig = (config: DBConfig): DBConfig => {
+    const sessionTimeZone = normalizeSessionTimeZone(config.sessionTimeZone);
+    if (sessionTimeZone === undefined || sessionTimeZone === config.sessionTimeZone) return config;
+    return { ...config, sessionTimeZone };
+};
 
 /**
  * MySQL database helper class using registry pattern
@@ -28,7 +63,7 @@ export class DBMysql {
      * @param config Database configuration
      */
     private constructor(config: DBConfig) {
-        this.config = config;
+        this.config = normalizeDbConfig(config);
         this.logFolder = config.logFolder;
         this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
         this.retryDelayMs = config.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
@@ -79,18 +114,20 @@ export class DBMysql {
             DBMysql.instances.set(instanceKey, newInstance);
             return newInstance;
         } else if (config) {
+            const normalizedConfig = normalizeDbConfig(config);
             const previousConfig = instance.config;
             // If config is provided and instance exists, update the config
-            instance.config = config;
+            instance.config = normalizedConfig;
 
             const shouldResetPool =
-                previousConfig.host !== config.host ||
-                (previousConfig.port ?? 3306) !== (config.port ?? 3306) ||
-                previousConfig.user !== config.user ||
-                previousConfig.password !== config.password ||
-                previousConfig.db !== config.db ||
-                previousConfig.charset !== config.charset ||
-                (previousConfig.jsonStrings ?? true) !== (config.jsonStrings ?? true);
+                previousConfig.host !== normalizedConfig.host ||
+                (previousConfig.port ?? 3306) !== (normalizedConfig.port ?? 3306) ||
+                previousConfig.user !== normalizedConfig.user ||
+                previousConfig.password !== normalizedConfig.password ||
+                previousConfig.db !== normalizedConfig.db ||
+                previousConfig.charset !== normalizedConfig.charset ||
+                (previousConfig.jsonStrings ?? true) !== (normalizedConfig.jsonStrings ?? true) ||
+                previousConfig.sessionTimeZone !== normalizedConfig.sessionTimeZone;
 
             // Only reset the pool if connection-affecting config actually changed.
             if (shouldResetPool) {
@@ -126,7 +163,19 @@ export class DBMysql {
     }
 
     async createConnection(): Promise<Connection> {
-        return mysql.createConnection(this.buildConnectionConfig());
+        const connection = await mysql.createConnection(this.buildConnectionConfig());
+        const { sessionTimeZone } = this.config;
+
+        if (sessionTimeZone) {
+            try {
+                await connection.query('SET time_zone = ?', [sessionTimeZone]);
+            } catch (error) {
+                await connection.end().catch(() => undefined);
+                throw error;
+            }
+        }
+
+        return connection;
     }
 
     private buildConnectionConfig() {
@@ -148,12 +197,27 @@ export class DBMysql {
 
     private createPool() {
         const connectionLimit = this.config.connectionLimit || 3;
-
-        return mysql.createPool({
+        const pool = mysql.createPool({
             ...this.buildConnectionConfig(),
             connectionLimit
             // We don't use decimalNumbers, so we can fetch decimals as strings and convert them to numbers in the code
         });
+
+        const { sessionTimeZone } = this.config;
+        if (sessionTimeZone) {
+            pool.pool.on('connection', (connection) => {
+                let failed = false;
+                // Enqueued synchronously before the pool hands out the connection, so mysql2's FIFO executes it first.
+                connection.query('SET time_zone = ?', [sessionTimeZone], (error) => {
+                    if (!error || failed) return;
+                    failed = true;
+                    connection.destroy();
+                    this.handleError(error);
+                });
+            });
+        }
+
+        return pool;
     }
 
     private resetPool(reason: string) {

@@ -1,11 +1,11 @@
 import { ymd, ymdhm, ymdhms } from './constants.js';
 import dayjs from './dayjsTimezone.js';
-import { getZoneCalendarMs } from './internal/zoneWallClock.js';
+import { type DateTimezone, getZoneCalendarMs } from './internal/zoneWallClock.js';
 
 export const getDateFromUtc = (
     dateTime: string | Date | number,
     returnFormat: 'ymd' | 'ymdhms' | 'unix' | 'ymdhm' | 'readable1' = 'ymd',
-    timezone?: 'Etc/UTC' | 'America/New_York' | 'America/Chicago' | 'America/Denver' | 'America/Los_Angeles'
+    timezone?: DateTimezone
 ): string | number => {
     let dateObject = dayjs.utc(dateTime);
     // Numeric input remains milliseconds; Unix output remains seconds and must not depend on the display zone.

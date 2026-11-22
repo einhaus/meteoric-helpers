@@ -1,7 +1,7 @@
-import { getZoneWallClock, type WallClock } from './internal/zoneWallClock.js';
+import { type DateTimezone, getZoneWallClock, type WallClock } from './internal/zoneWallClock.js';
 
 type GetDateFromUnixFormat = 'ymd' | 'ymdhms' | 'ymdhm' | 'readable1';
-type GetDateFromUnixTimezone = 'Etc/UTC' | 'America/New_York' | 'America/Chicago';
+type GetDateFromUnixTimezone = DateTimezone;
 
 const getProcessWallClock = (unixTimestamp: number, startOrEndOfDay?: 'start' | 'end'): WallClock => {
     const datetime = new Date(unixTimestamp * 1000);

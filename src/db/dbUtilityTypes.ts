@@ -96,6 +96,11 @@ export interface DBConfig {
      * mysql2 >= 3.23.0 auto-decodes MariaDB JSON columns, which breaks consumers that JSON.parse column values themselves.
      */
     jsonStrings?: boolean;
+    /**
+     * MySQL/MariaDB session time zone applied via `SET time_zone = ?` on every new pooled connection and `createConnection()`.
+     * Prefer numeric offsets like `'+00:00'` for UTC so connections do not depend on populated server time-zone tables.
+     */
+    sessionTimeZone?: string;
     /** Maximum number of retry attempts for database operations. Defaults to 4 if not specified. */
     maxRetries?: number;
     /** Delay in milliseconds between retry attempts. Defaults to 10000 (10 seconds) if not specified. */

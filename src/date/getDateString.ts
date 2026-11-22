@@ -1,10 +1,11 @@
 import { ymd, ymdhms, ymdhmss } from './constants.js';
 import dayjs from './dayjsTimezone.js';
+import type { DateTimezone } from './internal/zoneWallClock.js';
 
 export const getDateString = (
     returnFormat: 'ymd' | 'ymdhms' | 'ymdhmss' | 'iso' | 'iso8601' | 'unix' | 'readable1' = 'ymd',
     startOrEndOfDay?: 'start' | 'end' | null,
-    timezone?: 'Etc/UTC' | 'America/New_York' | 'America/Chicago' | null,
+    timezone?: DateTimezone | null,
     inputDateTime: string | number | Date = ''
 ) => {
     let dateObject = inputDateTime && typeof inputDateTime !== 'number' ? dayjs(inputDateTime) : dayjs();

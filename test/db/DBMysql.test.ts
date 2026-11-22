@@ -14,10 +14,16 @@ const { DBMysql } = await import('../../src/db/mysql.js');
 
 afterEach(() => mock.restore());
 
+type MockCoreConnection = {
+    query: (sql: string, params: unknown[], cb: (error: Error | null) => void) => void;
+    destroy: () => void;
+};
+
 type MockStreamablePool = {
     end: () => Promise<void>;
     format: (queryString: string, parameters?: unknown) => string;
     pool: {
+        on: (event: string, listener: (connection: MockCoreConnection) => void) => void;
         query: (queryString: string) => {
             stream: () => object;
         };
@@ -40,18 +46,28 @@ const createMockPool = () => {
     const query = mock(() => ({ stream: streamFactory }));
     const format = mock((queryString: string) => queryString);
     const end = mock(async () => {});
+    const connectionListeners: Array<(connection: MockCoreConnection) => void> = [];
+    const on = mock((event: string, listener: (connection: MockCoreConnection) => void) => {
+        if (event === 'connection') connectionListeners.push(listener);
+    });
 
     const pool = {
         end,
         format,
         pool: {
+            on,
             query
         }
     } satisfies MockStreamablePool;
 
     return {
+        connectionListeners,
+        emitConnection: (connection: MockCoreConnection) => {
+            for (const listener of connectionListeners) listener(connection);
+        },
         end,
         format,
+        on,
         pool,
         query,
         stream,
@@ -161,6 +177,115 @@ describe('DBMysql connection config', () => {
         expect(createPool).toHaveBeenCalledTimes(2);
         expect(createPool).toHaveBeenLastCalledWith(expect.objectContaining({ jsonStrings: false }));
     });
+
+    it('does not attach a session time zone listener or run SET time_zone when sessionTimeZone is omitted', async () => {
+        const mockPool = createMockPool();
+        const directConnection = { query: mock(async () => []), end: mock(async () => undefined) };
+        createPool.mockReturnValue(mockPool.pool);
+        createConnection.mockResolvedValue(directConnection);
+
+        const db = DBMysql.getInstance(TEST_DB_CONFIG, `config-pool-${testInstanceId++}`);
+        db.getPool();
+        await db.createConnection();
+
+        expect(mockPool.on).not.toHaveBeenCalled();
+        expect(directConnection.query).not.toHaveBeenCalled();
+    });
+
+    it('applies sessionTimeZone to every newly opened pooled connection and direct connection', async () => {
+        const mockPool = createMockPool();
+        const directConnection = { query: mock(async () => []), end: mock(async () => undefined) };
+        createPool.mockReturnValue(mockPool.pool);
+        createConnection.mockResolvedValue(directConnection);
+
+        const db = DBMysql.getInstance({ ...TEST_DB_CONFIG, sessionTimeZone: ' +00:00 ' }, `config-pool-${testInstanceId++}`);
+        db.getPool();
+
+        expect(mockPool.on).toHaveBeenCalledWith('connection', expect.any(Function));
+        const pooledConnQuery = mock((_sql: string, _params: unknown[], cb: (error: Error | null) => void) => cb(null));
+        const pooledConnDestroy = mock();
+        mockPool.emitConnection({ query: pooledConnQuery, destroy: pooledConnDestroy });
+
+        expect(pooledConnQuery).toHaveBeenCalledWith('SET time_zone = ?', ['+00:00'], expect.any(Function));
+        expect(pooledConnDestroy).not.toHaveBeenCalled();
+
+        await db.createConnection();
+        expect(directConnection.query).toHaveBeenCalledWith('SET time_zone = ?', ['+00:00']);
+        expect(directConnection.end).not.toHaveBeenCalled();
+    });
+
+    it('destroys a pooled connection and logs if SET time_zone fails', () => {
+        const consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => undefined);
+        const mockPool = createMockPool();
+        createPool.mockReturnValue(mockPool.pool);
+
+        const db = DBMysql.getInstance({ ...TEST_DB_CONFIG, sessionTimeZone: 'UTC' }, `config-pool-${testInstanceId++}`);
+        db.getPool();
+
+        const tzError = createDbError("Unknown or incorrect time zone: 'UTC'", 'ER_UNKNOWN_TIME_ZONE');
+        const pooledConnQuery = mock((_sql: string, _params: unknown[], cb: (error: Error | null) => void) => {
+            cb(tzError);
+            // A second callback invocation must be ignored once failed.
+            cb(tzError);
+        });
+        const pooledConnDestroy = mock();
+        mockPool.emitConnection({ query: pooledConnQuery, destroy: pooledConnDestroy });
+
+        expect(pooledConnDestroy).toHaveBeenCalledTimes(1);
+        expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes and rethrows when SET time_zone fails on createConnection()', async () => {
+        const tzError = createDbError("Unknown or incorrect time zone: 'UTC'", 'ER_UNKNOWN_TIME_ZONE');
+        const directConnection = {
+            query: mock(async () => {
+                throw tzError;
+            }),
+            end: mock(async () => undefined)
+        };
+        createConnection.mockResolvedValue(directConnection);
+
+        const db = DBMysql.getInstance({ ...TEST_DB_CONFIG, sessionTimeZone: 'UTC' }, `config-pool-${testInstanceId++}`);
+
+        await expect(db.createConnection()).rejects.toBe(tzError);
+        expect(directConnection.end).toHaveBeenCalledTimes(1);
+    });
+
+    it('resets the pool when sessionTimeZone changes and keeps it when equivalent', () => {
+        createPool.mockImplementation(() => createMockPool().pool);
+
+        const instanceKey = `config-pool-${testInstanceId++}`;
+        const db = DBMysql.getInstance({ ...TEST_DB_CONFIG, sessionTimeZone: '+00:00' }, instanceKey);
+        db.getPool();
+        expect(createPool).toHaveBeenCalledTimes(1);
+
+        // Equivalent trimmed value must not reset the pool.
+        DBMysql.getInstance({ ...TEST_DB_CONFIG, sessionTimeZone: ' +00:00 ' }, instanceKey);
+        expect(createPool).toHaveBeenCalledTimes(1);
+
+        // Switching time zone must reset the pool.
+        DBMysql.getInstance({ ...TEST_DB_CONFIG, sessionTimeZone: 'America/Los_Angeles' }, instanceKey);
+        expect(createPool).toHaveBeenCalledTimes(2);
+
+        // Clearing back to server default must reset the pool.
+        DBMysql.getInstance(TEST_DB_CONFIG, instanceKey);
+        expect(createPool).toHaveBeenCalledTimes(3);
+    });
+
+    it.each(['', '   ', '+25:00', '-14:00', "'+00:00'; DROP TABLE users;", 'Mars/Olympus'])(
+        'rejects invalid sessionTimeZone %j without mutating an existing instance',
+        (badZone) => {
+            createPool.mockImplementation(() => createMockPool().pool);
+            const instanceKey = `config-pool-${testInstanceId++}`;
+            const db = DBMysql.getInstance({ ...TEST_DB_CONFIG, sessionTimeZone: '+00:00' }, instanceKey);
+            db.getPool();
+
+            expect(() => DBMysql.getInstance({ ...TEST_DB_CONFIG, sessionTimeZone: badZone }, instanceKey)).toThrow(
+                'Invalid MySQL sessionTimeZone'
+            );
+            expect(createPool).toHaveBeenCalledTimes(1);
+        }
+    );
 });
 
 const createMutationPool = (query: ReturnType<typeof mock>) => ({

@@ -1,6 +1,6 @@
 import { type DateInterval, ymd, ymdhms, ymdhmss } from './constants.js';
 import dayjs from './dayjsTimezone.js';
-import { formatZoneOffset, getZoneCalendarMs, resolveZoneCalendarMs } from './internal/zoneWallClock.js';
+import { type DateTimezone, formatZoneOffset, getZoneCalendarMs, resolveZoneCalendarMs } from './internal/zoneWallClock.js';
 
 export const getDate = (config?: {
     format?:
@@ -19,7 +19,7 @@ export const getDate = (config?: {
         | 'monthDayYear';
     startOf?: 'day' | 'week' | 'month' | 'year';
     endOf?: 'day' | 'week' | 'month' | 'year';
-    timezone?: 'Etc/UTC' | 'America/New_York' | 'America/Chicago' | null;
+    timezone?: DateTimezone | null;
     date?: string | number | Date;
     operator?: '+' | '-';
     interval?: number;
