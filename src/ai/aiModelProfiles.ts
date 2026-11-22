@@ -44,7 +44,7 @@ const createCostPolicy = (policy: AiModelProfileCostPolicy): AiModelProfileCostP
 export const AI_PROVIDER_MODEL_PROFILE_DEFAULTS: Readonly<Record<AiProvider, AiProviderModelProfileDefaultMap>> = {
     openai: {
         creativeWritingPremium: {
-            modelKey: 'openai:gpt-6-sol',
+            modelKey: 'openai:gpt-6.2-sol',
             inferenceProfileKey: 'reasoning_medium'
         },
         reasoning: {
@@ -112,7 +112,7 @@ export const AI_PROVIDER_MODEL_PROFILE_DEFAULTS: Readonly<Record<AiProvider, AiP
     },
     google: {
         creativeWritingPremium: {
-            modelKey: 'google:gemini-4-carbon',
+            modelKey: 'google:gemini-4-neon',
             inferenceProfileKey: 'reasoning_medium'
         },
         reasoning: {
@@ -476,10 +476,10 @@ export const AI_PROVIDER_MODEL_PROFILE_COST_POLICIES: Readonly<Record<AiProvider
     google: {
         creativeWritingPremium: createCostPolicy({
             costTier: 'premium',
-            referenceModelKey: 'google:gemini-4-carbon',
-            maxInputUsdPerMillionTokens: 4,
-            maxCachedInputUsdPerMillionTokens: 0.2,
-            maxOutputUsdPerMillionTokens: 20,
+            referenceModelKey: 'google:gemini-4-neon',
+            maxInputUsdPerMillionTokens: 3,
+            maxCachedInputUsdPerMillionTokens: 0.15,
+            maxOutputUsdPerMillionTokens: 15,
             maxCacheWrite5mUsdPerMillionTokens: null,
             maxCacheWrite1hUsdPerMillionTokens: null,
             maxLongContextInputUsdPerMillionTokens: null,
@@ -490,7 +490,7 @@ export const AI_PROVIDER_MODEL_PROFILE_COST_POLICIES: Readonly<Record<AiProvider
             maxOutputPriceMultiplier: 1.01,
             maxCacheWritePriceMultiplier: null,
             approvedHigherCostModels: [],
-            notes: 'Google creative-writing premium defaults stay at the Gemini 4 Carbon tier.'
+            notes: 'Google creative-writing premium defaults stay at the Gemini 4 Neon tier.'
         }),
         reasoning: createCostPolicy({
             costTier: 'premium',

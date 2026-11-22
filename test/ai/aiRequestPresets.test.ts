@@ -350,6 +350,28 @@ describe('AI request preset helpers', () => {
     });
 
     it('resolves Google Gemini text presets and upgrades deprecated Gemini overrides', () => {
+        const creativeWritingPremiumGoogle = resolveAiRequestConfig({
+            preset: 'creativeWritingPremium',
+            provider: 'google'
+        });
+        expect(creativeWritingPremiumGoogle.provider).toBe('google');
+        expect(creativeWritingPremiumGoogle.modelKey).toBe('google:gemini-4-neon');
+        expect(creativeWritingPremiumGoogle.inferenceProfileKey).toBe('reasoning_medium');
+        expect(creativeWritingPremiumGoogle.reasoningEffort).toBe('medium');
+        expect(creativeWritingPremiumGoogle.temperature).toBeNull();
+        expect(creativeWritingPremiumGoogle.warnings).toEqual([]);
+
+        const creativeWritingPremiumOpenAi = resolveAiRequestConfig({
+            preset: 'creativeWritingPremium',
+            provider: 'openai',
+            temperature: 0.7
+        });
+        expect(creativeWritingPremiumOpenAi.provider).toBe('openai');
+        expect(creativeWritingPremiumOpenAi.modelKey).toBe('openai:gpt-6.2-sol');
+        expect(creativeWritingPremiumOpenAi.inferenceProfileKey).toBe('reasoning_medium');
+        expect(creativeWritingPremiumOpenAi.reasoningEffort).toBe('medium');
+        expect(creativeWritingPremiumOpenAi.temperature).toBeNull();
+
         const agentChat = resolveAiRequestConfig({
             preset: 'agentChat',
             provider: 'google'

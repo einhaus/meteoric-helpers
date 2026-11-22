@@ -16,6 +16,30 @@ import {
 } from '../../src/ai/aiModelSelectors.js';
 
 describe('AI model catalog helpers', () => {
+    it('catalogs GPT-6.2 Sol and promotes it for OpenAI creativeWritingPremium within policy', () => {
+        const model = getAiModelById('gpt-6.2-sol');
+        expect(model?.status).toBe('active');
+        expect(model?.snapshotModelId).toBe('gpt-6.2-sol');
+        expect(model?.contextWindowTokens).toBe(1_050_000);
+        expect(model?.maxOutputTokens).toBe(128_000);
+        expect(model?.knowledgeCutoff).toBe('2026-06-01');
+        expect(model?.capabilities.reasoningEffortLevels).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
+        expect(model?.pricing.inputUsdPerMillionTokens).toBe(2);
+        expect(model?.pricing.cachedInputUsdPerMillionTokens).toBe(0.1);
+        expect(model?.pricing.outputUsdPerMillionTokens).toBe(10);
+        expect(normalizeAiModelKey('gpt-6.2-sol')).toBe('openai:gpt-6.2-sol');
+        expect(getPreferredAiModelId({ provider: 'openai', profile: 'creativeWritingPremium' })).toBe('gpt-6.2-sol');
+
+        const evaluation = evaluateAiModelProfileCostPolicy({
+            provider: 'openai',
+            profile: 'creativeWritingPremium'
+        });
+        expect(evaluation.isWithinPolicy).toBe(true);
+        expect(evaluation.inputPriceMultiplier).toBe(1);
+        expect(evaluation.cachedInputPriceMultiplier).toBe(0.5);
+        expect(evaluation.outputPriceMultiplier).toBe(0.833333333333);
+    });
+
     it('catalogs GPT-6.1 Terra without promoting shared defaults', () => {
         const model = getAiModelById('gpt-6.1-terra');
         expect(model?.status).toBe('active');
@@ -708,6 +732,7 @@ describe('AI model catalog helpers', () => {
         expect(normalizeAiModelKey('google:models/gemini-4-carbon')).toBe('google:gemini-4-carbon');
         expect(normalizeAiModelKey('gemini-4-neon')).toBe('google:gemini-4-neon');
 
+        expect(getPreferredAiModelId({ provider: 'google', profile: 'creativeWritingPremium' })).toBe('gemini-4-neon');
         expect(getPreferredAiModelId({ provider: 'google', profile: 'reasoning' })).toBe('gemini-4-carbon');
         expect(getPreferredAiModelId({ provider: 'google', profile: 'balanced' })).toBe('gemini-4-hydrogen');
         expect(getPreferredAiModelId({ provider: 'google', profile: 'fast' })).toBe('gemini-3.8-flash');
