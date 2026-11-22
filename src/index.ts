@@ -36,7 +36,6 @@ export * from './date/getDateAddSubtract.js';
 export * from './date/convertToTimeString.js';
 export * from './date/setTimestampSecondsToZero.js';
 export * from './date/roundUnixTimestampToNearestMinute.js';
-export * from './date/checkTimezoneIsEst.js';
 export * from './date/getOpenOrCloseUnix.js';
 export * from './date/roundTimestampToNearestMinute.js';
 export * from './date/changeTimestampPieces.js';
