@@ -1,11 +1,12 @@
 import type { AiInputModality, AiModelCapabilities, AiModelCatalogEntry, AiOutputModality } from './aiModelTypes.js';
 
 const GEMINI_VERIFIED_AT = '2026-11-16';
+const GEMINI_NEON_VERIFIED_AT = '2026-11-21';
 
-const geminiSource = (label: string, path: string) => ({
+const geminiSource = (label: string, path: string, verifiedAt = GEMINI_VERIFIED_AT) => ({
     label,
     url: `https://aistudio.google.com/docs/${path}`,
-    verifiedAt: GEMINI_VERIFIED_AT
+    verifiedAt
 });
 
 const createGeminiModel = (params: {
@@ -21,6 +22,7 @@ const createGeminiModel = (params: {
     pricingNotes?: string;
     supportsComputerUse?: boolean;
     temperaturePolicy?: NonNullable<AiModelCatalogEntry['parameterPolicies']>['temperature'];
+    verifiedAt?: string;
 }): AiModelCatalogEntry<'google'> => ({
     modelKey: `google:${params.modelId}`,
     provider: 'google',
@@ -70,11 +72,11 @@ const createGeminiModel = (params: {
         notes: params.pricingNotes ?? null
     },
     sources: [
-        geminiSource('Google Gemini model documentation', `models/${params.modelId}`),
-        geminiSource('Google Gemini pricing', `pricing#${params.modelId}`),
+        geminiSource('Google Gemini model documentation', `models/${params.modelId}`, params.verifiedAt),
+        geminiSource('Google Gemini pricing', `pricing#${params.modelId}`, params.verifiedAt),
         params.replacementModelId
-            ? geminiSource('Google Gemini deprecations', 'deprecations')
-            : geminiSource('Google Gemini video understanding', 'video-understanding')
+            ? geminiSource('Google Gemini deprecations', 'deprecations', params.verifiedAt)
+            : geminiSource('Google Gemini video understanding', 'video-understanding', params.verifiedAt)
     ],
     tags: ['multimodal', 'video-understanding'],
     parameterPolicies: { temperature: params.temperaturePolicy ?? 'unsupported' }
@@ -225,6 +227,19 @@ export const GEMINI_MODEL_CATALOG: readonly AiModelCatalogEntry<'google'>[] = [
         cachedInputPrice: 0.1,
         outputPrice: 10,
         pricingNotes: gemini4PromotionalPricing
+    }),
+    createGeminiModel({
+        modelId: 'gemini-4-neon',
+        displayName: 'Gemini 4 Neon',
+        family: 'gemini-4',
+        description: 'High-speed Gemini 4 reasoning model for low-latency, deep-context multimodal work.',
+        reasoningEffortLevels: ['low', 'medium', 'high', 'xhigh'],
+        supportsComputerUse: true,
+        inputPrice: 3,
+        cachedInputPrice: 0.15,
+        outputPrice: 15,
+        pricingNotes: 'Long decode supports up to 1,048,576 output tokens. The catalog limit is for synchronous requests.',
+        verifiedAt: GEMINI_NEON_VERIFIED_AT
     }),
     createGeminiModel({
         modelId: 'gemini-3.8-flash',

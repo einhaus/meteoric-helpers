@@ -63,6 +63,35 @@ describe('Gemini catalog discovery', () => {
             skipped: false,
             missingFromCatalog: ['gemini-new-model']
         });
+        expect(audit.providers.find((provider) => provider.provider === 'xai')).toMatchObject({
+            skipped: true,
+            reason: 'XAI_API_KEY not provided'
+        });
         expect(resolveAiMediaModelId({ profile: 'videoExtraction' })).toBe('gemini-4-hydrogen');
+    });
+});
+
+describe('xAI catalog discovery', () => {
+    it('audits discovered Grok models via the xAI models endpoint', async () => {
+        const fetchMock = spyOn(fetchRuntime, 'fetch')
+            .mockImplementation(() => {
+                throw new Error('Unexpected fetch');
+            })
+            .mockResolvedValueOnce(
+                Response.json({
+                    data: [{ id: 'grok-4.7' }, { id: 'grok-5-preview' }]
+                })
+            );
+
+        const audit = await auditAiModelCatalog({ xaiApiKey: 'xai-test-key' });
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        const [requestUrl, requestConfig] = fetchMock.mock.calls[0] ?? [];
+        expect(String(requestUrl)).toBe('https://api.x.ai/v1/models');
+        expect(new Headers(requestConfig?.headers).get('authorization')).toBe('Bearer xai-test-key');
+        expect(audit.providers.find((provider) => provider.provider === 'xai')).toMatchObject({
+            skipped: false,
+            missingFromCatalog: ['grok-5-preview']
+        });
     });
 });

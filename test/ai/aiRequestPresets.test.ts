@@ -348,4 +348,89 @@ describe('AI request preset helpers', () => {
         expect(structuredPresets).toEqual(expect.arrayContaining(['classification', 'structuredExtraction', 'visionExtraction']));
         expect(structuredPresets).not.toContain('agentChat');
     });
+
+    it('resolves Google Gemini text presets and upgrades deprecated Gemini overrides', () => {
+        const agentChat = resolveAiRequestConfig({
+            preset: 'agentChat',
+            provider: 'google'
+        });
+        expect(agentChat.provider).toBe('google');
+        expect(agentChat.modelKey).toBe('google:gemini-4-carbon');
+        expect(agentChat.inferenceProfileKey).toBe('reasoning_high');
+        expect(agentChat.reasoningEffort).toBe('high');
+        expect(agentChat.useToolCalling).toBe(true);
+        expect(agentChat.warnings).toEqual([]);
+
+        const analysis = resolveAiRequestConfig({
+            preset: 'analysis',
+            provider: 'google'
+        });
+        expect(analysis.modelKey).toBe('google:gemini-4-hydrogen');
+        expect(analysis.reasoningEffort).toBe('medium');
+        expect(analysis.temperature).toBeNull();
+        expect(analysis.warnings.some((warning) => warning.includes('does not support the temperature parameter'))).toBe(true);
+
+        const neonOverride = resolveAiRequestConfig({
+            preset: 'analysis',
+            model: 'google:gemini-4-neon',
+            reasoningEffort: 'xhigh'
+        });
+        expect(neonOverride.provider).toBe('google');
+        expect(neonOverride.modelKey).toBe('google:gemini-4-neon');
+        expect(neonOverride.reasoningEffort).toBe('xhigh');
+
+        const upgraded = resolveAiRequestConfig({
+            preset: 'classification',
+            model: 'google:models/gemini-2.5-flash'
+        });
+        expect(upgraded.provider).toBe('google');
+        expect(upgraded.modelKey).toBe('google:gemini-3.5-flash-lite');
+        expect(upgraded.warnings.some((warning) => warning.includes('(deprecated) was automatically upgraded'))).toBe(true);
+    });
+
+    it('resolves xAI Grok text presets and upgrades legacy Grok overrides', () => {
+        const agentChat = resolveAiRequestConfig({
+            preset: 'agentChat',
+            provider: 'xai'
+        });
+        expect(agentChat.provider).toBe('xai');
+        expect(agentChat.modelKey).toBe('xai:grok-4.7');
+        expect(agentChat.inferenceProfileKey).toBe('reasoning_high');
+        expect(agentChat.reasoningEffort).toBe('high');
+        expect(agentChat.useToolCalling).toBe(true);
+        expect(agentChat.warnings).toEqual([]);
+
+        const analysis = resolveAiRequestConfig({
+            preset: 'analysis',
+            provider: 'xai'
+        });
+        expect(analysis.modelKey).toBe('xai:grok-4.7');
+        expect(analysis.reasoningEffort).toBe('medium');
+        expect(analysis.temperature).toBe(0.2);
+        expect(analysis.warnings).toEqual([]);
+
+        const title = resolveAiRequestConfig({
+            preset: 'titleGeneration',
+            provider: 'xai'
+        });
+        expect(title.modelKey).toBe('xai:grok-4-1-fast-non-reasoning');
+        expect(title.reasoningEffort).toBeNull();
+        expect(title.temperature).toBe(0.35);
+        expect(title.warnings).toEqual([]);
+
+        const webSearch = resolveAiRequestConfig({
+            preset: 'webSearch',
+            provider: 'xai'
+        });
+        expect(webSearch.modelKey).toBe('xai:grok-4.7');
+        expect(webSearch.useBuiltInWebSearch).toBe(true);
+
+        const upgraded = resolveAiRequestConfig({
+            preset: 'analysis',
+            model: 'grok-4.20'
+        });
+        expect(upgraded.provider).toBe('xai');
+        expect(upgraded.modelKey).toBe('xai:grok-4.3');
+        expect(upgraded.warnings.some((warning) => warning.includes('(legacy) was automatically upgraded'))).toBe(true);
+    });
 });

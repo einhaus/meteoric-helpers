@@ -1,7 +1,6 @@
-export type AiProvider = 'openai' | 'anthropic';
+export type AiProvider = 'openai' | 'anthropic' | 'google' | 'xai';
 
-/** Catalog providers include Google without widening existing text request routing. */
-export type AiCatalogProvider = AiProvider | 'google';
+export type AiCatalogProvider = AiProvider;
 
 export type AiModelStatus = 'active' | 'specialized' | 'legacy' | 'deprecated' | 'retired';
 

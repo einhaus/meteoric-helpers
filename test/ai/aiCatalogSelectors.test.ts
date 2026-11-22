@@ -5,11 +5,14 @@ import { listCatalogModelsForProvider as listNodeCatalogModels } from '../../src
 import type { AiCatalogProvider, AiModelCatalogEntry } from '../../src/ai/aiModelTypes.js';
 
 describe('common provider catalogs', () => {
-    it('includes Google in shared listing and validation without changing existing text routing', () => {
+    it('includes OpenAI, Anthropic, Google, and xAI in shared listing and validation', () => {
         expect(listCatalogModelsForProvider('google').some((model) => model.modelId === 'gemini-4-hydrogen')).toBe(true);
+        expect(listCatalogModelsForProvider('google').some((model) => model.modelId === 'gemini-4-neon')).toBe(true);
+        expect(listCatalogModelsForProvider('xai').some((model) => model.modelId === 'grok-4.7')).toBe(true);
         expect(listNodeCatalogModels('google')).toEqual(listCatalogModelsForProvider('google'));
+        expect(listNodeCatalogModels('xai')).toEqual(listCatalogModelsForProvider('xai'));
         expect(listCatalogModelsForProvider('anthropic')).toEqual(getAiModelCatalog().filter((model) => model.provider === 'anthropic'));
-        expect(getAiModelCatalog().every((model) => model.provider === 'openai' || model.provider === 'anthropic')).toBe(true);
+        expect(new Set(getAiModelCatalog().map((model) => model.provider))).toEqual(new Set(['openai', 'anthropic', 'google', 'xai']));
         expect(() => validateAiModelCatalog()).not.toThrow();
     });
 

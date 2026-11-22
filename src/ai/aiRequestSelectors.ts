@@ -41,9 +41,10 @@ function buildUnknownModelResult(params: { explicitModel: string; provider: AiPr
     modelDisplayName: string;
 } {
     const explicitModel = params.explicitModel.trim();
-    const providerPrefixedMatch = explicitModel.match(/^(anthropic|openai)\s*:\s*(.+)$/i);
+    const providerPrefixedMatch = explicitModel.match(/^(anthropic|openai|google|xai)\s*:\s*(.+)$/i);
 
-    const modelId = providerPrefixedMatch?.[2]?.trim() || explicitModel;
+    const rawModelId = providerPrefixedMatch?.[2]?.trim() || explicitModel;
+    const modelId = params.provider === 'google' ? rawModelId.replace(/^models\//i, '').trim() || rawModelId : rawModelId;
     const normalizedModelKey = normalizeAiModelKey(explicitModel) ?? `${params.provider}:${modelId}`;
 
     params.warnings.push(
@@ -109,8 +110,10 @@ function resolveCatalogModel(params: {
     warnings: string[];
 }): { catalogEntry: AiModelCatalogEntry | null; modelKey: string; modelId: string; modelDisplayName: string } {
     if (params.explicitModel) {
+        const normalizedExplicitModelKey = normalizeAiModelKey(params.explicitModel);
         const matchingCatalogModel =
             getAiModelByKey(params.explicitModel) ??
+            (normalizedExplicitModelKey ? getAiModelByKey(normalizedExplicitModelKey) : null) ??
             getAiModelById(params.explicitModel, params.provider) ??
             getAiModelById(params.explicitModel);
 

@@ -50,6 +50,7 @@ export function getAiCatalogAuditConfigFromEnv(env: NodeJS.ProcessEnv = process.
     openAiApiKey: string | null;
     anthropicApiKey: string | null;
     geminiApiKey: string | null;
+    xaiApiKey: string | null;
 } {
     const openAiApiKey = env.OPENAI_API_KEY?.trim() || env.OPEN_API_KEY?.trim() || null;
     const anthropicApiKey = env.ANTHROPIC_API_KEY?.trim() || null;
@@ -57,7 +58,8 @@ export function getAiCatalogAuditConfigFromEnv(env: NodeJS.ProcessEnv = process.
     return {
         openAiApiKey,
         anthropicApiKey,
-        geminiApiKey: env.GEMINI_API_KEY?.trim() || env.GOOGLE_API_KEY?.trim() || null
+        geminiApiKey: env.GEMINI_API_KEY?.trim() || env.GOOGLE_API_KEY?.trim() || null,
+        xaiApiKey: env.XAI_API_KEY?.trim() || null
     };
 }
 
@@ -182,6 +184,40 @@ export async function discoverGeminiModels(apiKey: string): Promise<DiscoveredPr
     return Array.from(models.values()).sort((a, b) => a.modelId.localeCompare(b.modelId));
 }
 
+export async function discoverXaiModels(apiKey: string): Promise<DiscoveredProviderModel[]> {
+    const response = await fetch('https://api.x.ai/v1/models', {
+        headers: {
+            Authorization: `Bearer ${apiKey}`
+        },
+        signal: AbortSignal.timeout(15_000)
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        throw new Error(`xAI models.list failed (${response.status}): ${errorText || response.statusText}`);
+    }
+
+    const body = (await response.json()) as {
+        data?: {
+            id?: string;
+        }[];
+    };
+
+    const models = new Map<string, DiscoveredProviderModel>();
+
+    for (const model of body.data ?? []) {
+        const modelId = model.id?.trim() ?? '';
+        if (!modelId) continue;
+
+        models.set(modelId, {
+            modelId,
+            displayName: null
+        });
+    }
+
+    return Array.from(models.values()).sort((a, b) => a.modelId.localeCompare(b.modelId));
+}
+
 export function auditProviderModels(params: {
     provider: AiCatalogProvider;
     discoveredModels: readonly DiscoveredProviderModel[];
@@ -211,6 +247,7 @@ export async function auditAiModelCatalog(params?: {
     openAiApiKey?: string | null;
     anthropicApiKey?: string | null;
     geminiApiKey?: string | null;
+    xaiApiKey?: string | null;
     includeLegacyCatalogEntries?: boolean;
 }): Promise<AiCatalogAuditResult> {
     validateAiModelCatalog();
@@ -274,6 +311,26 @@ export async function auditAiModelCatalog(params?: {
             reason: 'GEMINI_API_KEY not provided',
             discoveredModels: [],
             catalogKnownModelIds: getKnownCatalogModelIds('google', includeLegacyCatalogEntries),
+            missingFromCatalog: [],
+            missingFromProvider: []
+        });
+    }
+
+    if (params?.xaiApiKey) {
+        results.push(
+            auditProviderModels({
+                provider: 'xai',
+                discoveredModels: await discoverXaiModels(params.xaiApiKey),
+                includeLegacyCatalogEntries
+            })
+        );
+    } else {
+        results.push({
+            provider: 'xai',
+            skipped: true,
+            reason: 'XAI_API_KEY not provided',
+            discoveredModels: [],
+            catalogKnownModelIds: getKnownCatalogModelIds('xai', includeLegacyCatalogEntries),
             missingFromCatalog: [],
             missingFromProvider: []
         });

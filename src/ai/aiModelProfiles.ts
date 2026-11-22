@@ -109,6 +109,74 @@ export const AI_PROVIDER_MODEL_PROFILE_DEFAULTS: Readonly<Record<AiProvider, AiP
             modelKey: null,
             inferenceProfileKey: null
         }
+    },
+    google: {
+        creativeWritingPremium: {
+            modelKey: 'google:gemini-4-carbon',
+            inferenceProfileKey: 'reasoning_medium'
+        },
+        reasoning: {
+            modelKey: 'google:gemini-4-carbon',
+            inferenceProfileKey: 'reasoning_high'
+        },
+        balanced: {
+            modelKey: 'google:gemini-4-hydrogen',
+            inferenceProfileKey: 'reasoning_medium'
+        },
+        fast: {
+            modelKey: 'google:gemini-3.8-flash',
+            inferenceProfileKey: 'reasoning_low'
+        },
+        cheap: {
+            modelKey: 'google:gemini-3.5-flash-lite',
+            inferenceProfileKey: null
+        },
+        title: {
+            modelKey: 'google:gemini-3.5-flash-lite',
+            inferenceProfileKey: null
+        },
+        webSearch: {
+            modelKey: 'google:gemini-4-hydrogen',
+            inferenceProfileKey: 'reasoning_medium'
+        },
+        deepResearch: {
+            modelKey: null,
+            inferenceProfileKey: null
+        }
+    },
+    xai: {
+        creativeWritingPremium: {
+            modelKey: 'xai:grok-4.7',
+            inferenceProfileKey: 'reasoning_medium'
+        },
+        reasoning: {
+            modelKey: 'xai:grok-4.7',
+            inferenceProfileKey: 'reasoning_high'
+        },
+        balanced: {
+            modelKey: 'xai:grok-4.7',
+            inferenceProfileKey: 'reasoning_medium'
+        },
+        fast: {
+            modelKey: 'xai:grok-4-1-fast-reasoning',
+            inferenceProfileKey: null
+        },
+        cheap: {
+            modelKey: 'xai:grok-4-1-fast-non-reasoning',
+            inferenceProfileKey: null
+        },
+        title: {
+            modelKey: 'xai:grok-4-1-fast-non-reasoning',
+            inferenceProfileKey: null
+        },
+        webSearch: {
+            modelKey: 'xai:grok-4.7',
+            inferenceProfileKey: 'reasoning_medium'
+        },
+        deepResearch: {
+            modelKey: null,
+            inferenceProfileKey: null
+        }
     }
 } as const;
 
@@ -404,6 +472,298 @@ export const AI_PROVIDER_MODEL_PROFILE_COST_POLICIES: Readonly<Record<AiProvider
             approvedHigherCostModels: [],
             notes: 'Anthropic does not currently have a configured dedicated deep-research default.'
         })
+    },
+    google: {
+        creativeWritingPremium: createCostPolicy({
+            costTier: 'premium',
+            referenceModelKey: 'google:gemini-4-carbon',
+            maxInputUsdPerMillionTokens: 4,
+            maxCachedInputUsdPerMillionTokens: 0.2,
+            maxOutputUsdPerMillionTokens: 20,
+            maxCacheWrite5mUsdPerMillionTokens: null,
+            maxCacheWrite1hUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: null,
+            maxLongContextCachedInputUsdPerMillionTokens: null,
+            maxLongContextOutputUsdPerMillionTokens: null,
+            maxInputPriceMultiplier: 1.01,
+            maxCachedInputPriceMultiplier: 1.01,
+            maxOutputPriceMultiplier: 1.01,
+            maxCacheWritePriceMultiplier: null,
+            approvedHigherCostModels: [],
+            notes: 'Google creative-writing premium defaults stay at the Gemini 4 Carbon tier.'
+        }),
+        reasoning: createCostPolicy({
+            costTier: 'premium',
+            referenceModelKey: 'google:gemini-4-carbon',
+            maxInputUsdPerMillionTokens: 4,
+            maxCachedInputUsdPerMillionTokens: 0.2,
+            maxOutputUsdPerMillionTokens: 20,
+            maxCacheWrite5mUsdPerMillionTokens: null,
+            maxCacheWrite1hUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: null,
+            maxLongContextCachedInputUsdPerMillionTokens: null,
+            maxLongContextOutputUsdPerMillionTokens: null,
+            maxInputPriceMultiplier: 1.01,
+            maxCachedInputPriceMultiplier: 1.01,
+            maxOutputPriceMultiplier: 1.01,
+            maxCacheWritePriceMultiplier: null,
+            approvedHigherCostModels: [],
+            notes: 'Google reasoning defaults stay at the Gemini 4 Carbon tier.'
+        }),
+        balanced: createCostPolicy({
+            costTier: 'standard',
+            referenceModelKey: 'google:gemini-4-hydrogen',
+            maxInputUsdPerMillionTokens: 1.5,
+            maxCachedInputUsdPerMillionTokens: 0.075,
+            maxOutputUsdPerMillionTokens: 7.5,
+            maxCacheWrite5mUsdPerMillionTokens: null,
+            maxCacheWrite1hUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: null,
+            maxLongContextCachedInputUsdPerMillionTokens: null,
+            maxLongContextOutputUsdPerMillionTokens: null,
+            maxInputPriceMultiplier: 1.01,
+            maxCachedInputPriceMultiplier: 1.01,
+            maxOutputPriceMultiplier: 1.01,
+            maxCacheWritePriceMultiplier: null,
+            approvedHigherCostModels: [],
+            notes: 'Google balanced defaults stay at the Gemini 4 Hydrogen tier unless a higher-cost model is explicitly approved.'
+        }),
+        fast: createCostPolicy({
+            costTier: 'economy',
+            referenceModelKey: 'google:gemini-3.8-flash',
+            maxInputUsdPerMillionTokens: 0.75,
+            maxCachedInputUsdPerMillionTokens: 0.075,
+            maxOutputUsdPerMillionTokens: 3.75,
+            maxCacheWrite5mUsdPerMillionTokens: null,
+            maxCacheWrite1hUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: null,
+            maxLongContextCachedInputUsdPerMillionTokens: null,
+            maxLongContextOutputUsdPerMillionTokens: null,
+            maxInputPriceMultiplier: 1.01,
+            maxCachedInputPriceMultiplier: 1.01,
+            maxOutputPriceMultiplier: 1.01,
+            maxCacheWritePriceMultiplier: null,
+            approvedHigherCostModels: [],
+            notes: 'Google fast defaults stay at the Gemini Flash tier.'
+        }),
+        cheap: createCostPolicy({
+            costTier: 'economy',
+            referenceModelKey: 'google:gemini-3.5-flash-lite',
+            maxInputUsdPerMillionTokens: 0.3,
+            maxCachedInputUsdPerMillionTokens: 0.03,
+            maxOutputUsdPerMillionTokens: 2.5,
+            maxCacheWrite5mUsdPerMillionTokens: null,
+            maxCacheWrite1hUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: null,
+            maxLongContextCachedInputUsdPerMillionTokens: null,
+            maxLongContextOutputUsdPerMillionTokens: null,
+            maxInputPriceMultiplier: 1.01,
+            maxCachedInputPriceMultiplier: 1.01,
+            maxOutputPriceMultiplier: 1.01,
+            maxCacheWritePriceMultiplier: null,
+            approvedHigherCostModels: [],
+            notes: 'Google cheap defaults stay at the Gemini Flash-Lite tier.'
+        }),
+        title: createCostPolicy({
+            costTier: 'economy',
+            referenceModelKey: 'google:gemini-3.5-flash-lite',
+            maxInputUsdPerMillionTokens: 0.3,
+            maxCachedInputUsdPerMillionTokens: 0.03,
+            maxOutputUsdPerMillionTokens: 2.5,
+            maxCacheWrite5mUsdPerMillionTokens: null,
+            maxCacheWrite1hUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: null,
+            maxLongContextCachedInputUsdPerMillionTokens: null,
+            maxLongContextOutputUsdPerMillionTokens: null,
+            maxInputPriceMultiplier: 1.01,
+            maxCachedInputPriceMultiplier: 1.01,
+            maxOutputPriceMultiplier: 1.01,
+            maxCacheWritePriceMultiplier: null,
+            approvedHigherCostModels: [],
+            notes: 'Google title-generation defaults stay at the Gemini Flash-Lite tier.'
+        }),
+        webSearch: createCostPolicy({
+            costTier: 'standard',
+            referenceModelKey: 'google:gemini-4-hydrogen',
+            maxInputUsdPerMillionTokens: 1.5,
+            maxCachedInputUsdPerMillionTokens: 0.075,
+            maxOutputUsdPerMillionTokens: 7.5,
+            maxCacheWrite5mUsdPerMillionTokens: null,
+            maxCacheWrite1hUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: null,
+            maxLongContextCachedInputUsdPerMillionTokens: null,
+            maxLongContextOutputUsdPerMillionTokens: null,
+            maxInputPriceMultiplier: 1.01,
+            maxCachedInputPriceMultiplier: 1.01,
+            maxOutputPriceMultiplier: 1.01,
+            maxCacheWritePriceMultiplier: null,
+            approvedHigherCostModels: [],
+            notes: 'Google web-search defaults stay at the Gemini 4 Hydrogen tier with Search grounding.'
+        }),
+        deepResearch: createCostPolicy({
+            costTier: 'unavailable',
+            referenceModelKey: null,
+            maxInputUsdPerMillionTokens: null,
+            maxCachedInputUsdPerMillionTokens: null,
+            maxOutputUsdPerMillionTokens: null,
+            maxCacheWrite5mUsdPerMillionTokens: null,
+            maxCacheWrite1hUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: null,
+            maxLongContextCachedInputUsdPerMillionTokens: null,
+            maxLongContextOutputUsdPerMillionTokens: null,
+            maxInputPriceMultiplier: null,
+            maxCachedInputPriceMultiplier: null,
+            maxOutputPriceMultiplier: null,
+            maxCacheWritePriceMultiplier: null,
+            approvedHigherCostModels: [],
+            notes: 'Google does not currently have a configured dedicated deep-research default in the standard chat catalog.'
+        })
+    },
+    xai: {
+        creativeWritingPremium: createCostPolicy({
+            costTier: 'premium',
+            referenceModelKey: 'xai:grok-4.7',
+            maxInputUsdPerMillionTokens: 2,
+            maxCachedInputUsdPerMillionTokens: 0.5,
+            maxOutputUsdPerMillionTokens: 6,
+            maxCacheWrite5mUsdPerMillionTokens: null,
+            maxCacheWrite1hUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: 4,
+            maxLongContextCachedInputUsdPerMillionTokens: 1,
+            maxLongContextOutputUsdPerMillionTokens: 12,
+            maxInputPriceMultiplier: 1.01,
+            maxCachedInputPriceMultiplier: 1.01,
+            maxOutputPriceMultiplier: 1.01,
+            maxCacheWritePriceMultiplier: null,
+            approvedHigherCostModels: [],
+            notes: 'xAI creative-writing premium defaults stay at the Grok 4.7 tier.'
+        }),
+        reasoning: createCostPolicy({
+            costTier: 'premium',
+            referenceModelKey: 'xai:grok-4.7',
+            maxInputUsdPerMillionTokens: 2,
+            maxCachedInputUsdPerMillionTokens: 0.5,
+            maxOutputUsdPerMillionTokens: 6,
+            maxCacheWrite5mUsdPerMillionTokens: null,
+            maxCacheWrite1hUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: 4,
+            maxLongContextCachedInputUsdPerMillionTokens: 1,
+            maxLongContextOutputUsdPerMillionTokens: 12,
+            maxInputPriceMultiplier: 1.01,
+            maxCachedInputPriceMultiplier: 1.01,
+            maxOutputPriceMultiplier: 1.01,
+            maxCacheWritePriceMultiplier: null,
+            approvedHigherCostModels: [],
+            notes: 'xAI reasoning defaults stay at the Grok 4.7 tier.'
+        }),
+        balanced: createCostPolicy({
+            costTier: 'standard',
+            referenceModelKey: 'xai:grok-4.7',
+            maxInputUsdPerMillionTokens: 2,
+            maxCachedInputUsdPerMillionTokens: 0.5,
+            maxOutputUsdPerMillionTokens: 6,
+            maxCacheWrite5mUsdPerMillionTokens: null,
+            maxCacheWrite1hUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: 4,
+            maxLongContextCachedInputUsdPerMillionTokens: 1,
+            maxLongContextOutputUsdPerMillionTokens: 12,
+            maxInputPriceMultiplier: 1.01,
+            maxCachedInputPriceMultiplier: 1.01,
+            maxOutputPriceMultiplier: 1.01,
+            maxCacheWritePriceMultiplier: null,
+            approvedHigherCostModels: [],
+            notes: 'xAI balanced defaults stay at the Grok 4.7 tier unless a higher-cost model is explicitly approved.'
+        }),
+        fast: createCostPolicy({
+            costTier: 'economy',
+            referenceModelKey: 'xai:grok-4-1-fast-reasoning',
+            maxInputUsdPerMillionTokens: 0.2,
+            maxCachedInputUsdPerMillionTokens: 0.05,
+            maxOutputUsdPerMillionTokens: 0.5,
+            maxCacheWrite5mUsdPerMillionTokens: null,
+            maxCacheWrite1hUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: null,
+            maxLongContextCachedInputUsdPerMillionTokens: null,
+            maxLongContextOutputUsdPerMillionTokens: null,
+            maxInputPriceMultiplier: 1.01,
+            maxCachedInputPriceMultiplier: 1.01,
+            maxOutputPriceMultiplier: 1.01,
+            maxCacheWritePriceMultiplier: null,
+            approvedHigherCostModels: [],
+            notes: 'xAI fast defaults stay at the Grok Fast economy tier.'
+        }),
+        cheap: createCostPolicy({
+            costTier: 'economy',
+            referenceModelKey: 'xai:grok-4-1-fast-non-reasoning',
+            maxInputUsdPerMillionTokens: 0.2,
+            maxCachedInputUsdPerMillionTokens: 0.05,
+            maxOutputUsdPerMillionTokens: 0.5,
+            maxCacheWrite5mUsdPerMillionTokens: null,
+            maxCacheWrite1hUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: null,
+            maxLongContextCachedInputUsdPerMillionTokens: null,
+            maxLongContextOutputUsdPerMillionTokens: null,
+            maxInputPriceMultiplier: 1.01,
+            maxCachedInputPriceMultiplier: 1.01,
+            maxOutputPriceMultiplier: 1.01,
+            maxCacheWritePriceMultiplier: null,
+            approvedHigherCostModels: [],
+            notes: 'xAI cheap defaults stay at the Grok Fast economy tier.'
+        }),
+        title: createCostPolicy({
+            costTier: 'economy',
+            referenceModelKey: 'xai:grok-4-1-fast-non-reasoning',
+            maxInputUsdPerMillionTokens: 0.2,
+            maxCachedInputUsdPerMillionTokens: 0.05,
+            maxOutputUsdPerMillionTokens: 0.5,
+            maxCacheWrite5mUsdPerMillionTokens: null,
+            maxCacheWrite1hUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: null,
+            maxLongContextCachedInputUsdPerMillionTokens: null,
+            maxLongContextOutputUsdPerMillionTokens: null,
+            maxInputPriceMultiplier: 1.01,
+            maxCachedInputPriceMultiplier: 1.01,
+            maxOutputPriceMultiplier: 1.01,
+            maxCacheWritePriceMultiplier: null,
+            approvedHigherCostModels: [],
+            notes: 'xAI title-generation defaults stay at the Grok Fast economy tier.'
+        }),
+        webSearch: createCostPolicy({
+            costTier: 'standard',
+            referenceModelKey: 'xai:grok-4.7',
+            maxInputUsdPerMillionTokens: 2,
+            maxCachedInputUsdPerMillionTokens: 0.5,
+            maxOutputUsdPerMillionTokens: 6,
+            maxCacheWrite5mUsdPerMillionTokens: null,
+            maxCacheWrite1hUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: 4,
+            maxLongContextCachedInputUsdPerMillionTokens: 1,
+            maxLongContextOutputUsdPerMillionTokens: 12,
+            maxInputPriceMultiplier: 1.01,
+            maxCachedInputPriceMultiplier: 1.01,
+            maxOutputPriceMultiplier: 1.01,
+            maxCacheWritePriceMultiplier: null,
+            approvedHigherCostModels: [],
+            notes: 'xAI web-search defaults stay at the Grok 4.7 tier with native web and X search.'
+        }),
+        deepResearch: createCostPolicy({
+            costTier: 'unavailable',
+            referenceModelKey: null,
+            maxInputUsdPerMillionTokens: null,
+            maxCachedInputUsdPerMillionTokens: null,
+            maxOutputUsdPerMillionTokens: null,
+            maxCacheWrite5mUsdPerMillionTokens: null,
+            maxCacheWrite1hUsdPerMillionTokens: null,
+            maxLongContextInputUsdPerMillionTokens: null,
+            maxLongContextCachedInputUsdPerMillionTokens: null,
+            maxLongContextOutputUsdPerMillionTokens: null,
+            maxInputPriceMultiplier: null,
+            maxCachedInputPriceMultiplier: null,
+            maxOutputPriceMultiplier: null,
+            maxCacheWritePriceMultiplier: null,
+            approvedHigherCostModels: [],
+            notes: 'xAI does not currently have a configured dedicated deep-research default.'
+        })
     }
 } as const;
 
@@ -427,6 +787,26 @@ export const AI_PROVIDER_MODEL_PROFILES: Readonly<Record<AiProvider, AiProviderP
         title: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.anthropic.title.modelKey,
         webSearch: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.anthropic.webSearch.modelKey,
         deepResearch: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.anthropic.deepResearch.modelKey
+    },
+    google: {
+        creativeWritingPremium: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.google.creativeWritingPremium.modelKey,
+        reasoning: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.google.reasoning.modelKey,
+        balanced: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.google.balanced.modelKey,
+        fast: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.google.fast.modelKey,
+        cheap: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.google.cheap.modelKey,
+        title: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.google.title.modelKey,
+        webSearch: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.google.webSearch.modelKey,
+        deepResearch: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.google.deepResearch.modelKey
+    },
+    xai: {
+        creativeWritingPremium: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.xai.creativeWritingPremium.modelKey,
+        reasoning: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.xai.reasoning.modelKey,
+        balanced: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.xai.balanced.modelKey,
+        fast: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.xai.fast.modelKey,
+        cheap: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.xai.cheap.modelKey,
+        title: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.xai.title.modelKey,
+        webSearch: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.xai.webSearch.modelKey,
+        deepResearch: AI_PROVIDER_MODEL_PROFILE_DEFAULTS.xai.deepResearch.modelKey
     }
 } as const;
 

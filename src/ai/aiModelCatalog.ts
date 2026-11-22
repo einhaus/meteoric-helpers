@@ -1,4 +1,6 @@
 import type { AiModelCatalogEntry, AiModelCapabilities, AiModelParameterPolicies, AiModelPricing, AiModelSource } from './aiModelTypes.js';
+import { GEMINI_MODEL_CATALOG } from './geminiModelCatalog.js';
+import { XAI_MODEL_CATALOG } from './xaiModelCatalog.js';
 
 const VERIFIED_AT = '2026-11-09';
 const GPT_5_6_VERIFIED_AT = '2026-11-09';
@@ -5034,5 +5036,7 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         }),
         sources: [ANTHROPIC_MODEL_DEPRECATIONS_SOURCE, ANTHROPIC_MODELS_SOURCE, ANTHROPIC_PRICING_SOURCE],
         tags: ['retired', 'cheap', 'compatibility']
-    }
+    },
+    ...GEMINI_MODEL_CATALOG,
+    ...XAI_MODEL_CATALOG
 ] as const;

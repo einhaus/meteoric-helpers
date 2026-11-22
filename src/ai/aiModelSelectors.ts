@@ -44,10 +44,17 @@ function normalizeModelIdentifier(value: string): string {
     return value.trim().toLowerCase();
 }
 
+const EXPLICIT_PROVIDER_PREFIX_PATTERN = /^(anthropic|openai|google|xai)\s*:\s*(.+)$/i;
+
 function normalizeProvider(value: string): AiProvider | null {
     const normalized = value.trim().toLowerCase();
-    if (normalized === 'openai' || normalized === 'anthropic') return normalized;
+    if (normalized === 'openai' || normalized === 'anthropic' || normalized === 'google' || normalized === 'xai') return normalized;
     return null;
+}
+
+function stripProviderModelPrefix(provider: AiProvider, modelId: string): string {
+    const trimmed = modelId.trim();
+    return provider === 'google' ? trimmed.replace(/^models\//i, '').trim() : trimmed;
 }
 
 function matchesOpenAiVisionFallback(modelIdentifier: string): boolean {
@@ -231,6 +238,16 @@ export function aiModelSupportsVision(modelIdentifier: string, provider?: AiProv
         return matchesOpenAiVisionFallback(normalizedModelIdentifier);
     }
 
+    if (inferredProvider === 'google') {
+        const normalizedModelId = stripProviderModelPrefix('google', normalizedModelIdentifier.replace(/^google\s*:\s*/i, ''));
+        return normalizedModelId.startsWith('gemini-') && !normalizedModelId.includes('tts') && !normalizedModelId.includes('embedding');
+    }
+
+    if (inferredProvider === 'xai') {
+        const normalizedModelId = normalizedModelIdentifier.replace(/^xai\s*:\s*/i, '').trim();
+        return normalizedModelId.startsWith('grok-4') || normalizedModelId.includes('vision');
+    }
+
     return false;
 }
 
@@ -254,6 +271,20 @@ export function isAiAgentChatCandidate(modelIdentifier: string, provider?: AiPro
 
     if (inferredProvider === 'anthropic') {
         return normalizedModelIdentifier.startsWith('claude-');
+    }
+
+    if (inferredProvider === 'google') {
+        const normalizedModelId = stripProviderModelPrefix('google', normalizedModelIdentifier.replace(/^google\s*:\s*/i, ''));
+        if (!normalizedModelId.startsWith('gemini-')) return false;
+        const excludeGoogleSubstrings = ['tts', 'image', 'embedding', 'live', 'omni', 'nano-banana', 'robotics', 'decision'];
+        return !excludeGoogleSubstrings.some((substring) => normalizedModelId.includes(substring));
+    }
+
+    if (inferredProvider === 'xai') {
+        const normalizedModelId = normalizedModelIdentifier.replace(/^xai\s*:\s*/i, '').trim();
+        if (!normalizedModelId.startsWith('grok-')) return false;
+        const excludeXaiSubstrings = ['image', 'video', 'imagine', 'tts', 'voice', 'embedding'];
+        return !excludeXaiSubstrings.some((substring) => normalizedModelId.includes(substring));
     }
 
     if (inferredProvider !== 'openai') return false;
@@ -320,7 +351,7 @@ export function inferAiProviderFromModel(modelIdentifier: string): AiProvider | 
     const trimmedIdentifier = modelIdentifier.trim();
     if (!trimmedIdentifier) return null;
 
-    const explicitMatch = trimmedIdentifier.match(/^(anthropic|openai)\s*:\s*(.+)$/i);
+    const explicitMatch = trimmedIdentifier.match(EXPLICIT_PROVIDER_PREFIX_PATTERN);
 
     if (explicitMatch) {
         return normalizeProvider(explicitMatch[1] ?? '');
@@ -328,6 +359,14 @@ export function inferAiProviderFromModel(modelIdentifier: string): AiProvider | 
 
     const normalizedIdentifier = trimmedIdentifier.toLowerCase();
     if (normalizedIdentifier.includes('claude')) return 'anthropic';
+
+    if (normalizedIdentifier.startsWith('models/gemini') || normalizedIdentifier.startsWith('gemini-')) {
+        return 'google';
+    }
+
+    if (normalizedIdentifier.startsWith('grok-')) {
+        return 'xai';
+    }
 
     if (
         normalizedIdentifier.startsWith('gpt-') ||
@@ -350,13 +389,19 @@ export function normalizeAiModelKey(modelIdentifier: string): string | null {
     const modelByKey = getAiModelByKey(trimmedIdentifier);
     if (modelByKey) return modelByKey.modelKey;
 
-    const explicitMatch = trimmedIdentifier.match(/^(anthropic|openai)\s*:\s*(.+)$/i);
+    const explicitMatch = trimmedIdentifier.match(EXPLICIT_PROVIDER_PREFIX_PATTERN);
 
     if (explicitMatch) {
         const provider = normalizeProvider(explicitMatch[1] ?? '');
-        const modelId = explicitMatch[2]?.trim() ?? '';
+        const rawModelId = explicitMatch[2]?.trim() ?? '';
 
-        if (!provider || !modelId) return null;
+        if (!provider || !rawModelId) return null;
+
+        const modelId = stripProviderModelPrefix(provider, rawModelId);
+        if (!modelId) return null;
+
+        const matchedModel = getAiModelById(modelId, provider);
+        if (matchedModel) return matchedModel.modelKey;
 
         return `${provider}:${modelId}`;
     }
@@ -367,7 +412,10 @@ export function normalizeAiModelKey(modelIdentifier: string): string | null {
     const provider = inferAiProviderFromModel(trimmedIdentifier);
     if (!provider) return null;
 
-    return `${provider}:${trimmedIdentifier}`;
+    const normalizedModelId = stripProviderModelPrefix(provider, trimmedIdentifier);
+    if (!normalizedModelId) return null;
+
+    return `${provider}:${normalizedModelId}`;
 }
 
 export function resolveAiModelId(model: AiModelCatalogEntry, preferSnapshot: boolean = false): string {
@@ -625,7 +673,7 @@ export function evaluateAiModelProfileCostPolicy(params: {
 
 export function listAiModelProfileCostPolicyEvaluations(): AiModelProfileCostPolicyEvaluation[] {
     const evaluations: AiModelProfileCostPolicyEvaluation[] = [];
-    const providers: readonly AiProvider[] = ['openai', 'anthropic'];
+    const providers: readonly AiProvider[] = ['openai', 'anthropic', 'google', 'xai'];
     const profiles: readonly AiModelProfile[] = [
         'reasoning',
         'balanced',

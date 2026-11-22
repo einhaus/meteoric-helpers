@@ -686,5 +686,125 @@ describe('AI model catalog helpers', () => {
         expect(isAiAgentChatCandidate('claude-haiku-5-5')).toBe(true);
         expect(isAiAgentChatCandidate('claude-sonnet-4-6')).toBe(false);
         expect(isAiAgentChatCandidate('claude-3-7-sonnet-20250219')).toBe(false);
+        expect(isAiAgentChatCandidate('gemini-4-carbon')).toBe(true);
+        expect(isAiAgentChatCandidate('gemini-4-neon')).toBe(true);
+        expect(isAiAgentChatCandidate('gemini-4-hydrogen')).toBe(true);
+        expect(isAiAgentChatCandidate('gemini-2.5-flash')).toBe(false);
+        expect(isAiAgentChatCandidate('gemini-3.8-flash-tts')).toBe(false);
+        expect(isAiAgentChatCandidate('gemini-experimental')).toBe(true);
+        expect(isAiAgentChatCandidate('grok-4.7')).toBe(true);
+        expect(isAiAgentChatCandidate('grok-4.3')).toBe(true);
+        expect(isAiAgentChatCandidate('grok-4-1-fast-reasoning')).toBe(true);
+        expect(isAiAgentChatCandidate('grok-build-0.1')).toBe(true);
+        expect(isAiAgentChatCandidate('grok-4.6')).toBe(false);
+        expect(isAiAgentChatCandidate('grok-future-chat')).toBe(true);
+        expect(isAiAgentChatCandidate('grok-imagine-1')).toBe(false);
+    });
+
+    it('supports Google Gemini models across text routing, profiles, cost policies, and cost estimation', () => {
+        expect(inferAiProviderFromModel('gemini-4-neon')).toBe('google');
+        expect(inferAiProviderFromModel('models/gemini-4-hydrogen')).toBe('google');
+        expect(normalizeAiModelKey('models/gemini-4-hydrogen')).toBe('google:gemini-4-hydrogen');
+        expect(normalizeAiModelKey('google:models/gemini-4-carbon')).toBe('google:gemini-4-carbon');
+        expect(normalizeAiModelKey('gemini-4-neon')).toBe('google:gemini-4-neon');
+
+        expect(getPreferredAiModelId({ provider: 'google', profile: 'reasoning' })).toBe('gemini-4-carbon');
+        expect(getPreferredAiModelId({ provider: 'google', profile: 'balanced' })).toBe('gemini-4-hydrogen');
+        expect(getPreferredAiModelId({ provider: 'google', profile: 'fast' })).toBe('gemini-3.8-flash');
+        expect(getPreferredAiModelId({ provider: 'google', profile: 'cheap' })).toBe('gemini-3.5-flash-lite');
+        expect(getPreferredAiModelId({ provider: 'google', profile: 'deepResearch' })).toBeNull();
+
+        expect(aiModelSupportsVision('gemini-4-neon')).toBe(true);
+        expect(aiModelSupportsVision('gemini-3.8-flash-tts')).toBe(false);
+        expect(aiModelSupportsVision('gemini-future-flash')).toBe(true);
+
+        const neonCost = estimateAiModelCostUsd({
+            model: 'gemini-4-neon',
+            inputTokens: 100_000,
+            cacheReadInputTokens: 100_000,
+            outputTokens: 10_000
+        });
+        expect(neonCost).toMatchObject({
+            modelKey: 'google:gemini-4-neon',
+            inputCostUsd: 0.3,
+            cacheReadCostUsd: 0.015,
+            outputCostUsd: 0.15,
+            totalCostUsd: 0.465,
+            longContextApplied: false
+        });
+
+        const unapprovedNeonBalanced = evaluateAiModelProfileCostPolicy({
+            provider: 'google',
+            profile: 'balanced',
+            candidateModelKey: 'google:gemini-4-neon'
+        });
+        expect(unapprovedNeonBalanced.isWithinPolicy).toBe(false);
+        expect(unapprovedNeonBalanced.inputPriceMultiplier).toBe(2);
+        expect(unapprovedNeonBalanced.outputPriceMultiplier).toBe(2);
+
+        const defaultGoogleModels = listAiModels({ provider: 'google' });
+        expect(defaultGoogleModels.some((model) => model.modelKey === 'google:gemini-4-neon')).toBe(true);
+        expect(defaultGoogleModels.some((model) => model.modelKey === 'google:gemini-2.5-flash')).toBe(false);
+    });
+
+    it('supports xAI Grok models across catalog lookup, profiles, cost policies, and long-context pricing', () => {
+        expect(inferAiProviderFromModel('grok-4.7')).toBe('xai');
+        expect(inferAiProviderFromModel('xai:grok-4.3')).toBe('xai');
+        expect(normalizeAiModelKey('grok-4.7')).toBe('xai:grok-4.7');
+        expect(normalizeAiModelKey('grok-4.3-0815')).toBe('xai:grok-4.3');
+        expect(normalizeAiModelKey('xai:grok-4.20')).toBe('xai:grok-4.20-0309-reasoning');
+
+        expect(getPreferredAiModelId({ provider: 'xai', profile: 'reasoning' })).toBe('grok-4.7');
+        expect(getPreferredAiModelId({ provider: 'xai', profile: 'balanced' })).toBe('grok-4.7');
+        expect(getPreferredAiModelId({ provider: 'xai', profile: 'fast' })).toBe('grok-4-1-fast-reasoning');
+        expect(getPreferredAiModelId({ provider: 'xai', profile: 'cheap' })).toBe('grok-4-1-fast-non-reasoning');
+        expect(getPreferredAiModelId({ provider: 'xai', profile: 'deepResearch' })).toBeNull();
+
+        expect(aiModelSupportsVision('grok-4.7')).toBe(true);
+        expect(aiModelSupportsVision('grok-build-0.1')).toBe(false);
+        expect(aiModelSupportsVision('grok-4.9-preview')).toBe(true);
+
+        const standardEstimate = estimateAiModelCostUsd({
+            model: 'grok-4.7',
+            inputTokens: 100_000,
+            cacheReadInputTokens: 50_000,
+            outputTokens: 10_000
+        });
+        expect(standardEstimate).toMatchObject({
+            modelKey: 'xai:grok-4.7',
+            inputCostUsd: 0.2,
+            cacheReadCostUsd: 0.025,
+            outputCostUsd: 0.06,
+            totalCostUsd: 0.285,
+            longContextApplied: false
+        });
+
+        const longContextEstimate = estimateAiModelCostUsd({
+            model: 'grok-4.7',
+            inputTokens: 200_001,
+            outputTokens: 10_000
+        });
+        expect(longContextEstimate?.longContextApplied).toBe(true);
+        expect(longContextEstimate?.inputCostUsd).toBeCloseTo(0.800004);
+        expect(longContextEstimate?.outputCostUsd).toBe(0.12);
+
+        const unapprovedGrokFast = evaluateAiModelProfileCostPolicy({
+            provider: 'xai',
+            profile: 'fast',
+            candidateModelKey: 'xai:grok-4.7'
+        });
+        expect(unapprovedGrokFast.isWithinPolicy).toBe(false);
+        expect(unapprovedGrokFast.inputPriceMultiplier).toBe(10);
+
+        const grok43Balanced = evaluateAiModelProfileCostPolicy({
+            provider: 'xai',
+            profile: 'balanced',
+            candidateModelKey: 'xai:grok-4.3'
+        });
+        expect(grok43Balanced.isWithinPolicy).toBe(true);
+
+        const defaultXaiModels = listAiModels({ provider: 'xai' });
+        expect(defaultXaiModels.some((model) => model.modelKey === 'xai:grok-4.7')).toBe(true);
+        expect(defaultXaiModels.some((model) => model.modelKey === 'xai:grok-4.6')).toBe(false);
     });
 });

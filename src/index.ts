@@ -92,6 +92,7 @@ export * from './ai/speechModelCatalog.js';
 export * from './ai/aiCatalogSelectors.js';
 export * from './ai/aiRequestSelectors.js';
 export * from './ai/anthropicRequestParameters.js';
+export * from './ai/xaiModelCatalog.js';
 export * from './ai/aiModelCatalog.js';
 export * from './ai/aiModelSelectors.js';
 export * from './ai/speechModelTypes.js';
