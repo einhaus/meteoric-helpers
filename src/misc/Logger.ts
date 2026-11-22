@@ -1,6 +1,5 @@
 /* oxlint-disable typescript/no-unused-vars */
 import { getDate } from '../date/getDate.js';
-import { checkTimezoneIsEst } from '../date/checkTimezoneIsEst.js';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { createHash } from 'crypto';
 import path from 'path';
@@ -198,7 +197,6 @@ export class Logger {
         this.debug = config?.debug ?? false;
         this.scriptInstanceId = nanoid();
         Error.stackTraceLimit = 25;
-        checkTimezoneIsEst();
 
         // Set log directories from config or use defaults
         this.logDir = config?.logDir ? `${path.resolve(config.logDir)}/` : `${path.resolve('./logs/')}/`;
@@ -1274,8 +1272,6 @@ export class Logger {
     private setupProcessHandlers() {
         this.verbose = !!process.argv.includes('--verbose');
         this.debug = !!process.argv.includes('--debug');
-
-        process.env.TZ = 'America/New_York';
 
         console.error = (...args: unknown[]) => {
             // Prevent recursion by checking if we're already logging

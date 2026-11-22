@@ -15,6 +15,21 @@ describe('Logger', () => {
         mock.restore();
     });
 
+    it('preserves the application time zone during initialization', () => {
+        const originalZone = process.env.TZ;
+        const logDir = mkdtempSync(path.join(os.tmpdir(), 'logger-zone-'));
+        try {
+            process.env.TZ = 'UTC';
+            Logger.getInstance({ logDir, outputSeverity: 99 });
+            expect(process.env.TZ).toBe('UTC');
+            expect(new Intl.DateTimeFormat().resolvedOptions().timeZone).toBe('UTC');
+        } finally {
+            if (originalZone === undefined) delete process.env.TZ;
+            else process.env.TZ = originalZone;
+            rmSync(logDir, { recursive: true, force: true });
+        }
+    });
+
     it('formats ClickHouse timestamps in UTC using epoch milliseconds', () => {
         const unixTimestampMs = Date.UTC(2026, 3, 8, 14, 5, 4, 809);
 
