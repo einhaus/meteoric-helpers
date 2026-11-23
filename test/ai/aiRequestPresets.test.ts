@@ -123,6 +123,13 @@ describe('AI request preset helpers', () => {
         expect(config.warnings.some((warning) => warning.includes('was automatically upgraded'))).toBe(true);
     });
 
+    it.each(['gpt-5-pro', 'gpt-5-pro-2025-10-06', 'o3-pro', 'o3-pro-2025-06-10'])('routes deprecated %s to GPT-6.1 Sol', (model) => {
+        const config = resolveAiRequestConfig({ preset: 'analysis', model, preferSnapshot: true });
+
+        expect(config.modelId).toBe('gpt-6.1-sol');
+        expect(config.warnings.some((warning) => warning.includes('(deprecated) was automatically upgraded'))).toBe(true);
+    });
+
     it.each([
         ['gpt-daybreak-blue-latest', 'gpt-5.6-sol'],
         ['daybreak-blue-latest', 'gpt-5.6-sol'],

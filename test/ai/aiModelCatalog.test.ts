@@ -16,6 +16,50 @@ import {
 } from '../../src/ai/aiModelSelectors.js';
 
 describe('AI model catalog helpers', () => {
+    it('catalogs GPT-6.2 Astra at its published rates and keeps it outside the premium creative budget', () => {
+        const model = getAiModelById('gpt-6.2-astra');
+        expect(model?.contextWindowTokens).toBe(1_050_000);
+        expect(model?.maxOutputTokens).toBe(128_000);
+        expect(model?.capabilities.reasoningEffortLevels).not.toContain('none');
+        expect(model?.pricing).toMatchObject({
+            inputUsdPerMillionTokens: 8,
+            cachedInputUsdPerMillionTokens: 0.4,
+            outputUsdPerMillionTokens: 40,
+            cacheWrite12hUsdPerMillionTokens: 20,
+            longContextCachedInputUsdPerMillionTokens: 0.8,
+            longContextCacheWrite12hUsdPerMillionTokens: 40,
+            longContextOutputUsdPerMillionTokens: 60
+        });
+        expect(
+            evaluateAiModelProfileCostPolicy({
+                provider: 'openai',
+                profile: 'creativeWritingPremium',
+                candidateModelKey: 'openai:gpt-6.2-astra'
+            }).isWithinPolicy
+        ).toBe(false);
+    });
+
+    it('catalogs Genie 4 for its documented media modalities', () => {
+        const model = getAiModelById('models/genie-4', 'google');
+        expect(model?.status).toBe('specialized');
+        expect(model?.inputModalities).toEqual(['text', 'image']);
+        expect(model?.outputModalities).toEqual(['video', 'audio']);
+        expect(model?.capabilities.supportsStreaming).toBe(true);
+        expect(model?.maxOutputTokens).toBeNull();
+        expect(isAiAgentChatCandidate('genie-4', 'google')).toBe(false);
+        expect(estimateAiModelCostUsd({ provider: 'google', model: 'genie-4', inputTokens: 100, outputTokens: 1_000 })).toBeNull();
+    });
+
+    it('keeps GPT-Live-1.1 in the catalog without offering it for text chat or token estimates', () => {
+        const model = getAiModelById('gpt-live-1.1', 'openai');
+        expect(model?.status).toBe('specialized');
+        expect(model?.inputModalities).toEqual(['audio', 'text']);
+        expect(model?.outputModalities).toEqual(['audio', 'text']);
+        expect(model?.capabilities.supportsStreaming).toBe(true);
+        expect(isAiAgentChatCandidate('gpt-live-1.1', 'openai')).toBe(false);
+        expect(estimateAiModelCostUsd({ model: 'gpt-live-1.1', inputTokens: 100, outputTokens: 1_000 })).toBeNull();
+    });
+
     it('catalogs GPT-6.2 Sol and promotes it for OpenAI creativeWritingPremium within policy', () => {
         const model = getAiModelById('gpt-6.2-sol');
         expect(model?.status).toBe('active');

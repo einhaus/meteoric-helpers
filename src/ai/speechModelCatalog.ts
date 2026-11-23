@@ -1,7 +1,7 @@
 import type { AiModelSource } from './aiModelTypes.js';
 import type { SpeechModelCapabilities, SpeechModelCatalogEntry, SpeechModelPricing } from './speechModelTypes.js';
 
-const VERIFIED_AT = '2026-11-16';
+const VERIFIED_AT = '2026-11-23';
 
 const ELEVENLABS_MODELS_SOURCE: AiModelSource = {
     label: 'ElevenLabs models overview',
@@ -96,7 +96,7 @@ export const SPEECH_MODEL_CATALOG: readonly SpeechModelCatalogEntry[] = [
             'ElevenLabs’ most expressive text-to-speech model for narration, audiobooks, and character performance. Follows inline audio tags, supports 90+ languages, and keeps speaker identity stable across long-form and regenerated lines.',
         status: 'active',
         recommendedReplacementModelKey: null,
-        maxCharactersPerRequest: 10_000,
+        maxCharactersPerRequest: 100_000,
         languageCount: 94,
         medianLatencyMs: null,
         capabilities: ELEVENLABS_V4_CAPABILITIES,
@@ -123,7 +123,7 @@ export const SPEECH_MODEL_CATALOG: readonly SpeechModelCatalogEntry[] = [
             'Low-latency variant of Eleven v4 for voice agents and real-time playback. Keeps audio-tag control and 90+ languages at roughly 100 ms median inference latency and half the credit cost.',
         status: 'active',
         recommendedReplacementModelKey: null,
-        maxCharactersPerRequest: 10_000,
+        maxCharactersPerRequest: 100_000,
         languageCount: 94,
         medianLatencyMs: 100,
         capabilities: ELEVENLABS_V4_CAPABILITIES,

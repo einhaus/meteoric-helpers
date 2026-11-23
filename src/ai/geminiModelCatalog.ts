@@ -1,7 +1,7 @@
 import type { AiInputModality, AiModelCapabilities, AiModelCatalogEntry, AiOutputModality } from './aiModelTypes.js';
 
 const GEMINI_VERIFIED_AT = '2026-11-16';
-const GEMINI_NEON_VERIFIED_AT = '2026-11-21';
+const GEMINI_CURRENT_VERIFIED_AT = '2026-11-23';
 
 const geminiSource = (label: string, path: string, verifiedAt = GEMINI_VERIFIED_AT) => ({
     label,
@@ -89,8 +89,8 @@ const createGeminiMediaModel = (params: {
     description: string;
     inputModalities: readonly AiInputModality[];
     outputModalities: readonly AiOutputModality[];
-    contextWindowTokens: number;
-    maxOutputTokens: number;
+    contextWindowTokens: number | null;
+    maxOutputTokens: number | null;
     inputPrice: number;
     textOutputPrice?: number;
     pricingNotes: string;
@@ -98,6 +98,7 @@ const createGeminiMediaModel = (params: {
     modelPage?: string;
     pricingAnchor?: string;
     replacementModelId?: string;
+    verifiedAt?: string;
 }): AiModelCatalogEntry<'google'> => ({
     modelKey: `google:${params.modelId}`,
     provider: 'google',
@@ -148,9 +149,9 @@ const createGeminiMediaModel = (params: {
         notes: params.pricingNotes
     },
     sources: [
-        geminiSource('Google Gemini model documentation', `models/${params.modelPage ?? params.modelId}`),
-        geminiSource('Google Gemini pricing', `pricing#${params.pricingAnchor ?? params.modelId}`),
-        ...(params.replacementModelId ? [geminiSource('Google Gemini deprecations', 'deprecations')] : [])
+        geminiSource('Google Gemini model documentation', `models/${params.modelPage ?? params.modelId}`, params.verifiedAt),
+        geminiSource('Google Gemini pricing', `pricing#${params.pricingAnchor ?? params.modelId}`, params.verifiedAt),
+        ...(params.replacementModelId ? [geminiSource('Google Gemini deprecations', 'deprecations', params.verifiedAt)] : [])
     ],
     tags: [params.family]
 });
@@ -202,7 +203,8 @@ export const GEMINI_MODEL_CATALOG: readonly AiModelCatalogEntry<'google'>[] = [
         inputPrice: 1.5,
         cachedInputPrice: 0.075,
         outputPrice: 7.5,
-        pricingNotes: 'Long decode supports up to 1,048,576 output tokens. The catalog limit is for synchronous requests.'
+        pricingNotes: 'Long decode supports up to 1,048,576 output tokens. The catalog limit is for synchronous requests.',
+        verifiedAt: GEMINI_CURRENT_VERIFIED_AT
     }),
     createGeminiModel({
         modelId: 'gemini-4-carbon',
@@ -239,7 +241,29 @@ export const GEMINI_MODEL_CATALOG: readonly AiModelCatalogEntry<'google'>[] = [
         cachedInputPrice: 0.15,
         outputPrice: 15,
         pricingNotes: 'Long decode supports up to 1,048,576 output tokens. The catalog limit is for synchronous requests.',
-        verifiedAt: GEMINI_NEON_VERIFIED_AT
+        verifiedAt: GEMINI_CURRENT_VERIFIED_AT
+    }),
+    createGeminiMediaModel({
+        modelId: 'genie-4',
+        displayName: 'Genie 4',
+        family: 'genie',
+        description: 'Interactive world generation with streamed video and synchronized audio through the Interactions API.',
+        inputModalities: ['text', 'image'],
+        outputModalities: ['video', 'audio'],
+        contextWindowTokens: null,
+        maxOutputTokens: null,
+        inputPrice: 1.5,
+        pricingNotes:
+            'Standard rates per million tokens are $1.50 for text or reference image input, $9 for billed text output, and $17.50 for streamed video output including audio. Streaming video uses 5,760 tokens per second.',
+        capabilities: {
+            supportsStreaming: true,
+            supportsToolCalling: false,
+            supportsStructuredOutputs: false,
+            supportsPromptCaching: false,
+            supportsWebSearch: false,
+            supportsFileSearch: false
+        },
+        verifiedAt: GEMINI_CURRENT_VERIFIED_AT
     }),
     createGeminiModel({
         modelId: 'gemini-3.8-flash',

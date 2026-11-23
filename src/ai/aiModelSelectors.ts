@@ -756,6 +756,9 @@ export function estimateAiModelCostUsd(params: {
     // Image usage needs separate token counts by modality.
     if (model.pricing.imageTokenPricing) return null;
 
+    // This estimator's output token count represents text, not streamed audio or video.
+    if (params.outputTokens > 0 && !model.outputModalities.includes('text')) return null;
+
     // Tiered estimates need both a known threshold and prices for the applicable tier.
     const hasLongContextRates = [
         model.pricing.longContextInputUsdPerMillionTokens,

@@ -5,8 +5,8 @@ import { XAI_MODEL_CATALOG } from './xaiModelCatalog.js';
 const VERIFIED_AT = '2026-11-09';
 const GPT_5_6_VERIFIED_AT = '2026-11-09';
 const GPT_6_1_VERIFIED_AT = '2026-11-09';
-const GPT_6_2_VERIFIED_AT = '2026-11-22';
-const CURRENT_AUDIT_VERIFIED_AT = '2026-11-09';
+const GPT_6_2_VERIFIED_AT = '2026-11-23';
+const CURRENT_AUDIT_VERIFIED_AT = '2026-11-23';
 
 const OPENAI_MODELS_SOURCE: AiModelSource = {
     label: 'OpenAI model docs',
@@ -392,6 +392,60 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
         imageTokenPricing: { inputUsdPerMillionTokens: 8, cachedInputUsdPerMillionTokens: 2, outputUsdPerMillionTokens: 32 }
     }),
     {
+        modelKey: 'openai:gpt-live-1.1',
+        provider: 'openai',
+        modelId: 'gpt-live-1.1',
+        snapshotModelId: 'gpt-live-1.1',
+        aliases: [],
+        displayName: 'GPT-Live-1.1',
+        family: 'gpt-live',
+        description: 'Full-duplex multilingual voice model for the Live Sessions API.',
+        status: 'specialized',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['audio', 'text'],
+        outputModalities: ['audio', 'text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: false,
+            supportsAudioInput: true,
+            supportsAudioOutput: true,
+            supportsVision: false,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: null,
+            supportsPromptCaching: null,
+            supportsWebSearch: null,
+            supportsFileSearch: null,
+            supportsComputerUse: null,
+            supportsMcp: null,
+            supportsReasoningEffort: false,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: null,
+        maxOutputTokens: null,
+        knowledgeCutoff: null,
+        pricing: createPricing({
+            inputUsdPerMillionTokens: null,
+            cachedInputUsdPerMillionTokens: null,
+            outputUsdPerMillionTokens: null,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'Live sessions cost $0.05 per active minute and $0.02 per standby minute when WebRTC inference is paused. Backend model and tool usage is billed separately.'
+        }),
+        sources: [
+            createOpenAiModelSource('gpt-live-1.1', CURRENT_AUDIT_VERIFIED_AT),
+            { ...OPENAI_PRICING_SOURCE, verifiedAt: CURRENT_AUDIT_VERIFIED_AT }
+        ],
+        tags: ['voice', 'live-session']
+    },
+    {
         modelKey: 'openai:gpt-6-astra',
         provider: 'openai',
         modelId: 'gpt-6-astra',
@@ -626,8 +680,72 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             longContextOutputUsdPerMillionTokens: 15,
             notes: 'Prompts above 272K input tokens are billed at 2x input and cache rates and 1.5x output for the full request. Responses API cache writes cost 1.25x input for the default 30m retention and 2.5x input for optional 12h retention.'
         }),
-        sources: [OPENAI_PROMPT_CACHING_SOURCE, createOpenAiModelSource('gpt-6.2-sol', GPT_6_2_VERIFIED_AT)],
+        sources: [
+            createOpenAiModelSource('gpt-6.2-sol', GPT_6_2_VERIFIED_AT),
+            { ...OPENAI_LATEST_MODEL_GUIDE_SOURCE, verifiedAt: GPT_6_2_VERIFIED_AT },
+            { ...OPENAI_PRICING_SOURCE, verifiedAt: GPT_6_2_VERIFIED_AT }
+        ],
         tags: ['recommended', 'reasoning', 'coding', 'agent', 'balanced', 'writing', 'research'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
+    },
+    {
+        modelKey: 'openai:gpt-6.2-astra',
+        provider: 'openai',
+        modelId: 'gpt-6.2-astra',
+        snapshotModelId: 'gpt-6.2-astra',
+        aliases: [],
+        displayName: 'GPT-6.2 Astra',
+        family: 'gpt-6.2',
+        description: 'OpenAI model for difficult software, document, and reasoning tasks.',
+        status: 'active',
+        recommendedReplacementModelKey: null,
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: true,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: true,
+            supportsMcp: true,
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: OPENAI_GPT_6_REASONING_LEVELS,
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 1_050_000,
+        maxOutputTokens: 128_000,
+        knowledgeCutoff: '2026-05-18',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 8,
+            cachedInputUsdPerMillionTokens: 0.4,
+            outputUsdPerMillionTokens: 40,
+            cacheWriteUsdPerMillionTokens: 10,
+            cacheWrite12hUsdPerMillionTokens: 20,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: 272_000,
+            longContextInputUsdPerMillionTokens: 16,
+            longContextCachedInputUsdPerMillionTokens: 0.8,
+            longContextCacheWriteUsdPerMillionTokens: 20,
+            longContextCacheWrite12hUsdPerMillionTokens: 40,
+            longContextOutputUsdPerMillionTokens: 60,
+            notes: 'Tool calling requires the Responses API. Prompts above 272K input tokens are billed at 2x input and cache rates and 1.5x output for the full request.'
+        }),
+        sources: [
+            createOpenAiModelSource('gpt-6.2-astra', GPT_6_2_VERIFIED_AT),
+            { ...OPENAI_LATEST_MODEL_GUIDE_SOURCE, verifiedAt: GPT_6_2_VERIFIED_AT },
+            { ...OPENAI_PRICING_SOURCE, verifiedAt: GPT_6_2_VERIFIED_AT }
+        ],
+        tags: ['reasoning', 'coding', 'agent', 'premium'],
         parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
@@ -3228,6 +3346,110 @@ export const AI_MODEL_CATALOG: readonly AiModelCatalogEntry[] = [
             OPENAI_DEPRECATIONS_SOURCE
         ],
         tags: ['retired', 'reasoning', 'cheap', 'compatibility']
+    },
+    {
+        modelKey: 'openai:gpt-5-pro',
+        provider: 'openai',
+        modelId: 'gpt-5-pro',
+        snapshotModelId: 'gpt-5-pro-2025-10-06',
+        aliases: [],
+        displayName: 'GPT-5 pro',
+        family: 'gpt-5',
+        description: 'Deprecated high-compute GPT-5 model for the Responses API.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-6.1-sol',
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: true,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: false,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: null,
+            supportsMcp: true,
+            supportsReasoningEffort: true,
+            reasoningEffortLevels: ['high'],
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 400_000,
+        maxOutputTokens: 272_000,
+        knowledgeCutoff: '2024-09-30',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 15,
+            cachedInputUsdPerMillionTokens: null,
+            outputUsdPerMillionTokens: 120,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'Scheduled for API shutdown December 11, 2026. OpenAI documents reasoning.mode: pro on Responses for workloads that need the replacement model’s pro mode.'
+        }),
+        sources: [createOpenAiModelSource('gpt-5-pro', CURRENT_AUDIT_VERIFIED_AT), OPENAI_DEPRECATIONS_SOURCE],
+        tags: ['deprecated', 'reasoning', 'compatibility'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
+    },
+    {
+        modelKey: 'openai:o3-pro',
+        provider: 'openai',
+        modelId: 'o3-pro',
+        snapshotModelId: 'o3-pro-2025-06-10',
+        aliases: [],
+        displayName: 'o3-pro',
+        family: 'o3',
+        description: 'Deprecated high-compute o3 model for the Responses API.',
+        status: 'deprecated',
+        recommendedReplacementModelKey: 'openai:gpt-6.1-sol',
+        inputModalities: ['text', 'image'],
+        outputModalities: ['text'],
+        capabilities: createCapabilities({
+            supportsTextInput: true,
+            supportsTextOutput: true,
+            supportsImageInput: true,
+            supportsAudioInput: false,
+            supportsAudioOutput: false,
+            supportsVision: true,
+            supportsStreaming: null,
+            supportsToolCalling: true,
+            supportsStructuredOutputs: true,
+            supportsPromptCaching: false,
+            supportsWebSearch: true,
+            supportsFileSearch: true,
+            supportsComputerUse: null,
+            supportsMcp: true,
+            supportsReasoningEffort: null,
+            reasoningEffortLevels: [],
+            supportsExtendedThinking: null,
+            supportsAdaptiveThinking: null
+        }),
+        contextWindowTokens: 200_000,
+        maxOutputTokens: 100_000,
+        knowledgeCutoff: '2024-06-01',
+        pricing: createPricing({
+            inputUsdPerMillionTokens: 20,
+            cachedInputUsdPerMillionTokens: null,
+            outputUsdPerMillionTokens: 80,
+            cacheWrite5mUsdPerMillionTokens: null,
+            cacheWrite1hUsdPerMillionTokens: null,
+            longContextThresholdInputTokens: null,
+            longContextInputUsdPerMillionTokens: null,
+            longContextCachedInputUsdPerMillionTokens: null,
+            longContextOutputUsdPerMillionTokens: null,
+            notes: 'Scheduled for API shutdown December 11, 2026. OpenAI documents reasoning.mode: pro on Responses for workloads that need the replacement model’s pro mode.'
+        }),
+        sources: [createOpenAiModelSource('o3-pro', CURRENT_AUDIT_VERIFIED_AT), OPENAI_DEPRECATIONS_SOURCE],
+        tags: ['deprecated', 'reasoning', 'compatibility'],
+        parameterPolicies: OPENAI_GPT_5_PARAMETER_POLICIES
     },
     {
         modelKey: 'openai:o3-deep-research',

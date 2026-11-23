@@ -117,10 +117,12 @@ describe('speech model catalog', () => {
         expect(config.modelId).toBe('eleven_v4');
         expect(config.requestedModel).toBeNull();
         expect(config.catalogEntry?.status).toBe('active');
+        expect(config.catalogEntry?.maxCharactersPerRequest).toBe(100_000);
         expect(config.warnings).toEqual([]);
         expect(config.overridesApplied).toEqual([]);
 
         expect(resolveSpeechModelId({ profile: 'realtime' })).toBe('eleven_v4_turbo');
+        expect(resolveSpeechModelConfig({ profile: 'realtime' }).catalogEntry?.maxCharactersPerRequest).toBe(100_000);
         expect(resolveSpeechModelId({ profile: 'narration', model: '   ' })).toBe('eleven_v4');
         expect(resolveSpeechModelId({ profile: 'narration', model: null })).toBe('eleven_v4');
     });
@@ -163,14 +165,14 @@ describe('speech model catalog', () => {
                     modelId: 'eleven_v4',
                     displayName: 'Eleven v4',
                     characterCostMultiplier: 1,
-                    maxCharactersPerRequest: 10_000,
+                    maxCharactersPerRequest: 100_000,
                     languageCount: 94
                 },
                 {
                     modelId: 'eleven_v4_turbo',
                     displayName: 'Eleven v4 Turbo',
                     characterCostMultiplier: 0.75,
-                    maxCharactersPerRequest: 10_000,
+                    maxCharactersPerRequest: 100_000,
                     languageCount: 94
                 },
                 {
