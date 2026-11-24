@@ -1,6 +1,12 @@
 import { type DateInterval, ymd, ymdhms, ymdhmss } from './constants.js';
 import dayjs from './dayjsTimezone.js';
-import { type DateTimezone, formatZoneOffset, getZoneCalendarMs, resolveZoneCalendarMs } from './internal/zoneWallClock.js';
+import {
+    type DateTimezone,
+    formatZoneOffset,
+    getZoneCalendarMs,
+    parseZoneCalendarMs,
+    resolveZoneCalendarMs
+} from './internal/zoneWallClock.js';
 
 export const getDate = (config?: {
     format?:
@@ -19,17 +25,32 @@ export const getDate = (config?: {
         | 'monthDayYear';
     startOf?: 'day' | 'week' | 'month' | 'year';
     endOf?: 'day' | 'week' | 'month' | 'year';
+    /** Zone in which to display the result or select its calendar boundaries. */
     timezone?: DateTimezone | null;
+    /** Origin of a timezone-free ISO calendar string. Without it, legacy strings use the process clock. */
+    inputTimezone?: DateTimezone;
     date?: string | number | Date;
     operator?: '+' | '-';
     interval?: number;
     intervalType?: DateInterval;
 }) => {
-    const { format: returnFormat = 'ymd', startOf, endOf, timezone, date: inputDateTime, operator, interval, intervalType } = config ?? {};
+    const {
+        format: returnFormat = 'ymd',
+        startOf,
+        endOf,
+        timezone,
+        inputTimezone,
+        date: inputDateTime,
+        operator,
+        interval,
+        intervalType
+    } = config ?? {};
 
+    if (inputTimezone && typeof inputDateTime !== 'string') throw new Error('inputTimezone requires a wall-clock string');
     // This is faster than using dayjs, so for simple cases we can use this
     if (
-        !inputDateTime &&
+        (inputDateTime == null || inputDateTime === '') &&
+        !inputTimezone &&
         !operator &&
         !timezone &&
         !startOf &&
@@ -55,12 +76,22 @@ export const getDate = (config?: {
         if (returnFormat === 'yyyy') return `${year}`;
     }
 
-    let dateObject = inputDateTime && typeof inputDateTime !== 'number' ? dayjs(inputDateTime) : null;
-    dateObject = typeof inputDateTime === 'number' ? dayjs.unix(inputDateTime) : dateObject;
-    dateObject = !dateObject ? dayjs() : dateObject;
+    const instant = inputTimezone && typeof inputDateTime === 'string' ? parseZoneCalendarMs(inputDateTime, inputTimezone) : inputDateTime;
+    let dateObject =
+        typeof instant === 'number' && !inputTimezone
+            ? dayjs.unix(instant)
+            : dayjs(instant == null || instant === '' ? undefined : instant);
 
-    if (operator && interval && intervalType)
-        dateObject = operator === '+' ? dateObject.add(interval, intervalType) : dateObject.subtract(interval, intervalType);
+    if (operator && interval && intervalType) {
+        const amount = operator === '+' ? interval : -interval;
+        if (inputTimezone && (intervalType === 'day' || intervalType === 'week' || intervalType === 'month' || intervalType === 'year')) {
+            const sourceMs = dateObject.valueOf();
+            const calendar = dayjs.utc(getZoneCalendarMs(sourceMs, inputTimezone)).add(amount, intervalType);
+            dateObject = dayjs(resolveZoneCalendarMs(calendar.valueOf(), inputTimezone, sourceMs));
+        } else {
+            dateObject = dateObject.add(amount, intervalType);
+        }
+    }
 
     if (timezone && dateObject.isValid()) {
         // Keep the instant separate from its wall clock: Dayjs .tz() reparses through the host zone and can shift both

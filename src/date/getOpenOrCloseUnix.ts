@@ -1,8 +1,10 @@
 import { marketOpenHour, marketOpenMinute, marketCloseHour, marketCloseMinute } from './constants.js';
-import dayjs from 'dayjs';
+import { getZoneCalendarMs, resolveZoneCalendarMs } from './internal/zoneWallClock.js';
 
 export const getOpenOrCloseUnix = (timestamp: number, openOrClose: 'open' | 'close') => {
-    return openOrClose === 'open'
-        ? dayjs.unix(timestamp).hour(marketOpenHour).minute(marketOpenMinute).unix()
-        : dayjs.unix(timestamp).hour(marketCloseHour).minute(marketCloseMinute).unix();
+    const sourceMs = timestamp * 1000;
+    const wallClock = new Date(getZoneCalendarMs(sourceMs, 'America/New_York'));
+    if (openOrClose === 'open') wallClock.setUTCHours(marketOpenHour, marketOpenMinute, 0, 0);
+    else wallClock.setUTCHours(marketCloseHour, marketCloseMinute, 0, 0);
+    return resolveZoneCalendarMs(wallClock.getTime(), 'America/New_York', sourceMs) / 1000;
 };

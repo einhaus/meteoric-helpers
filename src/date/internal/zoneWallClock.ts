@@ -99,3 +99,18 @@ export const formatZoneOffset = (offsetMs: number): string => {
     const minutesPart = String(minutes % 60).padStart(2, '0');
     return `${offsetMs < 0 ? '-' : '+'}${hoursPart}:${minutesPart}`;
 };
+
+/** Read a wall-clock string in its declared source zone. Repeated or skipped times require an offset-qualified instant instead. */
+export const parseZoneCalendarMs = (text: string, zone: DateTimezone): number => {
+    const match = /^(\d{4}-\d{2}-\d{2})(?:[ T](\d{2}:\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?$/.exec(text);
+    if (!match) throw new Error(`Expected an offset-free calendar date or datetime in ${zone}: ${text}`);
+    const iso = `${match[1]}T${match[2] ?? '00:00'}:${match[3] ?? '00'}.${(match[4] ?? '').padEnd(3, '0')}Z`;
+    const calendar = Date.parse(iso);
+    if (!Number.isFinite(calendar) || new Date(calendar).toISOString() !== iso) throw new Error(`Invalid date in ${zone}: ${text}`);
+    const dayMs = 86_400_000;
+    const first = resolveZoneCalendarMs(calendar, zone, calendar - dayMs);
+    const last = resolveZoneCalendarMs(calendar, zone, calendar + dayMs);
+    if (first !== last || getZoneCalendarMs(first, zone) !== calendar)
+        throw new Error(`Wall clock does not identify one instant in ${zone}: ${text}`);
+    return first;
+};

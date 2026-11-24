@@ -1,6 +1,3 @@
-import { marketCloseHour, marketCloseMinute } from './constants.js';
-import dayjs from 'dayjs';
+import { getOpenOrCloseUnix } from './getOpenOrCloseUnix.js';
 
-export const getMarketCloseUnix = (timestamp: number) => {
-    return dayjs.unix(timestamp).hour(marketCloseHour).minute(marketCloseMinute).unix();
-};
+export const getMarketCloseUnix = (timestamp: number) => getOpenOrCloseUnix(timestamp, 'close');
