@@ -80,8 +80,18 @@ describe.each(PROCESS_ZONES)('getDateFromUnix with an explicit zone in a %s proc
         expect(format(EVENING, 'ymd', 'Etc/UTC', 'end')).toBe('2026-11-12');
     });
 
-    it('rejects a timestamp that is not a finite number', () => {
+    it('formats Etc/UTC epoch, leap-day, and pre-1970 boundaries', () => {
+        expect(format(0, 'ymdhms', 'Etc/UTC')).toBe('1970-01-01 00:00:00');
+        expect(format(0, 'readable1', 'Etc/UTC')).toBe('Thu Jan 01 1970 00:00');
+        expect(format(Date.parse('2024-02-29T23:59:59Z') / 1000, 'ymdhms', 'Etc/UTC')).toBe('2024-02-29 23:59:59');
+        expect(format(-86400, 'ymdhms', 'Etc/UTC')).toBe('1969-12-31 00:00:00');
+        expect(format(-86400, 'readable1', 'Etc/UTC')).toBe('Wed Dec 31 1969 00:00');
+    });
+
+    it('rejects a timestamp that is not a finite number or falls outside Date range', () => {
         expect(() => format(Number.NaN, 'ymd', 'America/New_York')).toThrow('invalid Unix timestamp NaN');
+        expect(() => format(Number.NaN, 'ymd', 'Etc/UTC')).toThrow('invalid Unix timestamp NaN');
+        expect(() => format(1e20, 'ymd', 'Etc/UTC')).toThrow('invalid Unix timestamp');
     });
 });
 

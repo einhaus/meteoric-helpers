@@ -4,7 +4,6 @@ import mysql, { type Connection, type Pool, type ResultSetHeader, type PoolConne
 import { existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import { sleep } from '../misc/sleep.js';
-import { getDate } from '../date/getDate.js';
 import { type LoggerConfig, Logger } from '../misc/Logger.js';
 // Default values that will be used if not specified in the config
 const DEFAULT_MAX_RETRIES = 4;
@@ -12,6 +11,10 @@ const DEFAULT_RETRY_DELAY_MS = 10000;
 // MySQL/MariaDB numeric offsets span -13:59 through +14:00 (e.g. "+00:00", "-08:00").
 const MYSQL_NUMERIC_TIME_ZONE_PATTERN = /^(?:[+-](?:0\d|1[0-3]):[0-5]\d|\+14:00)$/u;
 const MYSQL_NAMED_TIME_ZONE_PATTERN = /^[A-Za-z0-9_/+.-]+$/u;
+const UTC_SESSION_TIME_ZONES = new Set(['+00:00', '-00:00', 'UTC', 'ETC/UTC', 'GMT']);
+
+const isUtcSessionTimeZone = (sessionTimeZone?: string): boolean =>
+    sessionTimeZone !== undefined && UTC_SESSION_TIME_ZONES.has(sessionTimeZone.toUpperCase());
 
 const normalizeSessionTimeZone = (sessionTimeZone?: string): string | undefined => {
     if (sessionTimeZone === undefined) return undefined;
@@ -188,6 +191,7 @@ export class DBMysql {
             charset: this.config.charset ?? 'utf8mb4',
             multipleStatements: true,
             dateStrings: true,
+            ...(isUtcSessionTimeZone(this.config.sessionTimeZone) ? { timezone: 'Z' } : {}),
             // mysql2 >= 3.23.0 auto-decodes MariaDB JSON columns; consumers expect raw strings and parse themselves
             jsonStrings: this.config.jsonStrings ?? true,
             enableKeepAlive: true,
@@ -896,7 +900,7 @@ export class DBMysql {
                 if (e instanceof Error) {
                     const argString = process.argv.slice(1).join(' ');
 
-                    const logEntry = `${argString}\nError Stack: ${e.stack ?? ''}\n Datetime: ${getDate({ format: 'ymdhms' })}\n${JSON.stringify(
+                    const logEntry = `${argString}\nError Stack: ${e.stack ?? ''}\n Datetime: ${new Date().toISOString()}\n${JSON.stringify(
                         e,
                         null,
                         4

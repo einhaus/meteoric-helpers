@@ -85,7 +85,11 @@ export const getDate = (config?: {
     if (operator && interval && intervalType) {
         const amount = operator === '+' ? interval : -interval;
         const calendarZone = inputTimezone ?? timezone;
-        if (calendarZone && (intervalType === 'day' || intervalType === 'week' || intervalType === 'month' || intervalType === 'year')) {
+        if (
+            calendarZone &&
+            dateObject.isValid() &&
+            (intervalType === 'day' || intervalType === 'week' || intervalType === 'month' || intervalType === 'year')
+        ) {
             const sourceMs = dateObject.valueOf();
             const calendar = dayjs.utc(getZoneCalendarMs(sourceMs, calendarZone)).add(amount, intervalType);
             dateObject = dayjs(resolveZoneCalendarMs(calendar.valueOf(), calendarZone, sourceMs));

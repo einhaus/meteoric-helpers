@@ -70,3 +70,20 @@ test('distinguishes civil calendar days and elapsed hours in a declared zone', (
     expect(getDiffBetweenDates('2026-03-08 12:00:00', '2026-03-07 12:00:00', 'hour', ny)).toBe(23);
     expect(getDiffBetweenDates('2026-11-01T01:30:00-05:00', '2026-11-01T01:30:00-04:00', 'hour', ny)).toBe(1);
 });
+
+test('handles Etc/UTC calendar arithmetic and returns Invalid Date for unparseable inputs with an operator', () => {
+    expect(
+        getDate({
+            date: '2024-02-29 23:59:59.03',
+            inputTimezone: 'Etc/UTC',
+            timezone: 'Etc/UTC',
+            operator: '+',
+            interval: 1,
+            intervalType: 'day',
+            format: 'iso'
+        })
+    ).toBe('2024-03-01T23:59:59.030Z');
+    expect(getStartOrEndUnix(epoch('2024-02-29T12:34:56Z'), 'start', 'day', 'Etc/UTC')).toBe(epoch('2024-02-29T00:00:00Z'));
+    expect(getStartOrEndUnix(epoch('2024-02-29T12:34:56Z'), 'end', 'day', 'Etc/UTC')).toBe(epoch('2024-02-29T23:59:59Z'));
+    expect(getDate({ date: 'not-a-date', timezone: 'Etc/UTC', operator: '+', interval: 1, intervalType: 'day' })).toBe('Invalid Date');
+});

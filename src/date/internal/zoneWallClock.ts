@@ -12,7 +12,10 @@ export interface WallClock {
 }
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 const zoneFormatters = new Map<DateTimezone, Intl.DateTimeFormat>();
+
+const pad2 = (value: number): string => String(value).padStart(2, '0');
 
 const getZoneFormatter = (timezone: DateTimezone): Intl.DateTimeFormat => {
     let formatter = zoneFormatters.get(timezone);
@@ -41,6 +44,26 @@ export const getZoneWallClock = (unixTimestamp: number, timezone: DateTimezone):
         throw new Error(`date: invalid Unix timestamp ${unixTimestamp} for time zone ${timezone}`);
     }
 
+    if (timezone === 'Etc/UTC') {
+        const date = new Date(unixTimestamp * 1000);
+        if (!Number.isFinite(date.getTime())) {
+            throw new Error(`date: invalid Unix timestamp ${unixTimestamp} for time zone ${timezone}`);
+        }
+        const year = String(date.getUTCFullYear());
+        const monthIndex = date.getUTCMonth();
+        const month = pad2(monthIndex + 1);
+        const day = pad2(date.getUTCDate());
+        return {
+            year,
+            month,
+            day,
+            hours: pad2(date.getUTCHours()),
+            minutes: pad2(date.getUTCMinutes()),
+            seconds: pad2(date.getUTCSeconds()),
+            dateString: `${WEEKDAY_NAMES[date.getUTCDay()]} ${MONTH_NAMES[monthIndex]} ${day} ${year}`
+        };
+    }
+
     const parts: Partial<Record<Intl.DateTimeFormatPartTypes, string>> = {};
 
     for (const part of getZoneFormatter(timezone).formatToParts(unixTimestamp * 1000)) {
@@ -66,6 +89,14 @@ export const getZoneWallClock = (unixTimestamp: number, timezone: DateTimezone):
 
 /** A UTC calendar surrogate for formatting/boundary arithmetic; this is not the original instant. */
 export const getZoneCalendarMs = (instantMs: number, timezone: DateTimezone): number => {
+    if (timezone === 'Etc/UTC') {
+        const time = new Date(instantMs).getTime();
+        if (!Number.isFinite(time)) {
+            throw new Error(`date: invalid Unix timestamp ${instantMs / 1000} for time zone ${timezone}`);
+        }
+        return time;
+    }
+
     const { year, month, day, hours, minutes, seconds } = getZoneWallClock(instantMs / 1000, timezone);
     const calendar = new Date(instantMs);
     calendar.setUTCFullYear(Number(year), Number(month) - 1, Number(day));
@@ -75,6 +106,11 @@ export const getZoneCalendarMs = (instantMs: number, timezone: DateTimezone): nu
 
 /** Resolve a calendar boundary with its own offset, which may differ from the source instant across DST. */
 export const resolveZoneCalendarMs = (calendarMs: number, timezone: DateTimezone, referenceMs: number): number => {
+    if (timezone === 'Etc/UTC') {
+        getZoneCalendarMs(referenceMs, timezone);
+        return getZoneCalendarMs(calendarMs, timezone);
+    }
+
     const offsetAt = (instantMs: number) => getZoneCalendarMs(instantMs, timezone) - instantMs;
     const referenceOffset = offsetAt(referenceMs);
     let candidate = calendarMs - referenceOffset;
@@ -107,6 +143,7 @@ export const parseZoneCalendarMs = (text: string, zone: DateTimezone): number =>
     const iso = `${match[1]}T${match[2] ?? '00:00'}:${match[3] ?? '00'}.${(match[4] ?? '').padEnd(3, '0')}Z`;
     const calendar = Date.parse(iso);
     if (!Number.isFinite(calendar) || new Date(calendar).toISOString() !== iso) throw new Error(`Invalid date in ${zone}: ${text}`);
+    if (zone === 'Etc/UTC') return calendar;
     const dayMs = 86_400_000;
     const first = resolveZoneCalendarMs(calendar, zone, calendar - dayMs);
     const last = resolveZoneCalendarMs(calendar, zone, calendar + dayMs);
