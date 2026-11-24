@@ -1,5 +1,6 @@
 import { ymd, ymdhms, ymdhmss } from './constants.js';
 import dayjs from './dayjsTimezone.js';
+import { getDate } from './getDate.js';
 import type { DateTimezone } from './internal/zoneWallClock.js';
 
 export const getDateString = (
@@ -8,9 +9,16 @@ export const getDateString = (
     timezone?: DateTimezone | null,
     inputDateTime: string | number | Date = ''
 ) => {
+    if (timezone)
+        return getDate({
+            date: inputDateTime,
+            format: returnFormat,
+            timezone,
+            ...(startOrEndOfDay === 'start' ? { startOf: 'day' } : {}),
+            ...(startOrEndOfDay === 'end' ? { endOf: 'day' } : {})
+        });
     let dateObject = inputDateTime && typeof inputDateTime !== 'number' ? dayjs(inputDateTime) : dayjs();
     dateObject = typeof inputDateTime === 'number' ? dayjs.unix(inputDateTime) : dateObject;
-    if (timezone) dateObject = dateObject.tz(timezone);
 
     dateObject = startOrEndOfDay === 'start' ? dateObject.startOf('day') : dateObject;
     dateObject = startOrEndOfDay === 'end' ? dateObject.endOf('day') : dateObject;

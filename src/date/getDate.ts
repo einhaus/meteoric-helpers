@@ -84,10 +84,11 @@ export const getDate = (config?: {
 
     if (operator && interval && intervalType) {
         const amount = operator === '+' ? interval : -interval;
-        if (inputTimezone && (intervalType === 'day' || intervalType === 'week' || intervalType === 'month' || intervalType === 'year')) {
+        const calendarZone = inputTimezone ?? timezone;
+        if (calendarZone && (intervalType === 'day' || intervalType === 'week' || intervalType === 'month' || intervalType === 'year')) {
             const sourceMs = dateObject.valueOf();
-            const calendar = dayjs.utc(getZoneCalendarMs(sourceMs, inputTimezone)).add(amount, intervalType);
-            dateObject = dayjs(resolveZoneCalendarMs(calendar.valueOf(), inputTimezone, sourceMs));
+            const calendar = dayjs.utc(getZoneCalendarMs(sourceMs, calendarZone)).add(amount, intervalType);
+            dateObject = dayjs(resolveZoneCalendarMs(calendar.valueOf(), calendarZone, sourceMs));
         } else {
             dateObject = dateObject.add(amount, intervalType);
         }
@@ -114,6 +115,7 @@ export const getDate = (config?: {
         if (endOf) dateObject = dateObject.endOf(endOf);
     }
 
+    if (returnFormat === 'yyyy') return dateObject.format('YYYY');
     let dateFormatted: string | number = returnFormat === 'ymd' ? dateObject.format(ymd) : '';
     dateFormatted = returnFormat === 'ymdhms' ? dateObject.format(ymdhms) : dateFormatted;
     dateFormatted = returnFormat === 'ymdhmss' ? dateObject.format(ymdhmss) : dateFormatted;

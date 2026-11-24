@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { getDate } from '../../src/date/getDate.js';
+import { getDiffBetweenDates } from '../../src/date/getDiffBetweenDates.js';
+import { getDateString } from '../../src/date/getDateString.js';
 import { getDateNumericalTime } from '../../src/date/getDateNumericalTime.js';
 import { getOpenOrCloseUnix } from '../../src/date/getOpenOrCloseUnix.js';
 import { getFridayMarketCloseUnix } from '../../src/date/getFridayMarketCloseUnix.js';
@@ -50,4 +52,21 @@ describe('exchange clocks', () => {
             expect(() => getDate({ date, inputTimezone: ny, format: 'iso' })).toThrow();
         }
     );
+});
+
+test.each([
+    ['2026-03-07T17:00:00Z', '2026-03-08T16:00:00.000Z'],
+    ['2026-10-31T16:00:00Z', '2026-11-01T17:00:00.000Z']
+])('adds a calendar day to an instant on the requested clock from %s', (date, nextNoon) => {
+    expect(getDate({ date, timezone: ny, operator: '+', interval: 1, intervalType: 'day', format: 'iso' })).toBe(nextNoon);
+});
+test('uses the requested zone for a calendar year and preserves the instant during a host spring gap', () => {
+    expect(getDate({ date: '2026-01-01T02:00:00Z', timezone: ny, format: 'yyyy' })).toBe('2025');
+    expect(getDateString('iso', null, 'Etc/UTC', epoch('2026-03-08T02:30:45Z'))).toBe('2026-03-08T02:30:45.000Z');
+});
+
+test('distinguishes civil calendar days and elapsed hours in a declared zone', () => {
+    expect(getDiffBetweenDates('2026-03-08 12:00:00', '2026-03-07 12:00:00', 'day', ny)).toBe(1);
+    expect(getDiffBetweenDates('2026-03-08 12:00:00', '2026-03-07 12:00:00', 'hour', ny)).toBe(23);
+    expect(getDiffBetweenDates('2026-11-01T01:30:00-05:00', '2026-11-01T01:30:00-04:00', 'hour', ny)).toBe(1);
 });

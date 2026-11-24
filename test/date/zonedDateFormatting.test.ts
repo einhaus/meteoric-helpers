@@ -57,8 +57,7 @@ describe.each(PROCESS_ZONES)('explicit-zone date helpers in a %s process', (proc
             iso: '2026-03-29T05:30:04.809Z',
             iso8601: '2026-03-29T01:30:04-04:00',
             unix: String(Math.floor(instantMs / 1000)),
-            // The existing explicit-date path does not implement yyyy; this timezone fix leaves that behavior alone.
-            yyyy: '',
+            yyyy: '2026',
             readable1: 'Sun, Mar 29, 2026 1:30 AM',
             readable2: 'Mar 29, 2026 1:30 AM',
             weekdayMonthDay: 'Sunday Mar 29',
@@ -171,16 +170,15 @@ describe.each(PROCESS_ZONES)('explicit-zone date helpers in a %s process', (proc
     });
 });
 
-describe('existing local parsing and arithmetic contracts', () => {
+describe('explicit calendar arithmetic and legacy bare input parsing', () => {
     it.each([
-        ['Etc/UTC', '2026-03-29 05:30:00', '2026-03-29T01:30:00.000Z', '2026-03-08T17:00:00.000Z'],
-        ['America/New_York', '2026-03-29 01:30:00', '2026-03-29T05:30:00.000Z', '2026-03-08T16:00:00.000Z'],
-        ['Europe/London', '2026-03-29 06:30:00', '2026-03-29T01:30:00.000Z', '2026-03-08T17:00:00.000Z']
-    ])('preserves local operations in %s', (zone, clock, parsed, incremented) => {
+        ['Etc/UTC', '2026-03-29 05:30:00', '2026-03-29T01:30:00.000Z'],
+        ['America/New_York', '2026-03-29 01:30:00', '2026-03-29T05:30:00.000Z'],
+        ['Europe/London', '2026-03-29 06:30:00', '2026-03-29T01:30:00.000Z']
+    ])('preserves local parsing and applies New York calendar days in %s', (zone, clock, parsed) => {
         inProcessZone(zone!, () => {
             expect(getDate({ date: LONDON_GAP, format: 'ymdhms' })).toBe(clock);
             expect(getDate({ date: '2026-03-29 01:30:00', timezone: 'America/New_York', format: 'iso' })).toBe(parsed);
-            // Arithmetic still happens in the input/process zone before the requested display-zone conversion.
             expect(
                 getDate({
                     date: '2026-03-07T17:00:00Z',
@@ -190,7 +188,7 @@ describe('existing local parsing and arithmetic contracts', () => {
                     timezone: 'America/New_York',
                     format: 'iso'
                 })
-            ).toBe(incremented);
+            ).toBe('2026-03-08T16:00:00.000Z');
         });
     });
 });
